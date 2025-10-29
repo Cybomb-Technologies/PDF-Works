@@ -17,6 +17,8 @@ import LoginPage from "@/components/LoginPage";
 import ToolsPage from "@/components/ToolsPage";
 import BillingPage from "@/components/BillingPage";
 import FilesPage from "@/components/FilesPage";
+import PricingPolicyPage from "@/components/PricingPolicyPage";
+import CheckoutPage from "./components/CheckoutPage";
 //import EditPdfPage from "@/components/EditPdfPage";
 import FaqPage from "@/components/FaqPage";
 import AboutPage from "@/components/AboutPage";
@@ -155,6 +157,8 @@ function AppContent() {
                     <Route path="/security" element={<SecurityPage />} />
                     <Route path="/privacy" element={<PrivacyPolicyPage />} />
                      <Route path="/refund-policy" element={ <RefundPolicy/>} />
+                    <Route path="/pricing-policy" element={ <PricingPolicyPage/>} />
+                    <Route path="/checkout/:planId" element={<CheckoutPage />} />
                    
                     <Route path="/terms" element={<TermsPage />} />
                     <Route path="/cookies" element={<CookiesPage />} />

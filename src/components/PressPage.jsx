@@ -13,7 +13,7 @@ const PressPage = () => {
     {
       date: "August 15, 2025",
       title: "PDF Pro Surpasses 10 Million Users Worldwide",
-      summary: "Celebrating a major milestone,pdfworks now serves over 10 million users, solidifying its position as a leading provider of online document solutions. The company attributes its rapid growth to its user-friendly design and powerful feature set."
+      summary: "Celebrating a major milestone, Pdf works now serves over 10 million users, solidifying its position as a leading provider of online document solutions. The company attributes its rapid growth to its user-friendly design and powerful feature set."
     },
     {
       date: "June 5, 2025",
@@ -30,7 +30,7 @@ const PressPage = () => {
         className="text-center mb-12"
       >
         <h1 className="text-5xl font-bold gradient-text">Press & Media</h1>
-        <p className="mt-4 text-lg text-gray-600">The latest news, announcements, and media resources frompdfworks.</p>
+        <p className="mt-4 text-lg text-gray-600">The latest news, announcements, and media resources from Pdf Works.</p>
       </motion.div>
 
       <div className="grid md:grid-cols-2 gap-8 items-start">

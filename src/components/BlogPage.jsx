@@ -48,7 +48,7 @@ const BlogPage = () => {
         className="text-center mb-12"
       >
         <h1 className="text-5xl font-bold gradient-text">From the Blog</h1>
-        <p className="mt-4 text-lg text-gray-600">Tips, tutorials, and updates from thepdfworks team.</p>
+        <p className="mt-4 text-lg text-gray-600">Tips, tutorials, and updates from thepdfworks (Cybomb Technologies LLP.) team.</p>
       </motion.div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

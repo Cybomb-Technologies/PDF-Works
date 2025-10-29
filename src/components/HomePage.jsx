@@ -77,7 +77,7 @@ const logos = [
         >
           <div className="glass-effect rounded-2xl p-2">
             <img class="rounded-xl shadow-2xl shadow-black/20"
-             alt="Screenshot of thepdfworks application dashboard showing various tools and a clean user interface"
+             alt="Screenshot of the pdfworks application dashboard showing various tools and a clean user interface"
               src="/pdf-works.jpg" />
           </div>
         </motion.div>
@@ -225,7 +225,7 @@ const logos = [
         <div className="max-w-3xl mx-auto">
           <h2 className="text-4xl font-bold gradient-text">Ready to Supercharge Your PDFs?</h2>
           <p className="mt-4 text-xl text-muted-foreground">
-            Join thousands of users who trustpdfworks for their document needs. Sign up for free and experience the difference.
+            Join thousands of users who trust pdfworks for their document needs. Sign up for free and experience the difference.
           </p>
           <div className="mt-8">
             <Link to="/tools">
