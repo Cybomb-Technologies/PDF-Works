@@ -111,7 +111,7 @@ const Footer = () => {
               <div className="flex items-center gap-3">
                 <Mail className="h-4 w-4 text-purple-600" />
                 <a 
-                  href="mailto:support@cybomb.com" 
+                  href="mailto:info@pdfworks.in" 
                   className="text-sm text-gray-600 hover:text-purple-600 transition-colors"
                 >
                   info@pdfworks.in
