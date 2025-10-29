@@ -4,9 +4,11 @@ import { Check, FileText, Zap, Crown, Building2, Download, Lock, Users, Star, Gl
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const BillingPage = () => {
   const { user, updateUser } = useAuth();
+  const navigate = useNavigate();
   const [billingCycle, setBillingCycle] = useState('annual');
   const [expandedFaq, setExpandedFaq] = useState(null);
   const [currency, setCurrency] = useState('USD'); // 'USD' or 'INR'
@@ -278,10 +280,13 @@ const BillingPage = () => {
       return;
     }
 
-    updateUser({ plan: planId });
-    toast({
-      title: "Plan updated! 🎉",
-      description: `You've successfully upgraded to the ${planId} plan`,
+    // For paid plans and enterprise, navigate to checkout
+    navigate(`/checkout/${planId}`, { 
+      state: { 
+        billingCycle,
+        currency,
+        exchangeRate
+      }
     });
   };
 
