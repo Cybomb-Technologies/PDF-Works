@@ -51,6 +51,11 @@ const ConvertTools = () => {
   const [downloadUrl, setDownloadUrl] = useState(null);
   const [fileSaved, setFileSaved] = useState(false);
 
+  // Get token from localStorage
+  const getToken = () => {
+    return localStorage.getItem("token");
+  };
+
   const handleToolClick = (tool) => {
     setSelectedTool(tool);
     setUploadedFile(null);
@@ -71,9 +76,16 @@ const ConvertTools = () => {
     }
   };
 
-  // Function to save converted file to My Files
+  // FIXED: Function to save converted file to My Files with authentication
   const saveToMyFiles = async (fileBlob, filename, toolUsed) => {
     try {
+      // Get token from localStorage
+      const token = getToken();
+
+      if (!token) {
+        return { success: false, error: "Please log in to save files" };
+      }
+
       // Convert blob to base64 for sending to backend
       const reader = new FileReader();
 
@@ -88,6 +100,7 @@ const ConvertTools = () => {
                 method: "POST",
                 headers: {
                   "Content-Type": "application/json",
+                  Authorization: `Bearer ${token}`,
                 },
                 body: JSON.stringify({
                   originalName: filename,
@@ -95,43 +108,41 @@ const ConvertTools = () => {
                   mimetype: fileBlob.type,
                   toolUsed: toolUsed,
                 }),
-                credentials: "include",
               }
             );
 
-            // Check if response is OK
             if (!saveResponse.ok) {
-              throw new Error(`HTTP error! status: ${saveResponse.status}`);
+              if (saveResponse.status === 401) {
+                localStorage.removeItem("token");
+                resolve({
+                  success: false,
+                  error: "Session expired. Please log in again.",
+                });
+                return;
+              }
+              throw new Error(`Failed to save file: ${saveResponse.status}`);
             }
 
             const saveResult = await saveResponse.json();
 
             if (saveResult.success) {
-              console.log("File saved to My Files:", saveResult.file);
               setFileSaved(true);
               resolve(saveResult);
             } else {
-              console.warn("Failed to save to My Files:", saveResult.error);
-              // Don't reject here - just warn and resolve anyway
-              // so conversion doesn't fail if saving fails
               resolve({ success: false, error: saveResult.error });
             }
           } catch (error) {
-            console.warn("Error saving to My Files:", error);
-            // Resolve instead of reject to prevent conversion failure
             resolve({ success: false, error: error.message });
           }
         };
 
         reader.onerror = () => {
-          console.warn("File reading failed for My Files save");
           resolve({ success: false, error: "File reading failed" });
         };
 
         reader.readAsDataURL(fileBlob);
       });
     } catch (error) {
-      console.warn("Save to My Files error:", error);
       return { success: false, error: error.message };
     }
   };
@@ -145,6 +156,13 @@ const ConvertTools = () => {
     setFileSaved(false);
 
     try {
+      const token = getToken();
+      if (!token) {
+        alert("Please log in to convert files");
+        setIsConverting(false);
+        return;
+      }
+
       const formData = new FormData();
       formData.append("file", uploadedFile);
 
@@ -165,17 +183,12 @@ const ConvertTools = () => {
           throw new Error("Invalid tool selected");
       }
 
-      console.log(
-        "Converting:",
-        uploadedFile.name,
-        "with tool:",
-        selectedTool.name
-      );
-
       const response = await fetch(`${API_URL}${endpoint}`, {
         method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
         body: formData,
-        credentials: "include",
       });
 
       const contentType = response.headers.get("content-type");
@@ -213,7 +226,12 @@ const ConvertTools = () => {
           // If the result contains a download URL, create object URL for preview
           if (result.downloadUrl) {
             const downloadResponse = await fetch(
-              `${API_URL}${result.downloadUrl}`
+              `${API_URL}${result.downloadUrl}`,
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
+              }
             );
             blob = await downloadResponse.blob();
             const url = window.URL.createObjectURL(blob);
@@ -246,7 +264,6 @@ const ConvertTools = () => {
         try {
           await saveToMyFiles(blob, filename, selectedTool.id);
         } catch (saveError) {
-          console.warn("Failed to save to My Files:", saveError);
           // Don't fail the conversion if saving fails
         }
       }
@@ -257,7 +274,6 @@ const ConvertTools = () => {
         downloadUrl: downloadUrl,
       });
     } catch (error) {
-      console.error("Conversion error:", error);
       alert(`Conversion failed: ${error.message}`);
     } finally {
       setIsConverting(false);
@@ -268,7 +284,10 @@ const ConvertTools = () => {
     if (!conversionResult || !downloadUrl) return;
 
     try {
-      const response = await fetch(downloadUrl);
+      const token = getToken();
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+      const response = await fetch(downloadUrl, { headers });
       const blob = await response.blob();
 
       const a = document.createElement("a");
@@ -278,10 +297,7 @@ const ConvertTools = () => {
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-
-      console.log("Download successful:", conversionResult.convertedFilename);
     } catch (error) {
-      console.error("Download error:", error);
       alert(`Download failed: ${error.message}`);
     }
   };
@@ -461,34 +477,33 @@ const ConvertTools = () => {
 
   return (
     <div className="flex justify-start w-full">
-  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
-    {tools.map((tool, i) => {
-      const Icon = tool.icon;
-      return (
-        <motion.div
-          key={tool.id}
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: i * 0.05 }}
-          whileHover={{ scale: 1.05, y: -5 }}
-          onClick={() => handleToolClick(tool)}
-          className="glass-effect rounded-2xl p-6 cursor-pointer transition-all group h-full flex flex-col"
-        >
-          <div
-            className={`w-14 h-14 rounded-xl bg-gradient-to-br ${tool.color} flex items-center justify-center mb-4`}
-          >
-            <Icon className="h-7 w-7 text-white" />
-          </div>
-          <h3 className="text-lg font-bold mb-2">{tool.name}</h3>
-          <p className="text-sm text-muted-foreground flex-grow">
-            {tool.description}
-          </p>
-        </motion.div>
-      );
-    })}
-  </div>
-</div>
-
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
+        {tools.map((tool, i) => {
+          const Icon = tool.icon;
+          return (
+            <motion.div
+              key={tool.id}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: i * 0.05 }}
+              whileHover={{ scale: 1.05, y: -5 }}
+              onClick={() => handleToolClick(tool)}
+              className="glass-effect rounded-2xl p-6 cursor-pointer transition-all group h-full flex flex-col"
+            >
+              <div
+                className={`w-14 h-14 rounded-xl bg-gradient-to-br ${tool.color} flex items-center justify-center mb-4`}
+              >
+                <Icon className="h-7 w-7 text-white" />
+              </div>
+              <h3 className="text-lg font-bold mb-2">{tool.name}</h3>
+              <p className="text-sm text-muted-foreground flex-grow">
+                {tool.description}
+              </p>
+            </motion.div>
+          );
+        })}
+      </div>
+    </div>
   );
 };
 

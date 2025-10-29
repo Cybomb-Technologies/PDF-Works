@@ -49,6 +49,11 @@ const OrganizeTools = () => {
   const [showPreview, setShowPreview] = useState(false);
   const [fileSaved, setFileSaved] = useState(false);
 
+  // Get token from localStorage
+  const getToken = () => {
+    return localStorage.getItem("token");
+  };
+
   const handleToolClick = (tool) => {
     setSelectedTool(tool);
     setFiles([]);
@@ -72,9 +77,16 @@ const OrganizeTools = () => {
     setRotationSide(e.target.value);
   };
 
-  // NEW: Function to save organized file to My Files
+  // Function to save organized file to My Files with token
   const saveToMyFiles = async (fileBlob, filename, toolUsed) => {
     try {
+      // Get token from localStorage
+      const token = getToken();
+
+      if (!token) {
+        return { success: false, error: "Please log in to save files" };
+      }
+
       // Convert blob to base64 for sending to backend
       const reader = new FileReader();
 
@@ -89,6 +101,7 @@ const OrganizeTools = () => {
                 method: "POST",
                 headers: {
                   "Content-Type": "application/json",
+                  Authorization: `Bearer ${token}`,
                 },
                 body: JSON.stringify({
                   originalName: filename,
@@ -96,43 +109,41 @@ const OrganizeTools = () => {
                   mimetype: fileBlob.type,
                   toolUsed: toolUsed,
                 }),
-                credentials: "include",
               }
             );
 
-            // Check if response is OK
             if (!saveResponse.ok) {
-              throw new Error(`HTTP error! status: ${saveResponse.status}`);
+              if (saveResponse.status === 401) {
+                localStorage.removeItem("token");
+                resolve({
+                  success: false,
+                  error: "Session expired. Please log in again.",
+                });
+                return;
+              }
+              throw new Error(`Failed to save file: ${saveResponse.status}`);
             }
 
             const saveResult = await saveResponse.json();
 
             if (saveResult.success) {
-              console.log("File saved to My Files:", saveResult.file);
               setFileSaved(true);
               resolve(saveResult);
             } else {
-              console.warn("Failed to save to My Files:", saveResult.error);
-              // Don't reject here - just warn and resolve anyway
-              // so processing doesn't fail if saving fails
               resolve({ success: false, error: saveResult.error });
             }
           } catch (error) {
-            console.warn("Error saving to My Files:", error);
-            // Resolve instead of reject to prevent processing failure
             resolve({ success: false, error: error.message });
           }
         };
 
         reader.onerror = () => {
-          console.warn("File reading failed for My Files save");
           resolve({ success: false, error: "File reading failed" });
         };
 
         reader.readAsDataURL(fileBlob);
       });
     } catch (error) {
-      console.warn("Save to My Files error:", error);
       return { success: false, error: error.message };
     }
   };
@@ -170,26 +181,23 @@ const OrganizeTools = () => {
         {
           method: "POST",
           body: formData,
-          credentials: "include",
         }
       );
 
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Error: ${response.statusText} - ${errorText}`);
+        throw new Error(`Failed to process PDF: ${response.statusText}`);
       }
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       setDownloadUrl(url);
 
-      // NEW: Check if file was saved automatically by backend
+      // Check if file was saved automatically by backend
       const fileSavedByBackend =
         response.headers.get("X-File-Saved") === "true";
 
       if (fileSavedByBackend) {
         setFileSaved(true);
-        console.log("File automatically saved to My Files by backend");
       } else {
         // If backend didn't save it, save it from frontend
         try {
@@ -199,13 +207,11 @@ const OrganizeTools = () => {
             selectedTool.id
           );
         } catch (saveError) {
-          console.warn("Failed to save to My Files:", saveError);
           // Don't fail the processing if saving fails
         }
       }
     } catch (err) {
-      console.error("Processing failed:", err);
-      setError("Failed to process PDF. " + err.message);
+      setError("Failed to process PDF. Please try again.");
     } finally {
       setProcessing(false);
     }
@@ -291,7 +297,7 @@ const OrganizeTools = () => {
               Download PDF
             </a>
 
-            {/* Start Over Button with improved padding */}
+            {/* Start Over Button */}
             <div className="mt-6 pt-4 border-t border-gray-200">
               <button
                 onClick={() => {
@@ -427,35 +433,34 @@ const OrganizeTools = () => {
   }
 
   return (
-   <div className="flex justify-start w-full">
-  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
-    {tools.map((tool, i) => {
-      const Icon = tool.icon;
-      return (
-        <motion.div
-          key={tool.id}
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: i * 0.05 }}
-          whileHover={{ scale: 1.05, y: -5 }}
-          onClick={() => handleToolClick(tool)}
-          className="glass-effect rounded-2xl p-6 cursor-pointer transition-all group h-full flex flex-col"
-        >
-          <div
-            className={`w-14 h-14 rounded-xl bg-gradient-to-br ${tool.color} flex items-center justify-center mb-4`}
-          >
-            <Icon className="h-7 w-7 text-white" />
-          </div>
-          <h3 className="text-lg font-bold mb-2">{tool.name}</h3>
-          <p className="text-sm text-muted-foreground flex-grow">
-            {tool.description}
-          </p>
-        </motion.div>
-      );
-    })}
-  </div>
-</div>
-
+    <div className="flex justify-start w-full">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
+        {tools.map((tool, i) => {
+          const Icon = tool.icon;
+          return (
+            <motion.div
+              key={tool.id}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: i * 0.05 }}
+              whileHover={{ scale: 1.05, y: -5 }}
+              onClick={() => handleToolClick(tool)}
+              className="glass-effect rounded-2xl p-6 cursor-pointer transition-all group h-full flex flex-col"
+            >
+              <div
+                className={`w-14 h-14 rounded-xl bg-gradient-to-br ${tool.color} flex items-center justify-center mb-4`}
+              >
+                <Icon className="h-7 w-7 text-white" />
+              </div>
+              <h3 className="text-lg font-bold mb-2">{tool.name}</h3>
+              <p className="text-sm text-muted-foreground flex-grow">
+                {tool.description}
+              </p>
+            </motion.div>
+          );
+        })}
+      </div>
+    </div>
   );
 };
 

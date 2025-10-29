@@ -19,6 +19,14 @@ const saveConvertedFile = async (req, res) => {
       });
     }
 
+    // Check if user is authenticated (using your verifyToken middleware)
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({
+        success: false,
+        error: "User authentication required",
+      });
+    }
+
     // Convert base64 to buffer if needed
     let fileData;
     if (typeof fileBuffer === "string" && fileBuffer.startsWith("data:")) {
@@ -47,8 +55,8 @@ const saveConvertedFile = async (req, res) => {
     // Save file to disk
     await fs.writeFile(filePath, fileData);
 
-    // TEMPORARY: Use a default user ID for testing if not available
-    const uploadedBy = req.user ? req.user.id : "65d8f1a9e4b3c12a7c8d4e21";
+    // Use the authenticated user's ID from verifyToken middleware
+    const uploadedBy = req.user.id;
 
     // Save file info to database
     const fileRecord = new File({
@@ -87,8 +95,16 @@ const saveConvertedFile = async (req, res) => {
 // Get user files
 const getUserFiles = async (req, res) => {
   try {
-    // TEMPORARY: Use a default user ID for testing if not available
-    const userId = req.user ? req.user.id : "65d8f1a9e4b3c12a7c8d4e21";
+    // Check if user is authenticated (using your verifyToken middleware)
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({
+        success: false,
+        error: "User authentication required",
+      });
+    }
+
+    // Use the authenticated user's ID from verifyToken middleware
+    const userId = req.user.id;
 
     const userFiles = await File.find({ uploadedBy: userId })
       .sort({ uploadedAt: -1 })
@@ -118,8 +134,17 @@ const getUserFiles = async (req, res) => {
 const deleteFile = async (req, res) => {
   try {
     const fileId = req.params.id;
-    // TEMPORARY: Use a default user ID for testing if not available
-    const userId = req.user ? req.user.id : "65d8f1a9e4b3c12a7c8d4e21";
+
+    // Check if user is authenticated (using your verifyToken middleware)
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({
+        success: false,
+        error: "User authentication required",
+      });
+    }
+
+    // Use the authenticated user's ID from verifyToken middleware
+    const userId = req.user.id;
 
     const file = await File.findOne({ _id: fileId, uploadedBy: userId });
     if (!file) {

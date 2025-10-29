@@ -3,6 +3,8 @@ import { motion } from "framer-motion";
 import { Gauge, Trash2, Code2, Copy, Check, Download } from "lucide-react";
 import imageCompression from "browser-image-compression";
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 // --- Tools List ---
 const tools = [
   {
@@ -67,16 +69,83 @@ const handleCacheClean = () => {
   }
 };
 
+// --- Function: Save Optimized Image to My Files ---
+const saveToMyFiles = async (fileBlob, filename, toolUsed) => {
+  try {
+    // Get token from localStorage
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      return { success: false, error: "Please log in to save files" };
+    }
+
+    // Convert blob to base64 for sending to backend
+    const reader = new FileReader();
+
+    return new Promise((resolve, reject) => {
+      reader.onloadend = async () => {
+        const base64data = reader.result;
+
+        try {
+          const saveResponse = await fetch(
+            `${API_URL}/api/files/save-converted`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({
+                originalName: filename,
+                fileBuffer: base64data,
+                mimetype: fileBlob.type,
+                toolUsed: toolUsed,
+              }),
+            }
+          );
+
+          if (!saveResponse.ok) {
+            if (saveResponse.status === 401) {
+              localStorage.removeItem("token");
+              resolve({
+                success: false,
+                error: "Session expired. Please log in again.",
+              });
+              return;
+            }
+            throw new Error(`Failed to save file: ${saveResponse.status}`);
+          }
+
+          const saveResult = await saveResponse.json();
+          resolve(saveResult);
+        } catch (error) {
+          resolve({ success: false, error: error.message });
+        }
+      };
+
+      reader.onerror = () => {
+        resolve({ success: false, error: "File reading failed" });
+      };
+
+      reader.readAsDataURL(fileBlob);
+    });
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+};
+
 // --- Modal: Image Optimizer ---
 const ImageOptimizerModal = ({ isOpen, onClose }) => {
   const [file, setFile] = useState(null);
   const [compressedBlob, setCompressedBlob] = useState(null);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [fileSaved, setFileSaved] = useState(false);
 
   const handleImageOptimize = async () => {
     if (!file) return;
     setLoading(true);
+    setFileSaved(false);
     try {
       const options = {
         maxSizeMB: 0.5,
@@ -100,8 +169,27 @@ const ImageOptimizerModal = ({ isOpen, onClose }) => {
         reduced: reduced.toFixed(2),
         percent,
       });
+
+      // Save the optimized image to My Files
+      try {
+        const saveResult = await saveToMyFiles(
+          compressedFile,
+          `optimized-${file.name}`,
+          "image-optimizer"
+        );
+
+        if (saveResult.success) {
+          setFileSaved(true);
+        } else {
+          console.warn("Failed to save file to My Files:", saveResult.error);
+        }
+      } catch (saveError) {
+        console.warn("Failed to save file to My Files:", saveError);
+        // Don't fail the optimization if saving fails
+      }
     } catch (error) {
       console.error("❌ Image optimization failed:", error);
+      alert("Image optimization failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -113,6 +201,18 @@ const ImageOptimizerModal = ({ isOpen, onClose }) => {
     link.href = compressedBlob;
     link.download = `optimized-${file.name}`;
     link.click();
+  };
+
+  const resetModal = () => {
+    setFile(null);
+    setCompressedBlob(null);
+    setStats(null);
+    setFileSaved(false);
+  };
+
+  const handleClose = () => {
+    resetModal();
+    onClose();
   };
 
   if (!isOpen) return null;
@@ -127,7 +227,7 @@ const ImageOptimizerModal = ({ isOpen, onClose }) => {
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">Image Optimizer</h2>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="text-gray-400 hover:text-white text-lg"
           >
             ✕
@@ -135,11 +235,25 @@ const ImageOptimizerModal = ({ isOpen, onClose }) => {
         </div>
 
         <div className="space-y-4">
+          {/* File Saved Status */}
+          {fileSaved && (
+            <div className="p-3 bg-green-900 border border-green-700 rounded-lg">
+              <p className="text-green-400 text-sm font-medium">
+                ✅ File automatically saved to <strong>My Files</strong> section
+              </p>
+            </div>
+          )}
+
           {/* File Input */}
           <input
             type="file"
             accept="image/*"
-            onChange={(e) => setFile(e.target.files[0])}
+            onChange={(e) => {
+              setFile(e.target.files[0]);
+              setCompressedBlob(null);
+              setStats(null);
+              setFileSaved(false);
+            }}
             className="w-full text-sm text-gray-300 border border-gray-600 rounded-lg px-3 py-2 cursor-pointer bg-gray-800"
           />
 
@@ -161,7 +275,8 @@ const ImageOptimizerModal = ({ isOpen, onClose }) => {
               </p>
               <p>
                 <strong>Reduced:</strong> {stats.reduced} KB (
-                <span className="text-green-400">{stats.percent}% smaller</span>)
+                <span className="text-green-400">{stats.percent}% smaller</span>
+                )
               </p>
             </div>
           )}
@@ -173,6 +288,16 @@ const ImageOptimizerModal = ({ isOpen, onClose }) => {
             >
               <Download className="h-5 w-5" />
               Download Optimized Image
+            </button>
+          )}
+
+          {/* Start Over Button */}
+          {compressedBlob && (
+            <button
+              onClick={resetModal}
+              className="w-full px-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-gray-700 rounded-lg transition-colors border border-gray-600"
+            >
+              Optimize Another Image
             </button>
           )}
         </div>
@@ -282,7 +407,9 @@ const CodeMinifierModal = ({ isOpen, onClose }) => {
           {/* Output Section */}
           <div className="space-y-4">
             <div className="flex justify-between items-center">
-              <label className="block text-sm font-medium">Minified Output</label>
+              <label className="block text-sm font-medium">
+                Minified Output
+              </label>
               {minifiedResult && (
                 <button
                   onClick={handleCopy}
@@ -309,7 +436,8 @@ const CodeMinifierModal = ({ isOpen, onClose }) => {
               {minifiedResult && (
                 <div className="absolute top-2 right-2">
                   <span className="bg-green-500 text-xs px-2 py-1 rounded">
-                    {Math.round((minifiedResult.length / code.length) * 100)}% smaller
+                    {Math.round((minifiedResult.length / code.length) * 100)}%
+                    smaller
                   </span>
                 </div>
               )}
@@ -339,7 +467,9 @@ const OptimizeTools = () => {
     if (tool.id === "code-minify") setCodeMinifierOpen(true);
     if (tool.id === "cache-clean") {
       if (
-        confirm("Are you sure you want to clear all cache? This will reload the page.")
+        confirm(
+          "Are you sure you want to clear all cache? This will reload the page."
+        )
       )
         handleCacheClean();
     }
@@ -367,7 +497,9 @@ const OptimizeTools = () => {
                 <Icon className="h-7 w-7 text-white" />
               </div>
               <h3 className="text-lg font-bold mb-2">{tool.name}</h3>
-              <p className="text-sm text-gray-400 flex-grow">{tool.description}</p>
+              <p className="text-sm text-gray-400 flex-grow">
+                {tool.description}
+              </p>
             </motion.div>
           );
         })}

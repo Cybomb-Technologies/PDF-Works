@@ -1,98 +1,110 @@
-import React, { useState, useRef } from 'react';
-import { motion } from 'framer-motion';
-import { Download, Upload, Edit3, X, FileText, Eye, EyeOff, RotateCcw } from 'lucide-react';
+import React, { useState, useRef } from "react";
+import { motion } from "framer-motion";
+import {
+  Download,
+  Upload,
+  Edit3,
+  X,
+  FileText,
+  Eye,
+  EyeOff,
+  RotateCcw,
+} from "lucide-react";
 
 const FileRename = () => {
   const [files, setFiles] = useState([]);
-  const [pattern, setPattern] = useState('file_{index}');
+  const [pattern, setPattern] = useState("file_{index}");
   const [isProcessing, setIsProcessing] = useState(false);
   const [renamedFiles, setRenamedFiles] = useState([]);
   const [showPreview, setShowPreview] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const fileInputRef = useRef(null);
 
   const handleFileUpload = (event) => {
     const newFiles = Array.from(event.target.files);
-    const fileObjects = newFiles.map(file => ({
+    const fileObjects = newFiles.map((file) => ({
       file,
       originalName: file.name,
       newName: file.name, // Start with original name
       size: file.size,
       type: file.type,
-      url: URL.createObjectURL(file)
+      url: URL.createObjectURL(file),
     }));
-    setFiles(prev => [...prev, ...fileObjects]);
-    setError('');
+    setFiles((prev) => [...prev, ...fileObjects]);
+    setError("");
   };
 
   const removeFile = (index) => {
-    setFiles(prev => prev.filter((_, i) => i !== index));
+    setFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const generateNewFilename = (originalName, index, pattern) => {
-    const extension = originalName.slice(originalName.lastIndexOf('.'));
-    const nameWithoutExt = originalName.slice(0, originalName.lastIndexOf('.'));
-    
+    const extension = originalName.slice(originalName.lastIndexOf("."));
+    const nameWithoutExt = originalName.slice(0, originalName.lastIndexOf("."));
+
     let newName = pattern
       .replace(/{original}/g, nameWithoutExt)
-      .replace(/{index}/g, (index + 1).toString().padStart(2, '0'))
+      .replace(/{index}/g, (index + 1).toString().padStart(2, "0"))
       .replace(/{timestamp}/g, Date.now().toString())
-      .replace(/{date}/g, new Date().toISOString().split('T')[0]);
-    
+      .replace(/{date}/g, new Date().toISOString().split("T")[0]);
+
     return newName + extension;
   };
 
   const previewRename = () => {
     if (files.length === 0) {
-      setError('Please upload files first');
+      setError("Please upload files first");
       return;
     }
 
     if (!pattern.trim()) {
-      setError('Please enter a naming pattern');
+      setError("Please enter a naming pattern");
       return;
     }
 
     const updatedFiles = files.map((fileObj, index) => ({
       ...fileObj,
-      newName: generateNewFilename(fileObj.originalName, index, pattern)
+      newName: generateNewFilename(fileObj.originalName, index, pattern),
     }));
 
     setFiles(updatedFiles);
     setRenamedFiles(updatedFiles);
     setShowPreview(true);
-    setError('');
+    setError("");
   };
 
   const handleRename = () => {
     if (files.length === 0) {
-      setError('Please upload files first');
+      setError("Please upload files first");
       return;
     }
 
     setIsProcessing(true);
-    setError('');
+    setError("");
 
     try {
       // Process each file for download
-      const processedFiles = files.map(fileObj => ({
+      const processedFiles = files.map((fileObj) => ({
         ...fileObj,
-        newName: generateNewFilename(fileObj.originalName, files.indexOf(fileObj), pattern)
+        newName: generateNewFilename(
+          fileObj.originalName,
+          files.indexOf(fileObj),
+          pattern
+        ),
       }));
 
       setFiles(processedFiles);
       setRenamedFiles(processedFiles);
-      
     } catch (error) {
-      console.error('Error:', error);
-      setError('Failed to rename files: ' + error.message);
+      console.error("Error:", error);
+      setError("Failed to rename files: " + error.message);
     } finally {
       setIsProcessing(false);
     }
   };
 
   const downloadFile = (fileObj) => {
-    const link = document.createElement('a');
+    const link = document.createElement("a");
     link.href = fileObj.url;
     link.download = fileObj.newName;
     document.body.appendChild(link);
@@ -110,38 +122,38 @@ const FileRename = () => {
 
   const handleReset = () => {
     // Clean up object URLs
-    files.forEach(fileObj => {
+    files.forEach((fileObj) => {
       if (fileObj.url) {
         URL.revokeObjectURL(fileObj.url);
       }
     });
-    
+
     setFiles([]);
     setRenamedFiles([]);
     setShowPreview(false);
-    setError('');
-    setPattern('file_{index}');
+    setError("");
+    setPattern("file_{index}");
     if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+      fileInputRef.current.value = "";
     }
   };
 
   const formatFileSize = (bytes) => {
-    if (bytes === 0) return '0 Bytes';
+    if (bytes === 0) return "0 Bytes";
     const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const sizes = ["Bytes", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
   const getFileIcon = (fileType) => {
-    if (fileType.startsWith('image/')) return '🖼️';
-    if (fileType.includes('pdf')) return '📄';
-    if (fileType.includes('word') || fileType.includes('document')) return '📝';
-    if (fileType.includes('zip') || fileType.includes('archive')) return '📦';
-    if (fileType.includes('video')) return '🎬';
-    if (fileType.includes('audio')) return '🎵';
-    return '📁';
+    if (fileType.startsWith("image/")) return "🖼️";
+    if (fileType.includes("pdf")) return "📄";
+    if (fileType.includes("word") || fileType.includes("document")) return "📝";
+    if (fileType.includes("zip") || fileType.includes("archive")) return "📦";
+    if (fileType.includes("video")) return "🎬";
+    if (fileType.includes("audio")) return "🎵";
+    return "📁";
   };
 
   return (
@@ -156,21 +168,27 @@ const FileRename = () => {
         </div>
         <div>
           <h2 className="text-xl font-bold">File Rename</h2>
-          <p className="text-sm text-muted-foreground">Batch rename your files - No server needed</p>
+          <p className="text-sm text-muted-foreground">
+            Batch rename your files - No server needed
+          </p>
         </div>
       </div>
 
       {renamedFiles.length > 0 ? (
         <div className="text-center mt-8">
           <h3 className="text-lg font-bold mb-4">Your files are renamed! 🎉</h3>
-          
+
           {/* Preview Toggle */}
           <div className="flex justify-center mb-4">
             <button
               onClick={() => setShowPreview(!showPreview)}
               className="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
             >
-              {showPreview ? <EyeOff className="h-4 w-4 mr-2" /> : <Eye className="h-4 w-4 mr-2" />}
+              {showPreview ? (
+                <EyeOff className="h-4 w-4 mr-2" />
+              ) : (
+                <Eye className="h-4 w-4 mr-2" />
+              )}
               {showPreview ? "Hide Preview" : "Show Preview"}
             </button>
           </div>
@@ -178,17 +196,21 @@ const FileRename = () => {
           {/* Renamed Files Preview */}
           {showPreview && (
             <div className="mb-6 p-4 border border-gray-300 rounded-lg bg-white">
-              <h4 className="text-sm font-semibold mb-3 text-center">Renamed Files</h4>
+              <h4 className="text-sm font-semibold mb-3 text-center">
+                Renamed Files
+              </h4>
               <div className="space-y-2 max-h-60 overflow-y-auto">
                 {renamedFiles.map((fileObj, index) => (
-                  <div 
-                    key={index} 
+                  <div
+                    key={index}
                     className="p-3 border border-gray-200 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors"
                   >
                     <div className="text-sm">
                       <div className="flex items-center gap-2 text-gray-500 mb-1">
                         <FileText className="h-3 w-3" />
-                        <span className="line-through text-xs">{fileObj.originalName}</span>
+                        <span className="line-through text-xs">
+                          {fileObj.originalName}
+                        </span>
                       </div>
                       <div className="flex items-center gap-2 font-medium text-green-600">
                         <Edit3 className="h-3 w-3" />
@@ -250,7 +272,9 @@ const FileRename = () => {
             />
           </label>
 
-          {error && <p className="text-red-500 text-sm text-center mb-4">{error}</p>}
+          {error && (
+            <p className="text-red-500 text-sm text-center mb-4">{error}</p>
+          )}
 
           {/* File List */}
           {files.length > 0 && (
@@ -268,18 +292,21 @@ const FileRename = () => {
               </div>
               <div className="space-y-2 max-h-60 overflow-y-auto">
                 {files.map((fileObj, index) => (
-                  <div 
-                    key={index} 
+                  <div
+                    key={index}
                     className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                   >
                     <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <span className="text-lg">{getFileIcon(fileObj.type)}</span>
+                      <span className="text-lg">
+                        {getFileIcon(fileObj.type)}
+                      </span>
                       <div className="min-w-0 flex-1">
                         <div className="text-sm font-medium truncate">
                           {fileObj.originalName}
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          {formatFileSize(fileObj.size)} • {fileObj.type || 'Unknown type'}
+                          {formatFileSize(fileObj.size)} •{" "}
+                          {fileObj.type || "Unknown type"}
                         </div>
                       </div>
                     </div>
@@ -298,7 +325,9 @@ const FileRename = () => {
 
           {/* Naming Pattern */}
           <div className="mb-6">
-            <label className="block text-sm font-medium mb-2">Naming Pattern</label>
+            <label className="block text-sm font-medium mb-2">
+              Naming Pattern
+            </label>
             <input
               type="text"
               value={pattern}
@@ -322,7 +351,9 @@ const FileRename = () => {
                   &#123;date&#125;
                 </code>
               </div>
-              <p className="text-green-600 font-medium">✓ All processing happens in your browser</p>
+              <p className="text-green-600 font-medium">
+                ✓ All processing happens in your browser
+              </p>
             </div>
           </div>
 
