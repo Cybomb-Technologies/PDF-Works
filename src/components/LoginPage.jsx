@@ -8,13 +8,15 @@ import { toast } from "@/components/ui/use-toast";
 import { Helmet } from "react-helmet";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import ForgotPasswordForm from "./ForgotPasswordForm"; // Import the new component
+import ForgotPasswordForm from "./ForgotPasswordForm";
+
 const API_URL1 = import.meta.env.VITE_API_URL;
 
 const LoginPage = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [forgotPassword, setForgotPassword] = useState(false);
   const [forgotPasswordStep, setForgotPasswordStep] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -28,6 +30,7 @@ const LoginPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsLoading(true);
 
     try {
       const API_URL = `${API_URL1}/api/auth`;
@@ -42,6 +45,7 @@ const LoginPage = () => {
           description: "Please fill in all fields",
           variant: "destructive",
         });
+        setIsLoading(false);
         return;
       }
 
@@ -54,15 +58,41 @@ const LoginPage = () => {
       const result = await response.json();
 
       if (result.success) {
-        loginBackend(result.admin || result.user, result.token || "");
-        toast({
-          title: isLogin ? "Welcome back! 🎉" : "Account created! 🎉",
-          description:
-            result.message ||
-            (isLogin ? "Login successful" : "Registration successful"),
-        });
-        navigate("/");
-        window.location.reload();
+        if (isLogin) {
+          // Handle login success
+          if (result.token) {
+            localStorage.setItem("token", result.token);
+          }
+
+          const userData = result.admin || result.user;
+          if (userData && result.token) {
+            loginBackend(userData, result.token);
+          }
+
+          toast({
+            title: "Welcome back! 🎉",
+            description: result.message || "Login successful",
+          });
+
+          // Navigate to files page
+          navigate("/");
+        } else {
+          // Handle registration success - switch to login mode
+          toast({
+            title: "Account created! 🎉",
+            description:
+              result.message ||
+              "Registration successful. Please login with your credentials.",
+          });
+
+          // Clear form data and switch to login mode
+          setFormData({
+            ...formData,
+            password: "", // Clear password but keep email
+            name: "", // Clear name
+          });
+          setIsLogin(true); // Switch to login form
+        }
       } else {
         toast({
           title: "Error",
@@ -71,12 +101,13 @@ const LoginPage = () => {
         });
       }
     } catch (error) {
-      console.error("Server error:", error);
       toast({
         title: "Server Error",
         description: "Unable to connect to backend",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -111,6 +142,8 @@ const LoginPage = () => {
                     setFormData({ ...formData, name: e.target.value })
                   }
                   className="pl-10"
+                  required
+                  disabled={isLoading}
                 />
               </div>
             </div>
@@ -129,6 +162,8 @@ const LoginPage = () => {
                   setFormData({ ...formData, email: e.target.value })
                 }
                 className="pl-10"
+                required
+                disabled={isLoading}
               />
             </div>
           </div>
@@ -146,6 +181,9 @@ const LoginPage = () => {
                   setFormData({ ...formData, password: e.target.value })
                 }
                 className="pl-10"
+                required
+                minLength={6}
+                disabled={isLoading}
               />
             </div>
           </div>
@@ -155,7 +193,8 @@ const LoginPage = () => {
               <button
                 type="button"
                 onClick={() => setForgotPassword(true)}
-                className="text-sm text-purple-600 hover:text-purple-700 font-medium"
+                className="text-sm text-purple-600 hover:text-purple-700 font-medium disabled:opacity-50"
+                disabled={isLoading}
               >
                 Forgot your password?
               </button>
@@ -165,15 +204,33 @@ const LoginPage = () => {
           <Button
             type="submit"
             className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold"
+            disabled={isLoading}
           >
-            {isLogin ? "Login" : "Create Account"}
+            {isLoading ? (
+              <div className="flex items-center">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                {isLogin ? "Logging in..." : "Creating Account..."}
+              </div>
+            ) : isLogin ? (
+              "Login"
+            ) : (
+              "Create Account"
+            )}
           </Button>
         </form>
 
         <div className="mt-6 text-center">
           <button
-            onClick={() => setIsLogin(!isLogin)}
-            className="text-purple-600 hover:text-purple-700 font-medium"
+            onClick={() => {
+              setIsLogin(!isLogin);
+              setFormData({
+                ...formData,
+                password: "", // Clear password when switching
+                name: !isLogin ? "" : formData.name, // Clear name only when switching to login
+              });
+            }}
+            className="text-purple-600 hover:text-purple-700 font-medium disabled:opacity-50"
+            disabled={isLoading}
           >
             {isLogin
               ? "Don't have an account? Sign up"
@@ -189,7 +246,7 @@ const LoginPage = () => {
       <Helmet>
         <title>
           {forgotPassword ? "Reset Password" : isLogin ? "Login" : "Sign Up"} -
-         pdfworks
+          pdfworks
         </title>
       </Helmet>
 
@@ -211,6 +268,14 @@ const LoginPage = () => {
             ? "Welcome Back!"
             : "Create Account"}
         </h1>
+
+        <p className="text-center text-gray-600 mb-6">
+          {forgotPassword
+            ? "Reset your password in simple steps"
+            : isLogin
+            ? "Sign in to access your files"
+            : "Join us to start managing your PDF files"}
+        </p>
 
         {forgotPassword ? (
           <ForgotPasswordForm

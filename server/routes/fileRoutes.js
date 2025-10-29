@@ -1,19 +1,14 @@
 const express = require("express");
 const router = express.Router();
 const fileController = require("../controllers/fileController");
-// const auth = require("../middleware/auth"); // Commented out for testing
+const { verifyToken } = require("../middleware/authMiddleware"); // Use your actual auth middleware
 
-// TEMPORARY: Remove auth middleware to test
-// Save converted file
-router.post("/save-converted", fileController.saveConvertedFile);
+// Apply verifyToken middleware to all file routes
+router.post("/save-converted", verifyToken, fileController.saveConvertedFile);
+router.get("/", verifyToken, fileController.getUserFiles);
+router.delete("/:id", verifyToken, fileController.deleteFile);
 
-// Get user files
-router.get("/", fileController.getUserFiles);
-
-// Delete file
-router.delete("/:id", fileController.deleteFile);
-
-// Test route
+// Test route (optional - you can keep this public or protect it too)
 router.get("/test", (req, res) => {
   res.json({ message: "File routes are working!" });
 });

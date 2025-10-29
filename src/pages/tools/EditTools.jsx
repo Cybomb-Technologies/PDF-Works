@@ -55,72 +55,70 @@ const EditTools = () => {
   const ActiveComponent = activeTool ? activeTool.component : null;
 
   return (
- <div className="w-full flex justify-start">
-  {/* --- Tool Grid --- */}
-  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
-    {tools.map((tool, i) => {
-      const Icon = tool.icon;
-      return (
-        <motion.div
-          key={tool.id}
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: i * 0.05 }}
-          whileHover={{ scale: 1.05, y: -5 }}
-          onClick={() => handleToolClick(tool)}
-          className="glass-effect rounded-2xl p-6 cursor-pointer transition-all group flex flex-col h-full"
-        >
-          <div
-            className={`w-14 h-14 rounded-xl bg-gradient-to-br ${tool.color} flex items-center justify-center mb-4`}
+    <div className="w-full flex justify-start">
+      {/* --- Tool Grid --- */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
+        {tools.map((tool, i) => {
+          const Icon = tool.icon;
+          return (
+            <motion.div
+              key={tool.id}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: i * 0.05 }}
+              whileHover={{ scale: 1.05, y: -5 }}
+              onClick={() => handleToolClick(tool)}
+              className="glass-effect rounded-2xl p-6 cursor-pointer transition-all group flex flex-col h-full"
+            >
+              <div
+                className={`w-14 h-14 rounded-xl bg-gradient-to-br ${tool.color} flex items-center justify-center mb-4`}
+              >
+                <Icon className="h-7 w-7 text-white" />
+              </div>
+              <h3 className="text-lg font-bold mb-2">{tool.name}</h3>
+              <p className="text-sm text-muted-foreground flex-grow">
+                {tool.description}
+              </p>
+            </motion.div>
+          );
+        })}
+      </div>
+
+      {/* --- Popup Modal --- */}
+      <AnimatePresence>
+        {activeTool && (
+          <motion.div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
           >
-            <Icon className="h-7 w-7 text-white" />
-          </div>
-          <h3 className="text-lg font-bold mb-2">{tool.name}</h3>
-          <p className="text-sm text-muted-foreground flex-grow">
-            {tool.description}
-          </p>
-        </motion.div>
-      );
-    })}
-  </div>
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="relative bg-white dark:bg-zinc-900 rounded-2xl shadow-xl p-6 w-[95%] max-w-7xl h-[90vh] overflow-auto"
+            >
+              {/* Close Button */}
+              <button
+                onClick={closePopup}
+                className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-200 dark:hover:bg-zinc-800 z-10"
+              >
+                <X className="h-5 w-5" />
+              </button>
 
-  {/* --- Popup Modal --- */}
-  <AnimatePresence>
-    {activeTool && (
-      <motion.div
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-      >
-        <motion.div
-          initial={{ scale: 0.9, opacity: 0, y: 20 }}
-          animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.9, opacity: 0, y: 20 }}
-          className="relative bg-white dark:bg-zinc-900 rounded-2xl shadow-xl p-6 w-[95%] max-w-7xl h-[90vh] overflow-auto"
-        >
-          {/* Close Button */}
-          <button
-            onClick={closePopup}
-            className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-200 dark:hover:bg-zinc-800 z-10"
-          >
-            <X className="h-5 w-5" />
-          </button>
+              {/* Header */}
+              <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                {activeTool.name}
+              </h2>
 
-          {/* Header */}
-          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-            {activeTool.name}
-          </h2>
-
-          {/* Dynamic Component */}
-          {ActiveComponent && <ActiveComponent />}
-        </motion.div>
-      </motion.div>
-    )}
-  </AnimatePresence>
-</div>
-
-
+              {/* Dynamic Component */}
+              {ActiveComponent && <ActiveComponent />}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 };
 
