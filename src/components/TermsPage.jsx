@@ -24,13 +24,13 @@ const TermsPage = () => {
 
         <h2>4. Subscriptions</h2>
         <p>If you purchase a subscription, you will be billed in advance on a recurring and periodic basis ("Billing Cycle"). Billing cycles are set either on a monthly or annual basis, depending on the type of subscription plan you select when purchasing a subscription.</p>
-        <p>At the end of each Billing Cycle, your subscription will automatically renew under the exact same conditions unless you cancel it orpdfworks cancels it. You may cancel your subscription renewal either through your online account management page or by contacting customer support.</p>
+        <p>At the end of each Billing Cycle, your subscription will automatically renew under the exact same conditions unless you cancel it or Pdfworks cancels it. You may cancel your subscription renewal either through your online account management page or by contacting customer support.</p>
 
         <h2>5. Termination</h2>
         <p>We may terminate or suspend your account and bar access to the service immediately, without prior notice or liability, under our sole discretion, for any reason whatsoever and without limitation, including but not limited to a breach of the Terms.</p>
 
         <h2>6. Limitation of Liability</h2>
-        <p>In no event shallpdfworks, nor its directors, employees, partners, agents, suppliers, or affiliates, be liable for any indirect, incidental, special, consequential or punitive damages, including without limitation, loss of profits, data, use, goodwill, or other intangible losses, resulting from your access to or use of or inability to access or use the service.</p>
+        <p>In no event shall Pdfworks, nor its directors, employees, partners, agents, suppliers, or affiliates, be liable for any indirect, incidental, special, consequential or punitive damages, including without limitation, loss of profits, data, use, goodwill, or other intangible losses, resulting from your access to or use of or inability to access or use the service.</p>
       </motion.div>
     </div>
   );

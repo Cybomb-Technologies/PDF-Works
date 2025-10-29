@@ -11,7 +11,7 @@ const PrivacyPolicyPage = () => {
         <h1 className="gradient-text">Privacy Policy</h1>
         <p className="text-gray-500">Last updated: October 4, 2025</p>
 
-        <p>Welcome topdfworks. We are committed to protecting your personal information and your right to privacy. If you have any questions or concerns about our policy, or our practices with regards to your personal information, please contact us at info@pdfworks.in</p>
+        <p>Welcome to Pdfworks (Cybomb Technologies LLP). We are committed to protecting your personal information and your right to privacy. If you have any questions or concerns about our policy, or our practices with regards to your personal information, please contact us at info@pdfworks.in</p>
 
         <h2>1. What Information Do We Collect?</h2>
         <p>We collect personal information that you voluntarily provide to us when you register on the website, express an interest in obtaining information about us or our products and services, when you participate in activities on the website or otherwise when you contact us.</p>

@@ -33,7 +33,7 @@ const SecurityPage = () => {
         animate={{ opacity: 1, y: 0 }}
         className="text-center mb-12"
       >
-        <h1 className="text-5xl font-bold gradient-text">Security atpdfworks</h1>
+        <h1 className="text-5xl font-bold gradient-text pb-6 pt-4">Security at Pdf works</h1>
         <p className="mt-4 text-lg text-gray-600">Your trust is our most important asset. Learn how we protect your data.</p>
       </motion.div>
 

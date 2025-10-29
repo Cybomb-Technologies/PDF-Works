@@ -86,7 +86,7 @@ const AboutPage = () => {
         className="text-center py-16"
       >
 
-        <h1 className="text-6xl font-bold gradient-text mb-6">Aboutpdfworks</h1>
+        <h1 className="text-6xl font-bold gradient-text mb-6">About PDF Works</h1>
         <p className="mt-4 text-2xl text-gray-600 max-w-4xl mx-auto leading-relaxed">
           Born in 2025 to revolutionize document management. We're building the future of PDF tools
           with cutting-edge technology and user-centric design from the ground up.
@@ -162,7 +162,7 @@ const AboutPage = () => {
           <h2 className="text-4xl font-bold mb-6">Our Beginning</h2>
           <div className="text-gray-700 space-y-6 text-lg leading-relaxed">
             <p>
-             pdfworks was founded in 2025 with a bold vision: to create the most intuitive and powerful
+             pdfworks was founded in 2025 by Cybomb Technologies LLP. with a bold vision: to create the most intuitive and powerful
               document management platform from scratch. Unlike legacy solutions burdened by outdated
               technology, we built our foundation on modern architecture and user-first principles.
             </p>
