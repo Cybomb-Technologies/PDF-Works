@@ -45,7 +45,7 @@ const RefundPolicyPage = () => {
         <h2>4. How to Request a Refund</h2>
         <p>
           To request a refund, please contact our support team at 
-          <a href="mailto:support@pdfworks.com"> support@pdfworks.com</a> 
+          <a href="mailto:info@pdfworks.in"> info@pdfworks.in</a> 
           with your order ID, payment proof, and reason for refund. 
           Our team will review your request and respond within 5–7 business days.
         </p>
@@ -66,7 +66,7 @@ const RefundPolicyPage = () => {
 
         <p>
           If you have any questions about our Refund Policy, please contact us at 
-          <a href="mailto:support@pdfworks.com"> support@pdfworks.com</a>.
+          <a href="mailto:in@pdfworks.in"> info@pdfworks.in</a>.
         </p>
       </motion.div>
     </div>
