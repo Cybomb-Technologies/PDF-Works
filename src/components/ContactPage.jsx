@@ -108,7 +108,7 @@ const ContactPage = () => {
             <div>
               <h3 className="text-xl font-semibold">Our Office</h3>
               <p className="text-gray-600">
-                Cybomb Technologies LLP
+              Cybomb Technologies Pvt Ltd
               </p>
               <p className="text-gray-600">
                 Prime Plaza No.54/1, 1st street, Sripuram colony,

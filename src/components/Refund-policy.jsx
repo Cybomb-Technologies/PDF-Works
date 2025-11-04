@@ -12,7 +12,7 @@ const RefundPolicyPage = () => {
         <p className="text-gray-500">Last updated: October 4, 2025</p>
 
         <p>
-          Thank you for choosing <strong>pdfworks (Cybomb Technologies LLP)</strong>. We value your satisfaction and strive to provide a smooth and reliable experience. 
+          Thank you for choosing <strong>pdfworks (Cybomb Technologies Pvt Ltd)</strong>. We value your satisfaction and strive to provide a smooth and reliable experience. 
           This Refund Policy explains the conditions under which refunds are issued for our services.
         </p>
 

@@ -90,7 +90,7 @@ const Footer = () => {
               <div className="flex items-start gap-3">
                 <MapPin className="h-4 w-4 text-purple-600 mt-0.5 flex-shrink-0" />
                 <p className="text-sm text-gray-600">
-                  Cybomb Technologies LLP,
+                Cybomb Technologies Pvt Ltd,
                   <br />
                   Prime Plaza No.54/1, 1st street, 
                   <br />
@@ -123,7 +123,7 @@ const Footer = () => {
 
         <div className="mt-12 border-t border-gray-200 pt-8 text-center">
           <p className="text-sm text-gray-500">
-            &copy; {new Date().getFullYear()} Cybomb Technologies LLP. All rights reserved.
+            &copy; {new Date().getFullYear()} Cybomb Technologies Pvt Ltd. All rights reserved.
           </p>
         </div>
       </div>
