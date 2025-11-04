@@ -162,7 +162,7 @@ const AboutPage = () => {
           <h2 className="text-4xl font-bold mb-6">Our Beginning</h2>
           <div className="text-gray-700 space-y-6 text-lg leading-relaxed">
             <p>
-             pdfworks was founded in 2025 by Cybomb Technologies LLP. with a bold vision: to create the most intuitive and powerful
+             pdfworks was founded in 2025 by Cybomb Technologies Pvt Ltd. with a bold vision: to create the most intuitive and powerful
               document management platform from scratch. Unlike legacy solutions burdened by outdated
               technology, we built our foundation on modern architecture and user-first principles.
             </p>
