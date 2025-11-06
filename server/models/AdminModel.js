@@ -4,21 +4,25 @@ const adminSchema = new mongoose.Schema({
   name: {
     type: String,
     required: true,
+    trim: true
   },
   email: {
     type: String,
     required: true,
     unique: true,
+    trim: true,
+    lowercase: true
   },
   password: {
     type: String,
     required: true,
-  },
-  role: {
-    type: String,
-    default: "admin",
-  },
+    // No hashing - store as plain text
+  }
+}, {
+  timestamps: true
 });
 
-// ✅ Prevent OverwriteModelError
-module.exports = mongoose.models.Admin || mongoose.model("Admin", adminSchema);
+// Remove any pre-save hooks that hash passwords
+// Just save the password as plain text
+
+module.exports = mongoose.model("Admin", adminSchema);
