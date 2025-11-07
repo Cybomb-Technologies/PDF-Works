@@ -4,6 +4,7 @@ const jwt = require("jsonwebtoken");
 const allowedOrigins = [
   "https://admin.cybomb.com",
   "http://localhost:5173",
+  "https://cybombadmin.cybomb.com",
 ];
 
 const verifyToken = (req, res, next) => {
@@ -36,7 +37,9 @@ const verifyAdmin = (req, res, next) => {
     if (allowedOrigins.includes(origin)) return next();
 
     if (req.user.role !== "admin") {
-      return res.status(403).json({ success: false, error: "Admin access only" });
+      return res
+        .status(403)
+        .json({ success: false, error: "Admin access only" });
     }
     next();
   });

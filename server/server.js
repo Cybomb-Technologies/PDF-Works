@@ -21,9 +21,6 @@ const SecurityRoutes = require("./routes/tools-routes/Security/Security-Routes")
 const EditRoutes = require("./routes/tools-routes/Edit/Edit-Route");
 const fileRoutes = require("./routes/fileRoutes");
 
-
-
-
 const app = express();
 
 // Ensure uploads directories exist on server start
@@ -60,9 +57,20 @@ app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 // CORS setup - improved
 app.use(
   cors({
-    origin: ["http://localhost:3001","http://localhost:5173", "http://localhost:3000", "https://pdfworks.in"],
+    origin: [
+      "http://localhost:3001",
+      "http://localhost:5173",
+      "http://localhost:3000",
+      "https://pdfworks.in",
+      "https://cybombadmin.cybomb.com",
+    ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With","password"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Requested-With",
+      "password",
+    ],
     credentials: true,
   })
 );
@@ -149,9 +157,6 @@ app.listen(PORT, () => {
   console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
 });
 
-
-
-
 // const dotenv = require("dotenv");
 // dotenv.config();
 
@@ -174,9 +179,6 @@ app.listen(PORT, () => {
 // const SecurityRoutes = require("./routes/tools-routes/Security/Security-Routes");
 // const EditRoutes = require("./routes/tools-routes/Edit/Edit-Route");
 // const fileRoutes = require("./routes/fileRoutes");
-
-
-
 
 // const app = express();
 
