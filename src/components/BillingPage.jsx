@@ -318,8 +318,8 @@ const BillingPage = () => {
             <FileText className="h-8 w-8 text-white" />
           </div>
         </div>
-        <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-          PDF Pro Pricing
+        <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r py-3 from-blue-600 to-purple-600 bg-clip-text text-transparent">
+          PDF Works Pricing
         </h1>
         <p className="text-gray-600 text-lg max-w-2xl mx-auto">
           Start free, upgrade as you grow. No credit card required to begin.

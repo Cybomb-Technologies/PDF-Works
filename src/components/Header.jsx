@@ -136,7 +136,7 @@ const Header = () => {
               <Link to="/login">
                 <Button variant="ghost">Login</Button>
               </Link>
-              <Link to="/login">
+              <Link to="/signup">
                 <Button className="bg-gradient-to-r from-purple-600 to-pink-600 text-white">
                   Sign Up
                 </Button>
