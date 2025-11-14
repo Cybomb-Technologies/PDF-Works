@@ -11,7 +11,7 @@ const PricingPolicyPage = () => {
         <h1 className="gradient-text pb-6 pt-6">Pricing Policy</h1>
         <p className="text-gray-500">Last updated: October 4, 2025</p>
 
-        <p>Welcome to Pdfworks (Cybomb Technologies Pvt Ltd). This Pricing Policy explains how our pricing, billing, renewals, and refunds work for all our services and subscription plans. By using our services, you agree to the terms outlined in this policy.</p>
+        <p>Welcome to Pdfworks (<i><b>Cybomb Technologies Pvt Ltd</b></i>). This Pricing Policy explains how our pricing, billing, renewals, and refunds work for all our services and subscription plans. By using our services, you agree to the terms outlined in this policy.</p>
 
         <h2>1. Pricing Structure</h2>
         <p>We offer flexible subscription plans to meet different user needs, including Free, Basic, Pro, and Enterprise options. Prices are displayed in both INR (Indian Rupees) and USD (US Dollars) to accommodate our global user base.</p>

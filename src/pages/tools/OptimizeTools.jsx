@@ -225,8 +225,7 @@ const ImageOptimizerModal = ({ isOpen, onClose }) => {
         className="glass-effect w-full max-w-lg p-6 rounded-2xl bg-gray-900 border border-gray-700 text-white"
       >
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold">Image Optimizer</h2>
-          <button
+        <h2 className="text-xl font-bold text-green-700">Image Optimizer</h2>          <button
             onClick={handleClose}
             className="text-gray-400 hover:text-white text-lg"
           >
@@ -348,8 +347,7 @@ const CodeMinifierModal = ({ isOpen, onClose }) => {
         className="glass-effect rounded-2xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-gray-900 border border-gray-700 text-white"
       >
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold">Code Minifier</h2>
-          <button
+        <h2 className="text-2xl font-bold text-purple-700">Code Minifier</h2>          <button
             onClick={onClose}
             className="text-gray-500 hover:text-white transition-colors"
           >
@@ -361,7 +359,7 @@ const CodeMinifierModal = ({ isOpen, onClose }) => {
           {/* Input Section */}
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-2">
+              <label className="block text-sm font-medium mb-2 text-purple-700">
                 Select Code Type
               </label>
               <select
@@ -376,7 +374,7 @@ const CodeMinifierModal = ({ isOpen, onClose }) => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">
+              <label className="block text-sm font-medium mb-2 text-purple-700">
                 Paste Your Code
               </label>
               <textarea
@@ -396,18 +394,19 @@ const CodeMinifierModal = ({ isOpen, onClose }) => {
                 Minify Code
               </button>
               <button
-                onClick={handleReset}
-                className="px-4 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors"
-              >
-                Reset
-              </button>
+  onClick={handleReset}
+  className="px-4 py-2 border border-purple-700 text-purple-700 rounded-lg hover:bg-purple-100 transition-colors"
+>
+  Reset
+</button>
+
             </div>
           </div>
 
           {/* Output Section */}
           <div className="space-y-4">
             <div className="flex justify-between items-center">
-              <label className="block text-sm font-medium">
+              <label className="block text-sm font-medium text-purple-700">
                 Minified Output
               </label>
               {minifiedResult && (

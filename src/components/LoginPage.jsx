@@ -9,6 +9,7 @@ import { Helmet } from "react-helmet";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import ForgotPasswordForm from "./ForgotPasswordForm";
+import SignUpForm from "./SignUpForm";
 
 const API_URL1 = import.meta.env.VITE_API_URL;
 
@@ -124,22 +125,31 @@ const LoginPage = () => {
     });
   };
 
+  const handleToggleMode = () => {
+    setIsLogin(!isLogin);
+    setFormData({
+      ...formData,
+      password: "", // Clear password when switching
+      name: !isLogin ? "" : formData.name, // Clear name only when switching to login
+    });
+  };
+
   const renderLoginRegisterForm = () => {
-    return (
-      <>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {!isLogin && (
+    if (isLogin) {
+      return (
+        <>
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
+              <Label htmlFor="email">Email</Label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <Input
-                  id="name"
-                  type="text"
-                  placeholder="John Doe"
-                  value={formData.name}
+                  id="email"
+                  type="email"
+                  placeholder="you@example.com"
+                  value={formData.email}
                   onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
+                    setFormData({ ...formData, email: e.target.value })
                   }
                   className="pl-10"
                   required
@@ -147,48 +157,27 @@ const LoginPage = () => {
                 />
               </div>
             </div>
-          )}
 
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <Input
-                id="email"
-                type="email"
-                placeholder="you@example.com"
-                value={formData.email}
-                onChange={(e) =>
-                  setFormData({ ...formData, email: e.target.value })
-                }
-                className="pl-10"
-                required
-                disabled={isLoading}
-              />
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={formData.password}
+                  onChange={(e) =>
+                    setFormData({ ...formData, password: e.target.value })
+                  }
+                  className="pl-10"
+                  required
+                  minLength={6}
+                  disabled={isLoading}
+                />
+              </div>
             </div>
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={formData.password}
-                onChange={(e) =>
-                  setFormData({ ...formData, password: e.target.value })
-                }
-                className="pl-10"
-                required
-                minLength={6}
-                disabled={isLoading}
-              />
-            </div>
-          </div>
-
-          {isLogin && (
             <div className="text-right">
               <button
                 type="button"
@@ -199,46 +188,46 @@ const LoginPage = () => {
                 Forgot your password?
               </button>
             </div>
-          )}
 
-          <Button
-            type="submit"
-            className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold"
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <div className="flex items-center">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                {isLogin ? "Logging in..." : "Creating Account..."}
-              </div>
-            ) : isLogin ? (
-              "Login"
-            ) : (
-              "Create Account"
-            )}
-          </Button>
-        </form>
+            <Button
+              type="submit"
+              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <div className="flex items-center">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Logging in...
+                </div>
+              ) : (
+                "Login"
+              )}
+            </Button>
+          </form>
 
-        <div className="mt-6 text-center">
+          <div className="mt-6 text-center">
           <button
-            onClick={() => {
-              setIsLogin(!isLogin);
-              setFormData({
-                ...formData,
-                password: "", // Clear password when switching
-                name: !isLogin ? "" : formData.name, // Clear name only when switching to login
-              });
-            }}
-            className="text-purple-600 hover:text-purple-700 font-medium disabled:opacity-50"
-            disabled={isLoading}
-          >
-            {isLogin
-              ? "Don't have an account? Sign up"
-              : "Already have an account? Login"}
-          </button>
-        </div>
-      </>
-    );
+  onClick={() => navigate("/signup")}
+  className="text-purple-600 hover:text-purple-700 font-medium disabled:opacity-50"
+>
+  Don't have an account? Sign up
+</button>
+
+          </div>
+        </>
+      );
+    } else {
+      // Use the SignUpForm component with proper props
+      return (
+        <SignUpForm
+          formData={formData}
+          setFormData={setFormData}
+          isLoading={isLoading}
+          onToggleMode={handleToggleMode}
+          onSubmit={handleSubmit}
+        />
+      );
+    }
   };
 
   return (

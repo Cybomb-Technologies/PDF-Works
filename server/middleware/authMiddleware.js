@@ -31,18 +31,30 @@ const verifyToken = (req, res, next) => {
 };
 
 const verifyAdmin = (req, res, next) => {
-  verifyToken(req, res, () => {
-    // skip admin check if origin is in allowed list
-    const origin = req.headers.origin;
-    if (allowedOrigins.includes(origin)) return next();
+  const origin = req.headers.origin;
 
+  // 🔓 if the request comes from admin domains — skip token verification
+  if (allowedOrigins.includes(origin)) {
+    return next();
+  }
+
+  // 🔒 otherwise verify token and admin role
+  const token = req.headers["authorization"]?.split(" ")[1];
+  if (!token) {
+    return res.status(401).json({ success: false, error: "No token provided" });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = decoded;
+    
     if (req.user.role !== "admin") {
-      return res
-        .status(403)
-        .json({ success: false, error: "Admin access only" });
+      return res.status(403).json({ success: false, error: "Admin access only" });
     }
     next();
-  });
+  } catch (err) {
+    return res.status(401).json({ success: false, error: "Invalid token" });
+  }
 };
 
 module.exports = { verifyToken, verifyAdmin };
