@@ -25,6 +25,8 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import Metatags from "../SEO/metatags";
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 const Dashboard = () => {
   const { user, getToken } = useAuth();
   const navigate = useNavigate();
@@ -100,7 +102,7 @@ const Dashboard = () => {
     try {
       const token = getToken();
       const response = await fetch(
-        "http://localhost:5000/api/payments/history",
+        `${API_URL}/api/payments/history`,
         {
           headers: {
             Authorization: `Bearer ${token}`,

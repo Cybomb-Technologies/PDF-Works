@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
 const AuthContext = createContext(null);
-
+const API_URL = import.meta.env.VITE_API_URL;
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) throw new Error('useAuth must be used within AuthProvider');
@@ -25,7 +25,7 @@ export const AuthProvider = ({ children }) => {
       if (token && storedUser) {
         try {
           // Verify token is still valid by making API call
-          const response = await fetch('http://localhost:5000/api/auth/me', {
+          const response = await fetch(`${API_URL}/api/auth/me`, {
             headers: {
               'Authorization': `Bearer ${token}`
             }
@@ -100,7 +100,7 @@ export const AuthProvider = ({ children }) => {
 
     try {
       const token = getToken();
-      const response = await fetch('http://localhost:5000/api/auth/me', {
+      const response = await fetch(`${API_URL}/api/auth/me`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -145,7 +145,7 @@ export const AuthProvider = ({ children }) => {
 
     try {
       const token = getToken();
-      const response = await fetch('http://localhost:5000/api/auth/me', {
+      const response = await fetch(`${API_URL}/api/auth/me`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
