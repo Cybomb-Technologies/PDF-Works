@@ -18,7 +18,7 @@ import ToolsPage from "@/components/ToolsPage";
 import BillingPage from "@/components/BillingPage";
 import FilesPage from "@/components/FilesPage";
 import PricingPolicyPage from "@/components/PricingPolicyPage";
-import CheckoutPage from "./components/CheckoutPage";
+import CheckoutPage from "@/pages/CheckoutPage";
 import FaqPage from "@/components/FaqPage";
 import AboutPage from "@/components/AboutPage";
 import ContactPage from "@/components/ContactPage";
@@ -30,11 +30,13 @@ import TermsPage from "@/components/TermsPage";
 import CookiesPage from "@/components/CookiesPage";
 import ScrollToTop from "./components/ScrollToTop";
 import EditTools from "./pages/tools/EditTools";
+import PaymentResult from './pages/PaymentResult';
+import BillingSettings from './pages/BillingSettings';
 
-// 👤 User Dashboard (from components folder)
+// 👤 User Dashboard
 import UserDashboard from "@/components/Dashboard";
 
-// 🛠️ Admin Pages (from pages/admin folder)
+// 🛠️ Admin Pages
 import AdminLoginPage from "@/components/AdminLoginPage";
 import AdminDashboard from "@/pages/admin/Dashboard";
 import Users from "@/pages/admin/Users";
@@ -45,11 +47,16 @@ import HomePressReleaseDetail from "./components/HomePressReleaseDetail";
 import PressReleaseAdmin from "./pages/admin/PressReleaseAdmin";
 import CreatePressRelease from './pages/admin/CreatePressRelease';
 import EditPressRelease from './pages/admin/EditPressRelease';
+import PricingManagement from "./pages/admin/PricingManagement";
 
 // 🔐 Auth & Route Guards
 import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AdminProtectedRoute from "@/components/AdminProtectedRoute";
+
+// ✨ NEW: Notification System
+import { NotificationProvider } from "@/contexts/NotificationContext";
+import NotificationContainer from "@/components/Notification/NotificationContainer";
 
 // ✨ Animations
 import { AnimatePresence } from "framer-motion";
@@ -68,30 +75,6 @@ const AdminLayout = ({ children }) => {
 
 // Create a SignUpPage component that uses SignUpForm
 const SignUpPage = () => {
-  const [formData, setFormData] = React.useState({
-    name: "",
-    email: "",
-    password: ""
-  });
-  const [isLoading, setIsLoading] = React.useState(false);
-  const [isLoginMode, setIsLoginMode] = React.useState(false);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    // Add your signup logic here
-    console.log("Signup data:", formData);
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 2000);
-  };
-
-  const handleToggleMode = () => {
-    // Redirect to login page or toggle mode
-    window.location.href = "/login";
-  };
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
@@ -100,13 +83,7 @@ const SignUpPage = () => {
             Create your account
           </h2>
         </div>
-        <SignUpForm
-          formData={formData}
-          setFormData={setFormData}
-          isLoading={isLoading}
-          onToggleMode={handleToggleMode}
-          onSubmit={handleSubmit}
-        />
+        <SignUpForm />
       </div>
     </div>
   );
@@ -136,7 +113,11 @@ function AppContent() {
         <link rel="apple-touch-icon" href="/image (1).png" />
         <link rel="shortcut icon" href="/image (1).png" type="image/png" />
       </Helmet>
-      <ScrollToTop/>
+      <ScrollToTop />
+      
+      {/* ✨ NEW: Notification Container */}
+      <NotificationContainer />
+      
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname}>
           {/* ================= ADMIN ROUTES ================= */}
@@ -207,7 +188,7 @@ function AppContent() {
             element={
               <AdminProtectedRoute>
                 <AdminLayout>
-                  <PressReleaseAdmin/>
+                  <PressReleaseAdmin />
                 </AdminLayout>
               </AdminProtectedRoute>
             }
@@ -240,12 +221,24 @@ function AppContent() {
             element={
               <AdminProtectedRoute>
                 <AdminLayout>
-                  <ContactUser/>
+                  <ContactUser />
                 </AdminLayout>
               </AdminProtectedRoute>
             }
           />
-          
+
+          {/* ✅ PRICING MANAGEMENT ROUTE */}
+          <Route
+            path="/admin/pricing"
+            element={
+              <AdminProtectedRoute>
+                <AdminLayout>
+                  <PricingManagement />
+                </AdminLayout>
+              </AdminProtectedRoute>
+            }
+          />
+
           {/* ================= PUBLIC & USER ROUTES ================= */}
           <Route
             path="/*"
@@ -268,22 +261,28 @@ function AppContent() {
                     <Route path="/press" element={<PressPage />} />
                     <Route path="/security" element={<SecurityPage />} />
                     <Route path="/privacy" element={<PrivacyPolicyPage />} />
-                    <Route path="/refund-policy" element={ <RefundPolicy/>} />
-                    <Route path="/pricing-policy" element={ <PricingPolicyPage/>} />
+                    <Route path="/refund-policy" element={<RefundPolicy />} />
+                    <Route path="/pricing-policy" element={<PricingPolicyPage />} />
                     <Route path="/checkout/:planId" element={<CheckoutPage />} />
-                   
+                    <Route path="/payment/result" element={<PaymentResult />} />
                     <Route path="/terms" element={<TermsPage />} />
                     <Route path="/cookies" element={<CookiesPage />} />
+                    <Route path="/homepress" element={<HomePressReleaseDetail />} />
 
-                    <Route path="/homepress" element={<HomePressReleaseDetail/>}/>
-                    
-                    
                     {/* Protected User Pages */}
                     <Route
                       path="/dashboard"
                       element={
                         <ProtectedRoute>
                           <UserDashboard />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/billing/settings"
+                      element={
+                        <ProtectedRoute>
+                          <BillingSettings />
                         </ProtectedRoute>
                       }
                     />
@@ -306,7 +305,7 @@ function AppContent() {
 
                     {/* Not Found */}
                     <Route path="*" element={<NotFoundPage />} />
-                   
+
                   </Routes>
                 </main>
                 <Footer />
@@ -315,6 +314,7 @@ function AppContent() {
           />
         </Routes>
       </AnimatePresence>
+
 
       <Toaster />
     </div>
@@ -325,7 +325,10 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <AppContent />
+        {/* ✨ NEW: Wrap with NotificationProvider */}
+        <NotificationProvider>
+          <AppContent />
+        </NotificationProvider>
       </AuthProvider>
     </Router>
   );

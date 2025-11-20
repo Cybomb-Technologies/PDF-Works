@@ -1,4 +1,6 @@
+// controllers/userController.js (UPDATED WITH EDIT TOOLS LIMITS)
 const User = require("../models/UserModel");
+const PricingPlan = require("../models/Pricing"); // ADD THIS IMPORT
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
@@ -37,13 +39,46 @@ const registerUser = async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = new User({ name, email, password: hashedPassword });
+    const newUser = new User({ 
+      name, 
+      email, 
+      password: hashedPassword,
+      // Default subscription values
+      planName: 'Free',
+      subscriptionStatus: 'active',
+      billingCycle: 'monthly',
+      usage: {
+        conversions: 0,
+        compressions: 0,
+        ocr: 0,
+        signatures: 0,
+        edits: 0,
+        organizes: 0,
+        securityOps: 0,
+        operations: 0,
+        storageUsedBytes: 0,
+        editTools: 0,
+        organizeTools: 0,
+        securityTools: 0,
+        optimizeTools: 0,
+        advancedTools: 0,
+        resetDate: new Date()
+      }
+    });
     await newUser.save();
 
     res.status(201).json({
       success: true,
       message: "User registered successfully",
-      user: { id: newUser._id, name: newUser.name, email: newUser.email },
+      user: { 
+        id: newUser._id, 
+        name: newUser.name, 
+        email: newUser.email,
+        role: newUser.role,
+        plan: newUser.plan,
+        planName: newUser.planName,
+        subscriptionStatus: newUser.subscriptionStatus
+      },
     });
   } catch (error) {
     res.status(500).json({ success: false, error: "Server error" });
@@ -82,6 +117,13 @@ const loginUser = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        plan: user.plan,
+        planName: user.planName,
+        billingCycle: user.billingCycle,
+        subscriptionStatus: user.subscriptionStatus,
+        planExpiry: user.planExpiry,
+        usage: user.usage,
+        autoRenewal: user.autoRenewal
       },
     });
   } catch (error) {
@@ -174,6 +216,99 @@ const resetPassword = async (req, res) => {
   }
 };
 
+// GET CURRENT USER PROFILE
+const getCurrentUser = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('-password');
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        plan: user.plan,
+        planName: user.planName,
+        billingCycle: user.billingCycle,
+        subscriptionStatus: user.subscriptionStatus,
+        planExpiry: user.planExpiry,
+        usage: user.usage,
+        autoRenewal: user.autoRenewal
+      }
+    });
+  } catch (error) {
+    console.error('Get user profile error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Server error'
+    });
+  }
+};
+
+// UPDATE USER TO FREE PLAN
+const updateToFreePlan = async (req, res) => {
+  try {
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      {
+        plan: null,
+        planName: 'Free',
+        subscriptionStatus: 'active',
+        billingCycle: 'monthly',
+        autoRenewal: false,
+        usage: {
+          conversions: 0,
+          compressions: 0,
+          ocr: 0,
+          signatures: 0,
+          edits: 0,
+          organizes: 0,
+          securityOps: 0,
+          operations: 0,
+          storageUsedBytes: 0,
+          editTools: 0,
+          organizeTools: 0,
+          securityTools: 0,
+          optimizeTools: 0,
+          advancedTools: 0,
+          resetDate: new Date()
+        }
+      },
+      { new: true }
+    ).select('-password');
+
+    res.json({
+      success: true,
+      message: 'Plan updated to Free',
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        plan: user.plan,
+        planName: user.planName,
+        billingCycle: user.billingCycle,
+        subscriptionStatus: user.subscriptionStatus,
+        usage: user.usage
+      }
+    });
+  } catch (error) {
+    console.error('Update to free plan error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update plan'
+    });
+  }
+};
+
 // GET ALL USERS (Admin only)
 const getAllUsers = async (req, res) => {
   try {
@@ -197,7 +332,9 @@ const exportUsers = async (req, res) => {
       { header: "Name", key: "name", width: 25 },
       { header: "Email", key: "email", width: 30 },
       { header: "Role", key: "role", width: 15 },
-      { header: "Plan", key: "plan", width: 15 },
+      { header: "Plan", key: "planName", width: 15 },
+      { header: "Subscription Status", key: "subscriptionStatus", width: 20 },
+      { header: "Billing Cycle", key: "billingCycle", width: 15 },
       { header: "Joined Date", key: "createdAt", width: 20 },
       { header: "User ID", key: "userId", width: 30 },
     ];
@@ -216,7 +353,9 @@ const exportUsers = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        plan: user.plan,
+        planName: user.planName,
+        subscriptionStatus: user.subscriptionStatus,
+        billingCycle: user.billingCycle,
         createdAt: user.createdAt.toLocaleDateString("en-US", {
           year: "numeric",
           month: "short",
@@ -262,7 +401,7 @@ const downloadUserTemplate = async (req, res) => {
       { header: "Name", key: "name", width: 25 },
       { header: "Email", key: "email", width: 30 },
       { header: "Role", key: "role", width: 15 },
-      { header: "Plan", key: "plan", width: 15 },
+      { header: "Plan", key: "planName", width: 15 },
       // No Joined Date - it will be auto-generated
     ];
 
@@ -281,19 +420,19 @@ const downloadUserTemplate = async (req, res) => {
         name: "John Doe",
         email: "john.doe@example.com",
         role: "user",
-        plan: "free",
+        planName: "Free",
       },
       {
         name: "Jane Smith",
         email: "jane.smith@example.com",
         role: "admin",
-        plan: "premium",
+        planName: "Professional",
       },
       {
         name: "Mike Johnson",
         email: "mike.johnson@example.com",
         role: "user",
-        plan: "free",
+        planName: "Free",
       },
     ];
 
@@ -309,7 +448,7 @@ const downloadUserTemplate = async (req, res) => {
     ]);
     worksheet.addRow(["2. Required fields: Name, Email"]);
     worksheet.addRow([
-      '3. Optional fields: Role (default: "user"), Plan (default: "free")',
+      '3. Optional fields: Role (default: "user"), Plan (default: "Free")',
     ]);
     worksheet.addRow(["4. Email addresses must be unique"]);
     worksheet.addRow([
@@ -497,7 +636,7 @@ const processUsers = async (users) => {
       const name = userData.name || userData.Name;
       const email = userData.email || userData.Email;
       const role = userData.role || userData.Role || "user";
-      const plan = userData.plan || userData.Plan || "free";
+      const planName = userData.planname || userData.planName || userData.Plan || "Free";
 
       if (!name || !email) {
         results.errors.push("Missing required fields (name or email) in row");
@@ -514,13 +653,32 @@ const processUsers = async (users) => {
       // Generate a default password (users can reset via forgot password)
       const defaultPassword = await bcrypt.hash("TempPassword123!", 10);
 
-      // Create new user
+      // Create new user with subscription fields
       const user = new User({
         name: name,
         email: email.toLowerCase(),
         password: defaultPassword, // Set default password
         role: role,
-        plan: plan,
+        planName: planName,
+        subscriptionStatus: 'active',
+        billingCycle: 'monthly',
+        usage: {
+          conversions: 0,
+          compressions: 0,
+          ocr: 0,
+          signatures: 0,
+          edits: 0,
+          organizes: 0,
+          securityOps: 0,
+          operations: 0,
+          storageUsedBytes: 0,
+          editTools: 0,
+          organizeTools: 0,
+          securityTools: 0,
+          optimizeTools: 0,
+          advancedTools: 0,
+          resetDate: new Date()
+        }
         // createdAt is automatically set by MongoDB
       });
 
@@ -540,13 +698,149 @@ const processUsers = async (users) => {
   return results;
 };
 
+// NEW: GET USER USAGE LIMITS (UPDATED WITH EDIT TOOLS)
+const getUserLimits = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    let plan = null;
+    
+    // Get user's plan
+    if (user.plan) {
+      plan = await PricingPlan.findById(user.plan);
+    }
+    
+    if (!plan && user.planName) {
+      plan = await PricingPlan.findOne({
+        $or: [
+          { planId: user.planName.toLowerCase() },
+          { name: user.planName }
+        ]
+      });
+    }
+    
+    // Fallback to free plan
+    if (!plan) {
+      plan = await PricingPlan.findOne({ planId: 'free' });
+    }
+
+    // Ensure usage object has all required fields
+    const defaultUsage = {
+      conversions: 0,
+      compressions: 0,
+      ocr: 0,
+      signatures: 0,
+      edits: 0,
+      organizes: 0,
+      securityOps: 0,
+      operations: 0,
+      storageUsedBytes: 0,
+      
+      // NEW: Tool-specific usage tracking
+      editTools: 0,
+      organizeTools: 0,
+      securityTools: 0,
+      optimizeTools: 0,
+      advancedTools: 0,
+      
+      resetDate: new Date()
+    };
+
+    // Merge with existing usage, filling in missing fields
+    const userUsage = { ...defaultUsage, ...(user.usage || {}) };
+
+    // Calculate usage percentages
+    const conversionPercentage = plan?.conversionLimit > 0 
+      ? Math.min(100, (userUsage.conversions / plan.conversionLimit) * 100)
+      : 0;
+
+    const editToolsPercentage = plan?.editToolsLimit > 0 
+      ? Math.min(100, (userUsage.editTools / plan.editToolsLimit) * 100)
+      : 0;
+
+    const organizeToolsPercentage = plan?.organizeToolsLimit > 0 
+      ? Math.min(100, (userUsage.organizeTools / plan.organizeToolsLimit) * 100)
+      : 0;
+
+    const securityToolsPercentage = plan?.securityToolsLimit > 0 
+      ? Math.min(100, (userUsage.securityTools / plan.securityToolsLimit) * 100)
+      : 0;
+
+    const optimizeToolsPercentage = plan?.optimizeToolsLimit > 0 
+      ? Math.min(100, (userUsage.optimizeTools / plan.optimizeToolsLimit) * 100)
+      : 0;
+
+    const advancedToolsPercentage = plan?.advancedToolsLimit > 0 
+      ? Math.min(100, (userUsage.advancedTools / plan.advancedToolsLimit) * 100)
+      : 0;
+
+    res.json({
+      success: true,
+      usage: userUsage,
+      usagePercentages: {
+        conversions: conversionPercentage,
+        editTools: editToolsPercentage,
+        organizeTools: organizeToolsPercentage,
+        securityTools: securityToolsPercentage,
+        optimizeTools: optimizeToolsPercentage,
+        advancedTools: advancedToolsPercentage
+      },
+      plan: {
+        name: plan?.name || 'Free',
+        planId: plan?.planId || 'free',
+        conversionLimit: plan?.conversionLimit || 10,
+        // NEW: Tool-specific limits
+        editToolsLimit: plan?.editToolsLimit || 5,
+        organizeToolsLimit: plan?.organizeToolsLimit || 5,
+        securityToolsLimit: plan?.securityToolsLimit || 3,
+        optimizeToolsLimit: plan?.optimizeToolsLimit || 3,
+        advancedToolsLimit: plan?.advancedToolsLimit || 0,
+        maxFileSize: plan?.maxFileSize || 5,
+        storage: plan?.storage || 1,
+        
+        // Feature toggles
+        hasOCR: plan?.hasOCR || false,
+        hasBatchProcessing: plan?.hasBatchProcessing || false,
+        hasDigitalSignatures: plan?.hasDigitalSignatures || false,
+        hasWatermarks: plan?.hasWatermarks || false,
+        hasAPIAccess: plan?.hasAPIAccess || false,
+        hasTeamCollaboration: plan?.hasTeamCollaboration || false
+      },
+      subscriptionStatus: user.subscriptionStatus,
+      planExpiry: user.planExpiry,
+      // Add cycle information
+      cycleInfo: user.getCycleDates ? user.getCycleDates() : {
+        daysRemaining: 30,
+        cycleStart: new Date(user.usage?.resetDate || user.createdAt),
+        cycleEnd: new Date(new Date(user.usage?.resetDate || user.createdAt).getTime() + (30 * 24 * 60 * 60 * 1000))
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching user limits:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch user limits'
+    });
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
   forgotPassword,
   resetPassword,
+  getCurrentUser,
+  updateToFreePlan,
   getAllUsers,
   exportUsers,
   downloadUserTemplate,
   importUsers,
+  getUserLimits,
 };

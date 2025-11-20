@@ -10,6 +10,8 @@ import {
   Eye,
   EyeOff,
 } from "lucide-react";
+import { useNotification } from "@/contexts/NotificationContext";
+
 const API_URL = import.meta.env.VITE_API_URL;
 
 const tools = [
@@ -50,8 +52,9 @@ const ConvertTools = () => {
   const [showPreview, setShowPreview] = useState(false);
   const [downloadUrl, setDownloadUrl] = useState(null);
   const [fileSaved, setFileSaved] = useState(false);
+  
+  const { showNotification } = useNotification();
 
-  // Get token from localStorage
   const getToken = () => {
     return localStorage.getItem("token");
   };
@@ -73,20 +76,24 @@ const ConvertTools = () => {
       setConversionResult(null);
       setDownloadUrl(null);
       setFileSaved(false);
+      
+      showNotification({
+        type: 'success',
+        title: 'File Selected',
+        message: `${file.name} ready for conversion`,
+        duration: 3000
+      });
     }
   };
 
-  // FIXED: Function to save converted file to My Files with authentication
   const saveToMyFiles = async (fileBlob, filename, toolUsed) => {
     try {
-      // Get token from localStorage
       const token = getToken();
 
       if (!token) {
         return { success: false, error: "Please log in to save files" };
       }
 
-      // Convert blob to base64 for sending to backend
       const reader = new FileReader();
 
       return new Promise((resolve, reject) => {
@@ -158,7 +165,12 @@ const ConvertTools = () => {
     try {
       const token = getToken();
       if (!token) {
-        alert("Please log in to convert files");
+        showNotification({
+          type: 'error',
+          title: 'Authentication Required',
+          message: 'Please log in to convert files',
+          duration: 5000
+        });
         setIsConverting(false);
         return;
       }
@@ -192,39 +204,56 @@ const ConvertTools = () => {
       });
 
       const contentType = response.headers.get("content-type");
+      let result;
 
-      let blob;
-      let filename = "converted-file";
-
-      // Handle file download response
-      if (contentType && contentType.includes("application/pdf")) {
-        blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        setDownloadUrl(url);
-
-        // Get filename from Content-Disposition header
-        const contentDisposition = response.headers.get("content-disposition");
-        if (contentDisposition) {
-          const filenameMatch = contentDisposition.match(/filename="(.+)"/);
-          if (filenameMatch) {
-            filename = filenameMatch[1];
+      // Try to parse JSON response first (for errors and success messages)
+      if (contentType && contentType.includes("application/json")) {
+        result = await response.json();
+        
+        // Handle backend errors with detailed messages
+        if (!response.ok || !result.success) {
+          // Use the detailed error information from backend
+          const errorTitle = result.title || 'Conversion Failed';
+          const errorMessage = result.message || result.error || result.details || 'Unknown error occurred';
+          const errorType = result.type || 'conversion_error';
+          
+          // Special handling for limit exceeded
+          if (errorType === 'limit_exceeded') {
+            showNotification({
+              type: 'error',
+              title: errorTitle,
+              message: errorMessage,
+              duration: 8000
+            });
+            
+            // Show upgrade suggestion
+            setTimeout(() => {
+              showNotification({
+                type: 'warning',
+                title: 'Upgrade Your Plan',
+                message: `You've used ${result.currentUsage || 0}/${result.limit || 0} conversions. Upgrade for unlimited conversions!`,
+                duration: 10000
+              });
+            }, 1000);
+          } else {
+            // Show other detailed errors
+            showNotification({
+              type: 'error',
+              title: errorTitle,
+              message: errorMessage,
+              duration: 8000
+            });
           }
+          
+          throw new Error(errorMessage);
         }
-      }
-      // Handle JSON response (for errors or other info)
-      else if (contentType && contentType.includes("application/json")) {
-        const result = await response.json();
-
-        if (!response.ok) {
-          throw new Error(
-            result.error || `HTTP error! status: ${response.status}`
-          );
-        }
-
-        if (result.success) {
-          setConversionResult(result);
-          // If the result contains a download URL, create object URL for preview
-          if (result.downloadUrl) {
+        
+        // If we reach here, conversion was successful via JSON response
+        setConversionResult(result);
+        
+        // Handle download URL if provided
+        if (result.downloadUrl) {
+          try {
             const downloadResponse = await fetch(
               `${API_URL}${result.downloadUrl}`,
               {
@@ -233,23 +262,58 @@ const ConvertTools = () => {
                 },
               }
             );
-            blob = await downloadResponse.blob();
+            
+            if (!downloadResponse.ok) {
+              throw new Error('Failed to fetch converted file');
+            }
+            
+            const blob = await downloadResponse.blob();
             const url = window.URL.createObjectURL(blob);
             setDownloadUrl(url);
-
-            // Extract filename from download URL or use default
-            const urlParts = result.downloadUrl.split("/");
-            filename = result.convertedFilename || filename;
+            
+            // Save to My Files
+            if (blob) {
+              try {
+                await saveToMyFiles(blob, result.convertedFilename || "converted-file", selectedTool.id);
+              } catch (saveError) {
+                console.warn('Failed to save file:', saveError);
+              }
+            }
+          } catch (downloadError) {
+            console.error('Download error:', downloadError);
           }
-        } else {
-          throw new Error(result.error || "Conversion failed");
         }
-      } else {
-        // Handle other file types (images, etc.)
-        blob = await response.blob();
+        
+        // Show success notification
+        showNotification({
+          type: 'success',
+          title: result.title || 'Conversion Successful!',
+          message: result.message || `Your file has been converted successfully`,
+          duration: 5000
+        });
+        
+      } 
+      // Handle direct file responses (PDF, images, etc.)
+      else if (contentType && (contentType.includes("application/pdf") || contentType.includes("image/"))) {
+        if (!response.ok) {
+          // Try to read error message from response
+          const errorText = await response.text();
+          let errorData;
+          try {
+            errorData = JSON.parse(errorText);
+          } catch {
+            errorData = { error: errorText || `HTTP error! status: ${response.status}` };
+          }
+          
+          throw new Error(errorData.error || errorData.message || `Conversion failed with status: ${response.status}`);
+        }
+        
+        const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
         setDownloadUrl(url);
 
+        // Get filename from Content-Disposition header
+        let filename = "converted-file";
         const contentDisposition = response.headers.get("content-disposition");
         if (contentDisposition) {
           const filenameMatch = contentDisposition.match(/filename="(.+)"/);
@@ -257,24 +321,92 @@ const ConvertTools = () => {
             filename = filenameMatch[1];
           }
         }
-      }
 
-      // Save the converted file to My Files
-      if (blob) {
-        try {
-          await saveToMyFiles(blob, filename, selectedTool.id);
-        } catch (saveError) {
-          // Don't fail the conversion if saving fails
+        // Create success result
+        const successResult = {
+          success: true,
+          convertedFilename: filename,
+          downloadUrl: url,
+        };
+        
+        setConversionResult(successResult);
+
+        // Save to My Files
+        if (blob) {
+          try {
+            await saveToMyFiles(blob, filename, selectedTool.id);
+          } catch (saveError) {
+            console.warn('Failed to save file:', saveError);
+          }
         }
+
+        // Show success notification
+        showNotification({
+          type: 'success',
+          title: 'Conversion Successful!',
+          message: `Your file has been converted to ${selectedTool.name.includes('to PDF') ? 'PDF' : selectedTool.name.replace('PDF to ', '')}`,
+          duration: 5000
+        });
+      } 
+      // Handle other response types
+      else {
+        const responseText = await response.text();
+        let errorData;
+        
+        try {
+          errorData = JSON.parse(responseText);
+        } catch {
+          errorData = { error: responseText || `Unexpected response type: ${contentType}` };
+        }
+        
+        if (!response.ok) {
+          throw new Error(errorData.error || errorData.message || `HTTP error! status: ${response.status}`);
+        }
+        
+        // If we get here with a successful but unexpected response, show generic success
+        setConversionResult({
+          success: true,
+          convertedFilename: "converted-file",
+        });
+        
+        showNotification({
+          type: 'success',
+          title: 'Conversion Completed',
+          message: 'Your file has been processed successfully',
+          duration: 5000
+        });
       }
 
-      setConversionResult({
-        success: true,
-        convertedFilename: filename,
-        downloadUrl: downloadUrl,
-      });
     } catch (error) {
-      alert(`Conversion failed: ${error.message}`);
+      console.error('Conversion error:', error);
+      
+      // Show detailed error notification
+      let errorTitle = 'Conversion Failed';
+      let errorMessage = error.message;
+      
+      // Handle specific error types with better messages
+      if (error.message.includes('Usage limit exceeded') || error.message.includes('limit reached')) {
+        errorTitle = 'Usage Limit Reached';
+        errorMessage = 'You have reached your monthly conversion limit. Please upgrade your plan or wait until next month.';
+      } else if (error.message.includes('File too large')) {
+        errorTitle = 'File Too Large';
+      } else if (error.message.includes('Invalid file type')) {
+        errorTitle = 'Invalid File Type';
+      } else if (error.message.includes('network') || error.message.includes('Network')) {
+        errorTitle = 'Network Error';
+        errorMessage = 'Please check your internet connection and try again.';
+      } else if (error.message.includes('401') || error.message.includes('unauthorized')) {
+        errorTitle = 'Authentication Error';
+        errorMessage = 'Your session has expired. Please log in again.';
+        localStorage.removeItem('token');
+      }
+      
+      showNotification({
+        type: 'error',
+        title: errorTitle,
+        message: errorMessage,
+        duration: 8000
+      });
     } finally {
       setIsConverting(false);
     }
@@ -297,8 +429,20 @@ const ConvertTools = () => {
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
+
+      showNotification({
+        type: 'success',
+        title: 'Download Started',
+        message: `Downloading ${conversionResult.convertedFilename || 'converted file'}`,
+        duration: 3000
+      });
     } catch (error) {
-      alert(`Download failed: ${error.message}`);
+      showNotification({
+        type: 'error',
+        title: 'Download Failed',
+        message: error.message,
+        duration: 5000
+      });
     }
   };
 
@@ -310,6 +454,13 @@ const ConvertTools = () => {
     setShowPreview(false);
     setDownloadUrl(null);
     setFileSaved(false);
+    
+    showNotification({
+      type: 'info',
+      title: 'Reset',
+      message: 'Ready to convert another file',
+      duration: 3000
+    });
   };
 
   if (selectedTool) {
