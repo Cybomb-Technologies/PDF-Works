@@ -1,7 +1,15 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Zap, Merge, FileType, Edit3, Lock, Minimize2, Eye } from "lucide-react";
+import {
+  Zap,
+  Merge,
+  FileType,
+  Edit3,
+  Lock,
+  Minimize2,
+  Eye,
+} from "lucide-react";
 import FileUploadModal from "@/components/FileUploadModal";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,6 +20,7 @@ import EditTools from "@/pages/tools/EditTools";
 import SecurityTools from "@/pages/tools/SecurityTools";
 import OptimizeTools from "@/pages/tools/OptimizeTools";
 import AdvancedTools from "@/pages/tools/AdvancedTools";
+import Metatags from "../SEO/metatags";
 
 const ToolsPage = () => {
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -72,44 +81,65 @@ const ToolsPage = () => {
     }
   };
 
+  const metaPropsData = {
+    title: "Free PDF Tools Online PDF Editor Converter Compressor PDF Works",
+    description:
+      "Free online PDF tools editor converter compressor merger splitter organizer Free PDF tools online PDF editor converter compressor security optimize advanced tools",
+    keyword:
+      "free pdf tools, online pdf editor, pdf converter, pdf compressor, pdf merger, pdf splitter, pdf organizer, pdf security, pdf optimize, free pdf editor tools",
+    image:
+      "https://res.cloudinary.com/dcfjt8shw/image/upload/v1761288318/wn8m8g8skdpl6iz2rwoa.svg",
+    url: "https://pdfworks.in/tools",
+  };
+
   return (
-    <div className="space-y-6">
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 className="text-4xl font-bold gradient-text">PDF Tools 🛠️</h1>
-        <p className="text-muted-foreground">Choose a tool to get started with your PDF</p>
-      </motion.div>
+    <>
+      <Metatags metaProps={metaPropsData} />
+      <div className="space-y-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <h1 className="text-4xl font-bold gradient-text">PDF Tools 🛠️</h1>
+          <p className="text-muted-foreground">
+            Choose a tool to get started with your PDF
+          </p>
+        </motion.div>
 
-      <div className="flex gap-2 overflow-x-auto pb-2">
-        {categories.map((cat) => {
-          const Icon = cat.icon;
-          return (
-            <Button
-              key={cat.id}
-              variant={activeCategory === cat.id ? "default" : "outline"}
-              onClick={() => setActiveCategory(cat.id)}
-              className={`flex items-center gap-2 ${
-                activeCategory === cat.id ? "bg-primary text-primary-foreground" : ""
-              }`}
-            >
-              <Icon className="h-4 w-4" />
-              {cat.name}
-            </Button>
-          );
-        })}
+        <div className="flex gap-2 overflow-x-auto pb-2">
+          {categories.map((cat) => {
+            const Icon = cat.icon;
+            return (
+              <Button
+                key={cat.id}
+                variant={activeCategory === cat.id ? "default" : "outline"}
+                onClick={() => setActiveCategory(cat.id)}
+                className={`flex items-center gap-2 ${
+                  activeCategory === cat.id
+                    ? "bg-primary text-primary-foreground"
+                    : ""
+                }`}
+              >
+                <Icon className="h-4 w-4" />
+                {cat.name}
+              </Button>
+            );
+          })}
+        </div>
+
+        {renderCategory()}
+
+        {showUploadModal && (
+          <FileUploadModal
+            tool={selectedTool}
+            onClose={() => {
+              setShowUploadModal(false);
+              setSelectedTool(null);
+            }}
+          />
+        )}
       </div>
-
-      {renderCategory()}
-
-      {showUploadModal && (
-        <FileUploadModal
-          tool={selectedTool}
-          onClose={() => {
-            setShowUploadModal(false);
-            setSelectedTool(null);
-          }}
-        />
-      )}
-    </div>
+    </>
   );
 };
 

@@ -32,7 +32,7 @@ import {
   RotateCcw,
   RotateCw,
 } from "lucide-react";
-
+import Metatags from "../../../SEO/metatags";
 const API_URL = import.meta.env.VITE_API_URL;
 // Import all available fonts from your lib/fonts directory
 const AVAILABLE_FONTS = [
@@ -1892,785 +1892,805 @@ const PDFEditor = () => {
     }
   }, [showFindReplace]);
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <FontPreloader />
+  const metaPropsData = {
+    title:
+      "Free PDF Editor Online | Edit PDF Text, Images & Annotations - PDF Works",
+    description:
+      "100% free online PDF editor. Edit PDF text, add images, draw annotations, insert signatures, highlight text, and more. No registration required, completely free PDF editing tool with advanced features.",
+    keyword:
+      "free pdf editor, edit pdf online free, free pdf editor online, free pdf text editor, free pdf annotation tool, free pdf drawing tool, free pdf signature, free pdf highlight, free pdf markup, no cost pdf editor, free online pdf editing, completely free pdf editor, free document editor, free pdf tools, free pdf editor with signature",
+    image:
+      "https://res.cloudinary.com/dcfjt8shw/image/upload/v1761288318/wn8m8g8skdpl6iz2rwoa.svg",
+    url: "https://pdfworks.in/tools/",
+  };
 
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">PDF Editor</h1>
-              <p className="text-gray-600">Edit PDFs with advanced tools</p>
-            </div>
-            <div className="flex items-center gap-2 text-sm text-gray-500">
-              {sessionId && (
-                <span className="bg-gray-100 px-3 py-1 rounded">
-                  Session: {sessionId?.substring(0, 8)}...
-                </span>
-              )}
+  return (
+    <>
+      <Metatags metaProps={metaPropsData} />
+      <div className="min-h-screen bg-gray-50">
+        <FontPreloader />
+
+        {/* Header */}
+        <div className="bg-white shadow-sm border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center py-4">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">PDF Editor</h1>
+                <p className="text-gray-600">Edit PDFs with advanced tools</p>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                {sessionId && (
+                  <span className="bg-gray-100 px-3 py-1 rounded">
+                    Session: {sessionId?.substring(0, 8)}...
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Find & Replace Popup */}
-      {showFindReplace && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-96">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold">Find & Replace</h3>
-              <button
-                onClick={() => setShowFindReplace(false)}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Find
-                </label>
-                <input
-                  ref={findInputRef}
-                  type="text"
-                  value={findText}
-                  onChange={(e) => setFindText(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  placeholder="Enter text to find"
-                />
+        {/* Find & Replace Popup */}
+        {showFindReplace && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-96">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold">Find & Replace</h3>
+                <button
+                  onClick={() => setShowFindReplace(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Replace With
-                </label>
-                <input
-                  type="text"
-                  value={replaceText}
-                  onChange={(e) => setReplaceText(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  placeholder="Enter replacement text"
-                />
-              </div>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Find
+                  </label>
+                  <input
+                    ref={findInputRef}
+                    type="text"
+                    value={findText}
+                    onChange={(e) => setFindText(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    placeholder="Enter text to find"
+                  />
+                </div>
 
-              <div className="flex justify-between items-center text-sm text-gray-600">
-                <span>
-                  {searchResults.length > 0
-                    ? `${currentSearchIndex + 1} of ${
-                        searchResults.length
-                      } results`
-                    : "No results found"}
-                </span>
-                <div className="flex gap-2">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Replace With
+                  </label>
+                  <input
+                    type="text"
+                    value={replaceText}
+                    onChange={(e) => setReplaceText(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    placeholder="Enter replacement text"
+                  />
+                </div>
+
+                <div className="flex justify-between items-center text-sm text-gray-600">
+                  <span>
+                    {searchResults.length > 0
+                      ? `${currentSearchIndex + 1} of ${
+                          searchResults.length
+                        } results`
+                      : "No results found"}
+                  </span>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handlePreviousResult}
+                      disabled={searchResults.length === 0}
+                      className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
+                    >
+                      Previous
+                    </button>
+                    <button
+                      onClick={handleNextResult}
+                      disabled={searchResults.length === 0}
+                      className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex gap-2 pt-4 border-t border-gray-200">
                   <button
-                    onClick={handlePreviousResult}
-                    disabled={searchResults.length === 0}
-                    className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
+                    onClick={handleFind}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
                   >
-                    Previous
+                    Find
                   </button>
                   <button
-                    onClick={handleNextResult}
+                    onClick={handleReplace}
                     disabled={searchResults.length === 0}
-                    className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
+                    className="flex-1 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
                   >
-                    Next
+                    Replace
+                  </button>
+                  <button
+                    onClick={handleReplaceAll}
+                    disabled={searchResults.length === 0}
+                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+                  >
+                    Replace All
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
 
-              <div className="flex gap-2 pt-4 border-t border-gray-200">
+        {/* Signature Popup */}
+        {showSignaturePopup && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-96">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold">Draw Your Signature</h3>
                 <button
-                  onClick={handleFind}
+                  onClick={() => setShowSignaturePopup(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="border-2 border-dashed border-gray-300 rounded-lg mb-4">
+                <canvas
+                  ref={signatureCanvasRef}
+                  width={350}
+                  height={200}
+                  onMouseDown={startSignatureDrawing}
+                  onMouseMove={drawSignature}
+                  onMouseUp={stopSignatureDrawing}
+                  onMouseLeave={stopSignatureDrawing}
+                  className="w-full h-50 cursor-crosshair bg-white"
+                />
+              </div>
+
+              <div className="flex justify-between gap-2">
+                <button
+                  onClick={clearSignature}
+                  className="flex-1 px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+                >
+                  Clear
+                </button>
+                <button
+                  onClick={saveSignature}
                   className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
                 >
-                  Find
-                </button>
-                <button
-                  onClick={handleReplace}
-                  disabled={searchResults.length === 0}
-                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
-                >
-                  Replace
-                </button>
-                <button
-                  onClick={handleReplaceAll}
-                  disabled={searchResults.length === 0}
-                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
-                >
-                  Replace All
+                  Save Signature
                 </button>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* Signature Popup */}
-      {showSignaturePopup && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-96">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold">Draw Your Signature</h3>
-              <button
-                onClick={() => setShowSignaturePopup(false)}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="border-2 border-dashed border-gray-300 rounded-lg mb-4">
-              <canvas
-                ref={signatureCanvasRef}
-                width={350}
-                height={200}
-                onMouseDown={startSignatureDrawing}
-                onMouseMove={drawSignature}
-                onMouseUp={stopSignatureDrawing}
-                onMouseLeave={stopSignatureDrawing}
-                className="w-full h-50 cursor-crosshair bg-white"
-              />
-            </div>
-
-            <div className="flex justify-between gap-2">
-              <button
-                onClick={clearSignature}
-                className="flex-1 px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
-              >
-                Clear
-              </button>
-              <button
-                onClick={saveSignature}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-              >
-                Save Signature
-              </button>
-            </div>
-
-            <div className="mt-4 pt-4 border-t border-gray-200">
-              <p className="text-sm text-gray-600 mb-2">
-                Or use text signature:
-              </p>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={signature}
-                  onChange={(e) => setSignature(e.target.value)}
-                  placeholder="Enter your signature"
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded text-sm"
-                />
-                <button
-                  onClick={addTextSignature}
-                  className="px-4 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700"
-                >
-                  Add Text
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* File Saved Status */}
-      {fileSaved && (
-        <div className="fixed bottom-4 right-4 p-4 bg-green-50 border border-green-200 rounded-lg shadow-lg z-50">
-          <p className="text-green-700 text-sm font-medium">
-            ✅ File automatically saved to <strong>My Files</strong> section
-          </p>
-        </div>
-      )}
-
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {status === "upload" && (
-          <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
-            <File className="w-16 h-16 text-gray-400 mb-4" />
-            <h2 className="text-xl font-semibold text-gray-700 mb-2">
-              Upload PDF to Edit
-            </h2>
-            <p className="text-gray-500 mb-6 text-center">
-              Upload a PDF file to start editing with advanced tools
-            </p>
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileUpload}
-              accept=".pdf"
-              className="hidden"
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isProcessing}
-              className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              <UploadCloud className="w-5 h-5" />
-              {isProcessing ? "Processing..." : "Choose PDF File"}
-            </button>
-          </div>
-        )}
-
-        {status === "processing" && (
-          <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
-            <RefreshCcw className="w-16 h-16 text-blue-600 mb-4 animate-spin" />
-            <h2 className="text-xl font-semibold text-gray-700 mb-2">
-              Processing PDF...
-            </h2>
-            <p className="text-gray-500 mb-4 text-center">
-              Preparing PDF for editing
-            </p>
-            <div className="w-full max-w-md bg-gray-200 rounded-full h-2 mb-4">
-              <div
-                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${loadingProgress}%` }}
-              ></div>
-            </div>
-            <p className="text-sm text-gray-600">{loadingProgress}%</p>
-          </div>
-        )}
-
-        {status === "editor" && (
-          <div className="flex flex-col h-[calc(100vh-200px)]">
-            {/* Enhanced Top Toolbar */}
-            <div className="flex items-center justify-between p-4 bg-white border-b border-gray-200">
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={handleReset}
-                  className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                  New PDF
-                </button>
-
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-600">
-                    Page {currentPage} of {totalPages}
-                  </span>
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <p className="text-sm text-gray-600 mb-2">
+                  Or use text signature:
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={signature}
+                    onChange={(e) => setSignature(e.target.value)}
+                    placeholder="Enter your signature"
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded text-sm"
+                  />
                   <button
-                    onClick={goToPreviousPage}
-                    disabled={currentPage <= 1}
-                    className="p-1 text-gray-600 hover:bg-gray-100 rounded disabled:opacity-50"
+                    onClick={addTextSignature}
+                    className="px-4 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700"
+                  >
+                    Add Text
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* File Saved Status */}
+        {fileSaved && (
+          <div className="fixed bottom-4 right-4 p-4 bg-green-50 border border-green-200 rounded-lg shadow-lg z-50">
+            <p className="text-green-700 text-sm font-medium">
+              ✅ File automatically saved to <strong>My Files</strong> section
+            </p>
+          </div>
+        )}
+
+        {/* Main Content */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {status === "upload" && (
+            <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
+              <File className="w-16 h-16 text-gray-400 mb-4" />
+              <h2 className="text-xl font-semibold text-gray-700 mb-2">
+                Upload PDF to Edit
+              </h2>
+              <p className="text-gray-500 mb-6 text-center">
+                Upload a PDF file to start editing with advanced tools
+              </p>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileUpload}
+                accept=".pdf"
+                className="hidden"
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isProcessing}
+                className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <UploadCloud className="w-5 h-5" />
+                {isProcessing ? "Processing..." : "Choose PDF File"}
+              </button>
+            </div>
+          )}
+
+          {status === "processing" && (
+            <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
+              <RefreshCcw className="w-16 h-16 text-blue-600 mb-4 animate-spin" />
+              <h2 className="text-xl font-semibold text-gray-700 mb-2">
+                Processing PDF...
+              </h2>
+              <p className="text-gray-500 mb-4 text-center">
+                Preparing PDF for editing
+              </p>
+              <div className="w-full max-w-md bg-gray-200 rounded-full h-2 mb-4">
+                <div
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${loadingProgress}%` }}
+                ></div>
+              </div>
+              <p className="text-sm text-gray-600">{loadingProgress}%</p>
+            </div>
+          )}
+
+          {status === "editor" && (
+            <div className="flex flex-col h-[calc(100vh-200px)]">
+              {/* Enhanced Top Toolbar */}
+              <div className="flex items-center justify-between p-4 bg-white border-b border-gray-200">
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={handleReset}
+                    className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                   >
                     <ChevronLeft className="w-4 h-4" />
+                    New PDF
                   </button>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <button
+                      onClick={goToPreviousPage}
+                      disabled={currentPage <= 1}
+                      className="p-1 text-gray-600 hover:bg-gray-100 rounded disabled:opacity-50"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={goToNextPage}
+                      disabled={currentPage >= totalPages}
+                      className="p-1 text-gray-600 hover:bg-gray-100 rounded disabled:opacity-50"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Undo/Redo */}
+                  <div className="flex items-center gap-1 border-l border-gray-300 pl-4">
+                    <button
+                      onClick={handleUndo}
+                      disabled={historyIndex <= 0}
+                      className="p-2 text-gray-600 hover:bg-gray-100 rounded disabled:opacity-50"
+                      title="Undo"
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={handleRedo}
+                      disabled={historyIndex >= editHistory.length - 1}
+                      className="p-2 text-gray-600 hover:bg-gray-100 rounded disabled:opacity-50"
+                      title="Redo"
+                    >
+                      <RotateCw className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Find & Replace */}
                   <button
-                    onClick={goToNextPage}
-                    disabled={currentPage >= totalPages}
-                    className="p-1 text-gray-600 hover:bg-gray-100 rounded disabled:opacity-50"
+                    onClick={() => setShowFindReplace(true)}
+                    className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                   >
-                    <ChevronRight className="w-4 h-4" />
+                    <Search className="w-4 h-4" />
+                    Find & Replace
                   </button>
                 </div>
 
-                {/* Undo/Redo */}
-                <div className="flex items-center gap-1 border-l border-gray-300 pl-4">
-                  <button
-                    onClick={handleUndo}
-                    disabled={historyIndex <= 0}
-                    className="p-2 text-gray-600 hover:bg-gray-100 rounded disabled:opacity-50"
-                    title="Undo"
-                  >
-                    <RotateCcw className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={handleRedo}
-                    disabled={historyIndex >= editHistory.length - 1}
-                    className="p-2 text-gray-600 hover:bg-gray-100 rounded disabled:opacity-50"
-                    title="Redo"
-                  >
-                    <RotateCw className="w-4 h-4" />
-                  </button>
-                </div>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={zoomOut}
+                      className="p-2 text-gray-600 hover:bg-gray-100 rounded"
+                    >
+                      <ZoomOut className="w-4 h-4" />
+                    </button>
+                    <span className="text-sm text-gray-600">
+                      {Math.round(scale * 100)}%
+                    </span>
+                    <button
+                      onClick={zoomIn}
+                      className="p-2 text-gray-600 hover:bg-gray-100 rounded"
+                    >
+                      <ZoomIn className="w-4 h-4" />
+                    </button>
+                  </div>
 
-                {/* Find & Replace */}
-                <button
-                  onClick={() => setShowFindReplace(true)}
-                  className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <Search className="w-4 h-4" />
-                  Find & Replace
-                </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleApplyEdits}
+                      className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                    >
+                      <Edit className="w-4 h-4" />
+                      Save Edits
+                    </button>
+                    <button
+                      onClick={handleExport}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      <Download className="w-4 h-4" />
+                      Export PDF
+                    </button>
+                  </div>
+                </div>
               </div>
 
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
+              {/* Text Formatting Toolbar */}
+              {selectedElement && selectedElement.type === "text" && (
+                <div className="flex items-center gap-4 p-3 bg-white border-b border-gray-200">
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() =>
+                        applyTextFormatting({ bold: !textFormat.bold })
+                      }
+                      className={`p-2 rounded ${
+                        textFormat.bold
+                          ? "bg-blue-100 text-blue-600"
+                          : "text-gray-600 hover:bg-gray-100"
+                      }`}
+                      title="Bold"
+                    >
+                      <Bold className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() =>
+                        applyTextFormatting({ italic: !textFormat.italic })
+                      }
+                      className={`p-2 rounded ${
+                        textFormat.italic
+                          ? "bg-blue-100 text-blue-600"
+                          : "text-gray-600 hover:bg-gray-100"
+                      }`}
+                      title="Italic"
+                    >
+                      <Italic className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() =>
+                        applyTextFormatting({
+                          underline: !textFormat.underline,
+                        })
+                      }
+                      className={`p-2 rounded ${
+                        textFormat.underline
+                          ? "bg-blue-100 text-blue-600"
+                          : "text-gray-600 hover:bg-gray-100"
+                      }`}
+                      title="Underline"
+                    >
+                      <Underline className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={textFormat.fontFamily}
+                      onChange={(e) =>
+                        applyTextFormatting({ fontFamily: e.target.value })
+                      }
+                      className="px-2 py-1 border border-gray-300 rounded text-sm"
+                    >
+                      {AVAILABLE_FONTS.map((font) => (
+                        <option key={font} value={font}>
+                          {font}
+                        </option>
+                      ))}
+                    </select>
+
+                    <select
+                      value={textFormat.fontSize}
+                      onChange={(e) =>
+                        applyTextFormatting({
+                          fontSize: parseInt(e.target.value),
+                        })
+                      }
+                      className="px-2 py-1 border border-gray-300 rounded text-sm"
+                    >
+                      {[8, 10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48].map(
+                        (size) => (
+                          <option key={size} value={size}>
+                            {size}
+                          </option>
+                        )
+                      )}
+                    </select>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1">
+                      <Palette className="w-4 h-4 text-gray-600" />
+                      <input
+                        type="color"
+                        value={textFormat.color}
+                        onChange={(e) =>
+                          applyTextFormatting({ color: e.target.value })
+                        }
+                        className="w-8 h-8 border border-gray-300 rounded cursor-pointer"
+                        title="Text Color"
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                      <Highlighter className="w-4 h-4 text-gray-600" />
+                      <input
+                        type="color"
+                        value={
+                          textFormat.highlight === "transparent"
+                            ? "#ffffff"
+                            : textFormat.highlight
+                        }
+                        onChange={(e) =>
+                          applyTextFormatting({ highlight: e.target.value })
+                        }
+                        className="w-8 h-8 border border-gray-300 rounded cursor-pointer"
+                        title="Highlight Color"
+                      />
+                    </div>
+                  </div>
+
                   <button
-                    onClick={zoomOut}
-                    className="p-2 text-gray-600 hover:bg-gray-100 rounded"
+                    onClick={duplicateElement}
+                    className="flex items-center gap-1 px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                    title="Duplicate Element"
                   >
-                    <ZoomOut className="w-4 h-4" />
-                  </button>
-                  <span className="text-sm text-gray-600">
-                    {Math.round(scale * 100)}%
-                  </span>
-                  <button
-                    onClick={zoomIn}
-                    className="p-2 text-gray-600 hover:bg-gray-100 rounded"
-                  >
-                    <ZoomIn className="w-4 h-4" />
+                    <Copy className="w-4 h-4" />
+                    Duplicate
                   </button>
                 </div>
+              )}
 
-                <div className="flex gap-2">
+              {/* Main Editor Area */}
+              <div className="flex flex-1 overflow-hidden">
+                {/* Left Sidebar - Tools */}
+                <div className="w-16 bg-gray-50 border-r border-gray-200 p-2 flex flex-col items-center gap-2">
                   <button
-                    onClick={handleApplyEdits}
-                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                    onClick={() => setActiveTool("select")}
+                    className={`p-3 rounded-lg ${
+                      activeTool === "select"
+                        ? "bg-blue-100 text-blue-600"
+                        : "text-gray-600 hover:bg-gray-200"
+                    }`}
+                    title="Select"
                   >
-                    <Edit className="w-4 h-4" />
-                    Save Edits
+                    <MousePointer className="w-5 h-5" />
                   </button>
-                  <button
-                    onClick={handleExport}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    <Download className="w-4 h-4" />
-                    Export PDF
-                  </button>
-                </div>
-              </div>
-            </div>
 
-            {/* Text Formatting Toolbar */}
-            {selectedElement && selectedElement.type === "text" && (
-              <div className="flex items-center gap-4 p-3 bg-white border-b border-gray-200">
-                <div className="flex items-center gap-1">
                   <button
-                    onClick={() =>
-                      applyTextFormatting({ bold: !textFormat.bold })
-                    }
-                    className={`p-2 rounded ${
-                      textFormat.bold
+                    onClick={() => setActiveTool("text")}
+                    className={`p-3 rounded-lg ${
+                      activeTool === "text"
                         ? "bg-blue-100 text-blue-600"
-                        : "text-gray-600 hover:bg-gray-100"
+                        : "text-gray-600 hover:bg-gray-200"
                     }`}
-                    title="Bold"
+                    title="Text"
                   >
-                    <Bold className="w-4 h-4" />
+                    <Type className="w-5 h-5" />
                   </button>
+
+                  {/* Annotation Tools */}
+                  <div className="border-t border-gray-300 my-2 w-full"></div>
+
                   <button
-                    onClick={() =>
-                      applyTextFormatting({ italic: !textFormat.italic })
-                    }
-                    className={`p-2 rounded ${
-                      textFormat.italic
+                    onClick={() => setActiveTool("draw")}
+                    className={`p-3 rounded-lg ${
+                      activeTool === "draw"
                         ? "bg-blue-100 text-blue-600"
-                        : "text-gray-600 hover:bg-gray-100"
+                        : "text-gray-600 hover:bg-gray-200"
                     }`}
-                    title="Italic"
+                    title="Draw"
                   >
-                    <Italic className="w-4 h-4" />
+                    <PenTool className="w-5 h-5" />
                   </button>
+
                   <button
-                    onClick={() =>
-                      applyTextFormatting({ underline: !textFormat.underline })
-                    }
-                    className={`p-2 rounded ${
-                      textFormat.underline
+                    onClick={() => setActiveTool("highlight")}
+                    className={`p-3 rounded-lg ${
+                      activeTool === "highlight"
                         ? "bg-blue-100 text-blue-600"
-                        : "text-gray-600 hover:bg-gray-100"
+                        : "text-gray-600 hover:bg-gray-200"
+                    }`}
+                    title="Highlight"
+                  >
+                    <Highlighter className="w-5 h-5" />
+                  </button>
+
+                  <button
+                    onClick={() => setActiveTool("underline")}
+                    className={`p-3 rounded-lg ${
+                      activeTool === "underline"
+                        ? "bg-blue-100 text-blue-600"
+                        : "text-gray-600 hover:bg-gray-200"
                     }`}
                     title="Underline"
                   >
-                    <Underline className="w-4 h-4" />
+                    <Underline className="w-5 h-5" />
                   </button>
-                </div>
 
-                <div className="flex items-center gap-2">
-                  <select
-                    value={textFormat.fontFamily}
-                    onChange={(e) =>
-                      applyTextFormatting({ fontFamily: e.target.value })
-                    }
-                    className="px-2 py-1 border border-gray-300 rounded text-sm"
+                  <button
+                    onClick={() => setActiveTool("strikeout")}
+                    className={`p-3 rounded-lg ${
+                      activeTool === "strikeout"
+                        ? "bg-blue-100 text-blue-600"
+                        : "text-gray-600 hover:bg-gray-200"
+                    }`}
+                    title="Strikeout"
                   >
-                    {AVAILABLE_FONTS.map((font) => (
-                      <option key={font} value={font}>
-                        {font}
-                      </option>
-                    ))}
-                  </select>
+                    <Strikethrough className="w-5 h-5" />
+                  </button>
 
-                  <select
-                    value={textFormat.fontSize}
-                    onChange={(e) =>
-                      applyTextFormatting({
-                        fontSize: parseInt(e.target.value),
-                      })
-                    }
-                    className="px-2 py-1 border border-gray-300 rounded text-sm"
+                  <div className="border-t border-gray-300 my-2 w-full"></div>
+
+                  <button
+                    onClick={() => setShowSignaturePopup(true)}
+                    className="p-3 text-gray-600 hover:bg-gray-200 rounded-lg"
+                    title="Signature"
                   >
-                    {[8, 10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48].map(
-                      (size) => (
-                        <option key={size} value={size}>
-                          {size}
-                        </option>
-                      )
-                    )}
-                  </select>
+                    <Move className="w-5 h-5" />
+                  </button>
+
+                  <button
+                    onClick={() => addElement("rectangle")}
+                    className="p-3 text-gray-600 hover:bg-gray-200 rounded-lg"
+                    title="Rectangle"
+                  >
+                    <Square className="w-5 h-5" />
+                  </button>
+
+                  <button
+                    onClick={() => addElement("circle")}
+                    className="p-3 text-gray-600 hover:bg-gray-200 rounded-lg"
+                    title="Circle"
+                  >
+                    <Circle className="w-5 h-5" />
+                  </button>
+
+                  <button
+                    onClick={() => addElement("line")}
+                    className="p-3 text-gray-600 hover:bg-gray-200 rounded-lg"
+                    title="Line"
+                  >
+                    <Minus className="w-5 h-5" />
+                  </button>
+
+                  <div className="border-t border-gray-300 my-2 w-full"></div>
+
+                  <button
+                    onClick={() =>
+                      document.getElementById("image-upload")?.click()
+                    }
+                    className="p-3 text-gray-600 hover:bg-gray-200 rounded-lg"
+                    title="Add Image"
+                  >
+                    <ImageIcon className="w-5 h-5" />
+                  </button>
+                  <input
+                    id="image-upload"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                  />
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1">
-                    <Palette className="w-4 h-4 text-gray-600" />
-                    <input
-                      type="color"
-                      value={textFormat.color}
-                      onChange={(e) =>
-                        applyTextFormatting({ color: e.target.value })
-                      }
-                      className="w-8 h-8 border border-gray-300 rounded cursor-pointer"
-                      title="Text Color"
-                    />
-                  </div>
-
-                  <div className="flex items-center gap-1">
-                    <Highlighter className="w-4 h-4 text-gray-600" />
-                    <input
-                      type="color"
-                      value={
-                        textFormat.highlight === "transparent"
-                          ? "#ffffff"
-                          : textFormat.highlight
-                      }
-                      onChange={(e) =>
-                        applyTextFormatting({ highlight: e.target.value })
-                      }
-                      className="w-8 h-8 border border-gray-300 rounded cursor-pointer"
-                      title="Highlight Color"
-                    />
-                  </div>
-                </div>
-
-                <button
-                  onClick={duplicateElement}
-                  className="flex items-center gap-1 px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                  title="Duplicate Element"
-                >
-                  <Copy className="w-4 h-4" />
-                  Duplicate
-                </button>
-              </div>
-            )}
-
-            {/* Main Editor Area */}
-            <div className="flex flex-1 overflow-hidden">
-              {/* Left Sidebar - Tools */}
-              <div className="w-16 bg-gray-50 border-r border-gray-200 p-2 flex flex-col items-center gap-2">
-                <button
-                  onClick={() => setActiveTool("select")}
-                  className={`p-3 rounded-lg ${
-                    activeTool === "select"
-                      ? "bg-blue-100 text-blue-600"
-                      : "text-gray-600 hover:bg-gray-200"
-                  }`}
-                  title="Select"
-                >
-                  <MousePointer className="w-5 h-5" />
-                </button>
-
-                <button
-                  onClick={() => setActiveTool("text")}
-                  className={`p-3 rounded-lg ${
-                    activeTool === "text"
-                      ? "bg-blue-100 text-blue-600"
-                      : "text-gray-600 hover:bg-gray-200"
-                  }`}
-                  title="Text"
-                >
-                  <Type className="w-5 h-5" />
-                </button>
-
-                {/* Annotation Tools */}
-                <div className="border-t border-gray-300 my-2 w-full"></div>
-
-                <button
-                  onClick={() => setActiveTool("draw")}
-                  className={`p-3 rounded-lg ${
-                    activeTool === "draw"
-                      ? "bg-blue-100 text-blue-600"
-                      : "text-gray-600 hover:bg-gray-200"
-                  }`}
-                  title="Draw"
-                >
-                  <PenTool className="w-5 h-5" />
-                </button>
-
-                <button
-                  onClick={() => setActiveTool("highlight")}
-                  className={`p-3 rounded-lg ${
-                    activeTool === "highlight"
-                      ? "bg-blue-100 text-blue-600"
-                      : "text-gray-600 hover:bg-gray-200"
-                  }`}
-                  title="Highlight"
-                >
-                  <Highlighter className="w-5 h-5" />
-                </button>
-
-                <button
-                  onClick={() => setActiveTool("underline")}
-                  className={`p-3 rounded-lg ${
-                    activeTool === "underline"
-                      ? "bg-blue-100 text-blue-600"
-                      : "text-gray-600 hover:bg-gray-200"
-                  }`}
-                  title="Underline"
-                >
-                  <Underline className="w-5 h-5" />
-                </button>
-
-                <button
-                  onClick={() => setActiveTool("strikeout")}
-                  className={`p-3 rounded-lg ${
-                    activeTool === "strikeout"
-                      ? "bg-blue-100 text-blue-600"
-                      : "text-gray-600 hover:bg-gray-200"
-                  }`}
-                  title="Strikeout"
-                >
-                  <Strikethrough className="w-5 h-5" />
-                </button>
-
-                <div className="border-t border-gray-300 my-2 w-full"></div>
-
-                <button
-                  onClick={() => setShowSignaturePopup(true)}
-                  className="p-3 text-gray-600 hover:bg-gray-200 rounded-lg"
-                  title="Signature"
-                >
-                  <Move className="w-5 h-5" />
-                </button>
-
-                <button
-                  onClick={() => addElement("rectangle")}
-                  className="p-3 text-gray-600 hover:bg-gray-200 rounded-lg"
-                  title="Rectangle"
-                >
-                  <Square className="w-5 h-5" />
-                </button>
-
-                <button
-                  onClick={() => addElement("circle")}
-                  className="p-3 text-gray-600 hover:bg-gray-200 rounded-lg"
-                  title="Circle"
-                >
-                  <Circle className="w-5 h-5" />
-                </button>
-
-                <button
-                  onClick={() => addElement("line")}
-                  className="p-3 text-gray-600 hover:bg-gray-200 rounded-lg"
-                  title="Line"
-                >
-                  <Minus className="w-5 h-5" />
-                </button>
-
-                <div className="border-t border-gray-300 my-2 w-full"></div>
-
-                <button
-                  onClick={() =>
-                    document.getElementById("image-upload")?.click()
-                  }
-                  className="p-3 text-gray-600 hover:bg-gray-200 rounded-lg"
-                  title="Add Image"
-                >
-                  <ImageIcon className="w-5 h-5" />
-                </button>
-                <input
-                  id="image-upload"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="hidden"
-                />
-              </div>
-
-              {/* Canvas Area */}
-              <div className="flex-1 bg-gray-100 overflow-auto p-8 relative">
-                <div
-                  ref={containerRef}
-                  className="bg-white shadow-lg mx-auto relative"
-                  style={{
-                    transform: `scale(${scale})`,
-                    transformOrigin: "center top",
-                  }}
-                >
+                {/* Canvas Area */}
+                <div className="flex-1 bg-gray-100 overflow-auto p-8 relative">
                   <div
-                    ref={canvasRef}
-                    className="pdf-canvas relative"
+                    ref={containerRef}
+                    className="bg-white shadow-lg mx-auto relative"
                     style={{
-                      background: "white",
-                      boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
-                      cursor: activeTool !== "select" ? "crosshair" : "default",
+                      transform: `scale(${scale})`,
+                      transformOrigin: "center top",
                     }}
-                    onClick={handleCanvasClick}
-                  />
-                  <canvas
-                    ref={drawingCanvasRef}
-                    className="absolute top-0 left-0"
-                    onMouseDown={startDrawing}
-                    onMouseMove={draw}
-                    onMouseUp={stopDrawing}
-                    onMouseLeave={stopDrawing}
-                  />
+                  >
+                    <div
+                      ref={canvasRef}
+                      className="pdf-canvas relative"
+                      style={{
+                        background: "white",
+                        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
+                        cursor:
+                          activeTool !== "select" ? "crosshair" : "default",
+                      }}
+                      onClick={handleCanvasClick}
+                    />
+                    <canvas
+                      ref={drawingCanvasRef}
+                      className="absolute top-0 left-0"
+                      onMouseDown={startDrawing}
+                      onMouseMove={draw}
+                      onMouseUp={stopDrawing}
+                      onMouseLeave={stopDrawing}
+                    />
+                  </div>
                 </div>
-              </div>
 
-              {/* Right Sidebar - Colors and Properties */}
-              <div className="w-80 bg-white border-l border-gray-200 p-4">
-                <h3 className="font-semibold text-gray-700 mb-4">Properties</h3>
+                {/* Right Sidebar - Colors and Properties */}
+                <div className="w-80 bg-white border-l border-gray-200 p-4">
+                  <h3 className="font-semibold text-gray-700 mb-4">
+                    Properties
+                  </h3>
 
-                {/* Active Tool Info */}
-                <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-                  <p className="text-sm text-blue-800">
-                    <strong>Active Tool:</strong> {activeTool}
-                  </p>
-                  {activeTool !== "select" && (
-                    <p className="text-xs text-blue-600 mt-1">
-                      Click on the document to place the {activeTool}
+                  {/* Active Tool Info */}
+                  <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+                    <p className="text-sm text-blue-800">
+                      <strong>Active Tool:</strong> {activeTool}
                     </p>
-                  )}
-                </div>
+                    {activeTool !== "select" && (
+                      <p className="text-xs text-blue-600 mt-1">
+                        Click on the document to place the {activeTool}
+                      </p>
+                    )}
+                  </div>
 
-                {/* Color Palettes */}
-                <div className="space-y-4">
-                  {/* Annotation Colors */}
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-600 mb-2">
-                      Annotation Color
-                    </h4>
-                    <div className="grid grid-cols-5 gap-2">
-                      {[
-                        "#FF0000",
-                        "#00FF00",
-                        "#0000FF",
-                        "#FFFF00",
-                        "#FF00FF",
-                        "#00FFFF",
-                        "#000000",
-                        "#FFFFFF",
-                        "#FFA500",
-                        "#800080",
-                      ].map((color) => (
-                        <button
-                          key={color}
-                          onClick={() => setAnnotationColor(color)}
-                          className={`w-8 h-8 rounded border-2 ${
-                            annotationColor === color
-                              ? "border-gray-800"
-                              : "border-gray-300"
-                          }`}
-                          style={{ backgroundColor: color }}
-                          title={color}
-                        />
-                      ))}
+                  {/* Color Palettes */}
+                  <div className="space-y-4">
+                    {/* Annotation Colors */}
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-600 mb-2">
+                        Annotation Color
+                      </h4>
+                      <div className="grid grid-cols-5 gap-2">
+                        {[
+                          "#FF0000",
+                          "#00FF00",
+                          "#0000FF",
+                          "#FFFF00",
+                          "#FF00FF",
+                          "#00FFFF",
+                          "#000000",
+                          "#FFFFFF",
+                          "#FFA500",
+                          "#800080",
+                        ].map((color) => (
+                          <button
+                            key={color}
+                            onClick={() => setAnnotationColor(color)}
+                            className={`w-8 h-8 rounded border-2 ${
+                              annotationColor === color
+                                ? "border-gray-800"
+                                : "border-gray-300"
+                            }`}
+                            style={{ backgroundColor: color }}
+                            title={color}
+                          />
+                        ))}
+                      </div>
+                      <input
+                        type="color"
+                        value={annotationColor}
+                        onChange={(e) => setAnnotationColor(e.target.value)}
+                        className="w-full mt-2 h-8 border border-gray-300 rounded cursor-pointer"
+                      />
                     </div>
-                    <input
-                      type="color"
-                      value={annotationColor}
-                      onChange={(e) => setAnnotationColor(e.target.value)}
-                      className="w-full mt-2 h-8 border border-gray-300 rounded cursor-pointer"
-                    />
-                  </div>
 
-                  {/* Shape Colors */}
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-600 mb-2">
-                      Shape Color
-                    </h4>
-                    <div className="grid grid-cols-5 gap-2">
-                      {[
-                        "#000000",
-                        "#FF0000",
-                        "#00FF00",
-                        "#0000FF",
-                        "#FFFF00",
-                        "#FF00FF",
-                        "#00FFFF",
-                        "#FFA500",
-                        "#800080",
-                        "#A52A2A",
-                      ].map((color) => (
-                        <button
-                          key={color}
-                          onClick={() => setShapeColor(color)}
-                          className={`w-8 h-8 rounded border-2 ${
-                            shapeColor === color
-                              ? "border-gray-800"
-                              : "border-gray-300"
-                          }`}
-                          style={{ backgroundColor: color }}
-                          title={color}
-                        />
-                      ))}
+                    {/* Shape Colors */}
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-600 mb-2">
+                        Shape Color
+                      </h4>
+                      <div className="grid grid-cols-5 gap-2">
+                        {[
+                          "#000000",
+                          "#FF0000",
+                          "#00FF00",
+                          "#0000FF",
+                          "#FFFF00",
+                          "#FF00FF",
+                          "#00FFFF",
+                          "#FFA500",
+                          "#800080",
+                          "#A52A2A",
+                        ].map((color) => (
+                          <button
+                            key={color}
+                            onClick={() => setShapeColor(color)}
+                            className={`w-8 h-8 rounded border-2 ${
+                              shapeColor === color
+                                ? "border-gray-800"
+                                : "border-gray-300"
+                            }`}
+                            style={{ backgroundColor: color }}
+                            title={color}
+                          />
+                        ))}
+                      </div>
+                      <input
+                        type="color"
+                        value={shapeColor}
+                        onChange={(e) => setShapeColor(e.target.value)}
+                        className="w-full mt-2 h-8 border border-gray-300 rounded cursor-pointer"
+                      />
                     </div>
-                    <input
-                      type="color"
-                      value={shapeColor}
-                      onChange={(e) => setShapeColor(e.target.value)}
-                      className="w-full mt-2 h-8 border border-gray-300 rounded cursor-pointer"
-                    />
                   </div>
-                </div>
 
-                {/* Quick Actions */}
-                <div className="mt-6">
-                  <h4 className="text-sm font-medium text-gray-600 mb-2">
-                    Quick Actions
-                  </h4>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() => addElement("rectangle")}
-                      className="px-3 py-2 border border-gray-300 rounded text-sm hover:bg-gray-50"
-                    >
-                      Rectangle
-                    </button>
-                    <button
-                      onClick={() => addElement("circle")}
-                      className="px-3 py-2 border border-gray-300 rounded text-sm hover:bg-gray-50"
-                    >
-                      Circle
-                    </button>
-                    <button
-                      onClick={() => addElement("line")}
-                      className="px-3 py-2 border border-gray-300 rounded text-sm hover:bg-gray-50"
-                    >
-                      Line
-                    </button>
-                    <button
-                      onClick={() => addElement("text")}
-                      className="px-3 py-2 border border-gray-300 rounded text-sm hover:bg-gray-50"
-                    >
-                      Text Box
-                    </button>
+                  {/* Quick Actions */}
+                  <div className="mt-6">
+                    <h4 className="text-sm font-medium text-gray-600 mb-2">
+                      Quick Actions
+                    </h4>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => addElement("rectangle")}
+                        className="px-3 py-2 border border-gray-300 rounded text-sm hover:bg-gray-50"
+                      >
+                        Rectangle
+                      </button>
+                      <button
+                        onClick={() => addElement("circle")}
+                        className="px-3 py-2 border border-gray-300 rounded text-sm hover:bg-gray-50"
+                      >
+                        Circle
+                      </button>
+                      <button
+                        onClick={() => addElement("line")}
+                        className="px-3 py-2 border border-gray-300 rounded text-sm hover:bg-gray-50"
+                      >
+                        Line
+                      </button>
+                      <button
+                        onClick={() => addElement("text")}
+                        className="px-3 py-2 border border-gray-300 rounded text-sm hover:bg-gray-50"
+                      >
+                        Text Box
+                      </button>
+                    </div>
                   </div>
-                </div>
 
-                {/* Edit Instructions */}
-                <div className="mt-8 p-4 bg-blue-50 rounded-lg">
-                  <h4 className="font-semibold text-blue-800 text-sm mb-2">
-                    Editing Tools:
-                  </h4>
-                  <ul className="text-xs text-blue-700 space-y-1">
-                    <li>• Click on text to edit</li>
-                    <li>• Click on empty space to add elements</li>
-                    <li>• Drag elements to move them</li>
-                    <li>• Use corners to resize elements</li>
-                    <li>• Double-click text boxes to edit</li>
-                    <li>• Use Ctrl+Z/Ctrl+Y for undo/redo</li>
-                    <li>• Save edits before exporting</li>
-                  </ul>
+                  {/* Edit Instructions */}
+                  <div className="mt-8 p-4 bg-blue-50 rounded-lg">
+                    <h4 className="font-semibold text-blue-800 text-sm mb-2">
+                      Editing Tools:
+                    </h4>
+                    <ul className="text-xs text-blue-700 space-y-1">
+                      <li>• Click on text to edit</li>
+                      <li>• Click on empty space to add elements</li>
+                      <li>• Drag elements to move them</li>
+                      <li>• Use corners to resize elements</li>
+                      <li>• Double-click text boxes to edit</li>
+                      <li>• Use Ctrl+Z/Ctrl+Y for undo/redo</li>
+                      <li>• Save edits before exporting</li>
+                    </ul>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 

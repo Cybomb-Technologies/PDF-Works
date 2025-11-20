@@ -27,18 +27,18 @@ function HomePressReleaseDetail() {
 
   const handleDownload = async () => {
     if (!press?.pdfFile) return;
-    
+
     setDownloading(true);
     try {
       // Increment download count
       await fetch(`${API_URL}/api/pressrelease/${id}/download`, {
-        method: 'POST'
+        method: "POST",
       });
 
       // Trigger download
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = `${API_URL}${press.pdfFile}`;
-      link.download = press.pdfFileName || 'press-release.pdf';
+      link.download = press.pdfFileName || "press-release.pdf";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -56,7 +56,7 @@ function HomePressReleaseDetail() {
     if (!bytes) return "N/A";
     const sizes = ["Bytes", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(1024));
-    return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + " " + sizes[i];
+    return Math.round((bytes / Math.pow(1024, i)) * 100) / 100 + " " + sizes[i];
   };
 
   const splitContentIntoPoints = (content) => {
@@ -84,7 +84,10 @@ function HomePressReleaseDetail() {
   if (!press) {
     return (
       <div className="container my-5">
-        <div className="d-flex justify-content-center align-items-center" style={{ minHeight: "50vh" }}>
+        <div
+          className="d-flex justify-content-center align-items-center"
+          style={{ minHeight: "50vh" }}
+        >
           <div className="text-center">
             <div className="spinner-border text-primary" role="status">
               <span className="visually-hidden">Loading...</span>
@@ -101,7 +104,10 @@ function HomePressReleaseDetail() {
   return (
     <div className="container my-5">
       {/* Back Button */}
-      <Link to="/" className="btn btn-lg btn-outline-primary mb-4 d-inline-flex align-items-center">
+      <Link
+        to="/"
+        className="btn btn-lg btn-outline-primary mb-4 d-inline-flex align-items-center"
+      >
         <i className="bi bi-arrow-left me-2"></i>
         Back to Press Releases
       </Link>
@@ -119,7 +125,9 @@ function HomePressReleaseDetail() {
               onError={() => setImageError(true)}
             />
             <div className="position-absolute top-0 start-0 m-3">
-              <span className={`badge ${getStatusBadgeClass(press.status)} fs-6`}>
+              <span
+                className={`badge ${getStatusBadgeClass(press.status)} fs-6`}
+              >
                 {press.status}
               </span>
             </div>
@@ -128,7 +136,7 @@ function HomePressReleaseDetail() {
 
         {/* Placeholder if no image or image failed to load */}
         {(!press.image || imageError) && (
-          <div 
+          <div
             className="position-relative bg-light d-flex align-items-center justify-content-center"
             style={{ height: "400px" }}
           >
@@ -137,7 +145,9 @@ function HomePressReleaseDetail() {
               <p className="mt-3 fs-5">No Image Available</p>
             </div>
             <div className="position-absolute top-0 start-0 m-3">
-              <span className={`badge ${getStatusBadgeClass(press.status)} fs-6`}>
+              <span
+                className={`badge ${getStatusBadgeClass(press.status)} fs-6`}
+              >
                 {press.status}
               </span>
             </div>
@@ -161,7 +171,14 @@ function HomePressReleaseDetail() {
 
           {/* Description */}
           {press.description && (
-            <p className="lead text-muted mb-4" style={{ fontSize: "1.1rem", lineHeight: "1.7", textAlign: "justify" }}>
+            <p
+              className="lead text-muted mb-4"
+              style={{
+                fontSize: "1.1rem",
+                lineHeight: "1.7",
+                textAlign: "justify",
+              }}
+            >
               {press.description}
             </p>
           )}
@@ -174,26 +191,31 @@ function HomePressReleaseDetail() {
                   <div className="d-flex align-items-center">
                     <i className="bi bi-file-earmark-pdf text-danger display-4 me-4"></i>
                     <div>
-                      <h5 className="fw-bold mb-1">Download Press Release PDF</h5>
+                      <h5 className="fw-bold mb-1">
+                        Download Press Release PDF
+                      </h5>
                       <p className="text-muted mb-1">
                         <strong>File:</strong> {press.pdfFileName}
                       </p>
                       <p className="text-muted mb-0">
-                        <strong>Size:</strong> {formatFileSize(press.fileSize)} • 
-                        <strong> Downloads:</strong> {press.downloadCount || 0}
+                        <strong>Size:</strong> {formatFileSize(press.fileSize)}{" "}
+                        •<strong> Downloads:</strong> {press.downloadCount || 0}
                       </p>
                     </div>
                   </div>
                 </div>
                 <div className="col-md-4 text-md-end mt-3 mt-md-0">
-                  <button 
+                  <button
                     onClick={handleDownload}
                     disabled={downloading}
                     className="btn btn-danger btn-lg px-4"
                   >
                     {downloading ? (
                       <>
-                        <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+                        <span
+                          className="spinner-border spinner-border-sm me-2"
+                          role="status"
+                        ></span>
                         Downloading...
                       </>
                     ) : (
@@ -223,11 +245,14 @@ function HomePressReleaseDetail() {
                 <strong className="me-2">Published:</strong>
                 <span>
                   {press.publishedDate
-                    ? new Date(press.publishedDate).toLocaleDateString("en-US", {
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      })
+                    ? new Date(press.publishedDate).toLocaleDateString(
+                        "en-US",
+                        {
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                        }
+                      )
                     : "N/A"}
                 </span>
               </div>
@@ -243,7 +268,10 @@ function HomePressReleaseDetail() {
             {contentPoints.length > 1 ? (
               <div className="points-container">
                 {contentPoints.map((point, index) => (
-                  <div key={index} className="point-item mb-3 p-3 bg-light rounded">
+                  <div
+                    key={index}
+                    className="point-item mb-3 p-3 bg-light rounded"
+                  >
                     <div className="d-flex align-items-start">
                       <i className="bi bi-caret-right-fill text-primary me-3 mt-1 fs-5"></i>
                       <p className="mb-0 fs-5 text-dark lh-base">{point}</p>
@@ -253,7 +281,10 @@ function HomePressReleaseDetail() {
               </div>
             ) : (
               <div className="single-paragraph">
-                <p className="fs-5 lh-base text-dark" style={{ textAlign: "justify", lineHeight: "1.8" }}>
+                <p
+                  className="fs-5 lh-base text-dark"
+                  style={{ textAlign: "justify", lineHeight: "1.8" }}
+                >
                   {press.content}
                 </p>
               </div>

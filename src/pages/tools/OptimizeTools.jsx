@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { Gauge, Trash2, Code2, Copy, Check, Download } from "lucide-react";
 import imageCompression from "browser-image-compression";
+import Metatags from "../../SEO/metatags";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -225,7 +226,8 @@ const ImageOptimizerModal = ({ isOpen, onClose }) => {
         className="glass-effect w-full max-w-lg p-6 rounded-2xl bg-gray-900 border border-gray-700 text-white"
       >
         <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-bold text-green-700">Image Optimizer</h2>          <button
+          <h2 className="text-xl font-bold text-green-700">Image Optimizer</h2>{" "}
+          <button
             onClick={handleClose}
             className="text-gray-400 hover:text-white text-lg"
           >
@@ -347,7 +349,8 @@ const CodeMinifierModal = ({ isOpen, onClose }) => {
         className="glass-effect rounded-2xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-gray-900 border border-gray-700 text-white"
       >
         <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-purple-700">Code Minifier</h2>          <button
+          <h2 className="text-2xl font-bold text-purple-700">Code Minifier</h2>{" "}
+          <button
             onClick={onClose}
             className="text-gray-500 hover:text-white transition-colors"
           >
@@ -394,12 +397,11 @@ const CodeMinifierModal = ({ isOpen, onClose }) => {
                 Minify Code
               </button>
               <button
-  onClick={handleReset}
-  className="px-4 py-2 border border-purple-700 text-purple-700 rounded-lg hover:bg-purple-100 transition-colors"
->
-  Reset
-</button>
-
+                onClick={handleReset}
+                className="px-4 py-2 border border-purple-700 text-purple-700 rounded-lg hover:bg-purple-100 transition-colors"
+              >
+                Reset
+              </button>
             </div>
           </div>
 
@@ -474,46 +476,61 @@ const OptimizeTools = () => {
     }
   };
 
-  return (
-    <div className="w-full">
-      {/* --- Responsive Grid Fixed --- */}
-      <div className="grid gap-6 mt-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 w-full">
-        {tools.map((tool, i) => {
-          const Icon = tool.icon;
-          return (
-            <motion.div
-              key={tool.id}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: i * 0.05 }}
-              whileHover={{ scale: 1.05, y: -5 }}
-              onClick={() => handleToolClick(tool)}
-              className="glass-effect rounded-2xl p-6 cursor-pointer transition-all group flex flex-col h-full w-full sm:w-full md:w-full"
-            >
-              <div
-                className={`w-14 h-14 rounded-xl bg-gradient-to-br ${tool.color} flex items-center justify-center mb-4`}
-              >
-                <Icon className="h-7 w-7 text-white" />
-              </div>
-              <h3 className="text-lg font-bold mb-2">{tool.name}</h3>
-              <p className="text-sm text-gray-400 flex-grow">
-                {tool.description}
-              </p>
-            </motion.div>
-          );
-        })}
-      </div>
+  const metaPropsData = {
+    title:
+      "Free Optimization Tools | Image Compressor, Code Minifier, Cache Cleaner - PDF Works",
+    description:
+      "100% free optimization tools. Compress images without quality loss, minify JavaScript/CSS/HTML code, and clean browser cache. No registration required, completely free optimization utilities.",
+    keyword:
+      "free optimization tools, image compressor free, compress images online free, free code minifier, minify javascript free, minify css free, minify html free, free cache cleaner, clear browser cache free, free image optimizer, free file optimization, no cost optimization tools, free online compressor, free code optimization, free performance tools",
+    image:
+      "https://res.cloudinary.com/dcfjt8shw/image/upload/v1761288318/wn8m8g8skdpl6iz2rwoa.svg",
+    url: "https://pdfworks.in/tools/",
+  };
 
-      {/* Modals */}
-      <ImageOptimizerModal
-        isOpen={imageModalOpen}
-        onClose={() => setImageModalOpen(false)}
-      />
-      <CodeMinifierModal
-        isOpen={codeMinifierOpen}
-        onClose={() => setCodeMinifierOpen(false)}
-      />
-    </div>
+  return (
+    <>
+      <Metatags metaProps={metaPropsData} />
+      <div className="w-full">
+        {/* --- Responsive Grid Fixed --- */}
+        <div className="grid gap-6 mt-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 w-full">
+          {tools.map((tool, i) => {
+            const Icon = tool.icon;
+            return (
+              <motion.div
+                key={tool.id}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: i * 0.05 }}
+                whileHover={{ scale: 1.05, y: -5 }}
+                onClick={() => handleToolClick(tool)}
+                className="glass-effect rounded-2xl p-6 cursor-pointer transition-all group flex flex-col h-full w-full sm:w-full md:w-full"
+              >
+                <div
+                  className={`w-14 h-14 rounded-xl bg-gradient-to-br ${tool.color} flex items-center justify-center mb-4`}
+                >
+                  <Icon className="h-7 w-7 text-white" />
+                </div>
+                <h3 className="text-lg font-bold mb-2">{tool.name}</h3>
+                <p className="text-sm text-gray-400 flex-grow">
+                  {tool.description}
+                </p>
+              </motion.div>
+            );
+          })}
+        </div>
+
+        {/* Modals */}
+        <ImageOptimizerModal
+          isOpen={imageModalOpen}
+          onClose={() => setImageModalOpen(false)}
+        />
+        <CodeMinifierModal
+          isOpen={codeMinifierOpen}
+          onClose={() => setCodeMinifierOpen(false)}
+        />
+      </div>
+    </>
   );
 };
 

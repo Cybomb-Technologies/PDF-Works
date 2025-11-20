@@ -12,6 +12,7 @@ import {
   Eye,
   EyeOff,
 } from "lucide-react";
+import Metatags from "../../SEO/metatags";
 const API_URL = import.meta.env.VITE_API_URL;
 
 const tools = [
@@ -432,35 +433,50 @@ const OrganizeTools = () => {
     );
   }
 
+  const metaPropsData = {
+    title:
+      "Free PDF Organization Tools | Merge, Split, Rotate PDFs - PDF Works",
+    description:
+      "100% free PDF organization tools. Merge multiple PDFs into one, split PDF by pages or range, rotate PDF pages. No registration required, completely free PDF organization utilities with no watermarks.",
+    keyword:
+      "free pdf organizer, merge pdf free, split pdf free, rotate pdf free, free pdf merger, free pdf splitter, free pdf rotator, combine pdf free, extract pdf pages free, free pdf tools, no cost pdf organization, free online pdf organizer, completely free pdf tools, free document organizer, free pdf page management",
+    image:
+      "https://res.cloudinary.com/dcfjt8shw/image/upload/v1761288318/wn8m8g8skdpl6iz2rwoa.svg",
+    url: "https://pdfworks.in/tools/",
+  };
+
   return (
-    <div className="flex justify-start w-full">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
-        {tools.map((tool, i) => {
-          const Icon = tool.icon;
-          return (
-            <motion.div
-              key={tool.id}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: i * 0.05 }}
-              whileHover={{ scale: 1.05, y: -5 }}
-              onClick={() => handleToolClick(tool)}
-              className="glass-effect rounded-2xl p-6 cursor-pointer transition-all group h-full flex flex-col"
-            >
-              <div
-                className={`w-14 h-14 rounded-xl bg-gradient-to-br ${tool.color} flex items-center justify-center mb-4`}
+    <>
+      <Metatags metaProps={metaPropsData} />
+      <div className="flex justify-start w-full">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
+          {tools.map((tool, i) => {
+            const Icon = tool.icon;
+            return (
+              <motion.div
+                key={tool.id}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: i * 0.05 }}
+                whileHover={{ scale: 1.05, y: -5 }}
+                onClick={() => handleToolClick(tool)}
+                className="glass-effect rounded-2xl p-6 cursor-pointer transition-all group h-full flex flex-col"
               >
-                <Icon className="h-7 w-7 text-white" />
-              </div>
-              <h3 className="text-lg font-bold mb-2">{tool.name}</h3>
-              <p className="text-sm text-muted-foreground flex-grow">
-                {tool.description}
-              </p>
-            </motion.div>
-          );
-        })}
+                <div
+                  className={`w-14 h-14 rounded-xl bg-gradient-to-br ${tool.color} flex items-center justify-center mb-4`}
+                >
+                  <Icon className="h-7 w-7 text-white" />
+                </div>
+                <h3 className="text-lg font-bold mb-2">{tool.name}</h3>
+                <p className="text-sm text-muted-foreground flex-grow">
+                  {tool.description}
+                </p>
+              </motion.div>
+            );
+          })}
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 

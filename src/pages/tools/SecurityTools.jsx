@@ -16,6 +16,7 @@ import {
   Trash2,
   List,
 } from "lucide-react";
+import Metatags from "../../SEO/metatags";
 const API_URL = import.meta.env.VITE_API_URL;
 
 const tools = [
@@ -1254,36 +1255,50 @@ const SecurityTools = () => {
     );
   }
 
-  return (
-    <div className="flex justify-start w-full">
-  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
-    {tools.map((tool, i) => {
-      const Icon = tool.icon;
-      return (
-        <motion.div
-          key={tool.id}
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: i * 0.05 }}
-          whileHover={{ scale: 1.05, y: -5 }}
-          onClick={() => handleToolClick(tool)}
-          className="glass-effect rounded-2xl p-6 cursor-pointer transition-all group h-full flex flex-col"
-        >
-          <div
-            className={`w-14 h-14 rounded-xl bg-gradient-to-br ${tool.color} flex items-center justify-center mb-4`}
-          >
-            <Icon className="h-7 w-7 text-white" />
-          </div>
-          <h3 className="text-lg font-bold mb-2">{tool.name}</h3>
-          <p className="text-sm text-muted-foreground flex-grow">
-            {tool.description}
-          </p>
-        </motion.div>
-      );
-    })}
-  </div>
-</div>
+  const metaPropsData = {
+    title:
+      "Free PDF Security Tools | Encrypt, 2FA Protect, Share PDFs - PDF Works",
+    description:
+      "100% free PDF security tools. Encrypt PDF files with AES encryption, protect with 2FA authenticator, share with access control. No registration required, completely free PDF security utilities.",
+    keyword:
+      "free pdf security, encrypt pdf free, pdf encryption free, free 2fa pdf, protect pdf with 2fa free, share pdf with access control free, free pdf protection, secure pdf free, free document security, no cost pdf security, free online encryption, free pdf access control, completely free security tools, free file encryption, free digital security",
+    image:
+      "https://res.cloudinary.com/dcfjt8shw/image/upload/v1761288318/wn8m8g8skdpl6iz2rwoa.svg",
+    url: "https://pdfworks.in/tools/",
+  };
 
+  return (
+    <>
+      <Metatags metaProps={metaPropsData} />
+      <div className="flex justify-start w-full">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
+          {tools.map((tool, i) => {
+            const Icon = tool.icon;
+            return (
+              <motion.div
+                key={tool.id}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: i * 0.05 }}
+                whileHover={{ scale: 1.05, y: -5 }}
+                onClick={() => handleToolClick(tool)}
+                className="glass-effect rounded-2xl p-6 cursor-pointer transition-all group h-full flex flex-col"
+              >
+                <div
+                  className={`w-14 h-14 rounded-xl bg-gradient-to-br ${tool.color} flex items-center justify-center mb-4`}
+                >
+                  <Icon className="h-7 w-7 text-white" />
+                </div>
+                <h3 className="text-lg font-bold mb-2">{tool.name}</h3>
+                <p className="text-sm text-muted-foreground flex-grow">
+                  {tool.description}
+                </p>
+              </motion.div>
+            );
+          })}
+        </div>
+      </div>
+    </>
   );
 };
 

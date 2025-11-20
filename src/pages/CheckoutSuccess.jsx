@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import Metatags from "../SEO/metatags";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -42,10 +43,24 @@ const CheckoutSuccess = () => {
     verify();
   }, []);
 
+  const metaPropsData = {
+    title: "Payment Successful | PDF Works - Subscription Activated",
+    description:
+      "Your PDF Works subscription has been successfully activated. You now have access to premium features. Redirecting to your account...",
+    keyword:
+      "payment successful, subscription activated, premium features, payment confirmation, upgrade successful, plan activated, subscription verified",
+    image:
+      "https://res.cloudinary.com/dcfjt8shw/image/upload/v1761288318/wn8m8g8skdpl6iz2rwoa.svg",
+    url: "https://pdfworks.in/checkout/:planId",
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <p>Verifying subscription…</p>
-    </div>
+    <>
+      <Metatags metaProps={metaPropsData} />
+      <div className="min-h-screen flex items-center justify-center">
+        <p>Verifying subscription…</p>
+      </div>
+    </>
   );
 };
 

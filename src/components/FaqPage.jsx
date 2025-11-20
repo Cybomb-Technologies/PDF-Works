@@ -6,6 +6,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import Metatags from "../SEO/metatags";
 
 const FaqPage = () => {
   const faqs = [
@@ -42,42 +43,56 @@ const FaqPage = () => {
     },
   ];
 
-  return (
-    <div className="max-w-4xl mx-auto">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="text-center mb-12"
-      >
-        <h1 className="text-5xl font-bold gradient-text">
-          Frequently Asked Questions
-        </h1>
-        <p className="mt-4 text-lg text-gray-600">
-          Have questions? We've got answers. If you can't find what you're
-          looking for, feel free to contact us.
-        </p>
-      </motion.div>
+  const metaPropsData = {
+    title: "FAQ - Free PDF Tools Questions & Answers | PDF Works",
+    description:
+      "Get answers to common questions about our free PDF tools. Learn about security, file formats, e-signatures, OCR, and mobile usage. Free PDF editor FAQ.",
+    keyword:
+      "free pdf tools faq, pdf works questions, pdf editor faq, free pdf converter questions, online pdf tools help, pdf works support, free pdf editor faq",
+    image:
+      "https://res.cloudinary.com/dcfjt8shw/image/upload/v1761288318/wn8m8g8skdpl6iz2rwoa.svg",
+    url: "https://pdfworks.in/faq",
+  };
 
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.2 }}
-        className="glass-effect rounded-2xl p-8"
-      >
-        <Accordion type="single" collapsible className="w-full">
-          {faqs.map((faq, index) => (
-            <AccordionItem key={index} value={`item-${index}`}>
-              <AccordionTrigger className="text-lg font-semibold text-left">
-                {faq.question}
-              </AccordionTrigger>
-              <AccordionContent className="text-base text-gray-700">
-                {faq.answer}
-              </AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
-      </motion.div>
-    </div>
+  return (
+    <>
+      <Metatags metaProps={metaPropsData} />
+      <div className="max-w-4xl mx-auto">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center mb-12"
+        >
+          <h1 className="text-5xl font-bold gradient-text">
+            Frequently Asked Questions
+          </h1>
+          <p className="mt-4 text-lg text-gray-600">
+            Have questions? We've got answers. If you can't find what you're
+            looking for, feel free to contact us.
+          </p>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.2 }}
+          className="glass-effect rounded-2xl p-8"
+        >
+          <Accordion type="single" collapsible className="w-full">
+            {faqs.map((faq, index) => (
+              <AccordionItem key={index} value={`item-${index}`}>
+                <AccordionTrigger className="text-lg font-semibold text-left">
+                  {faq.question}
+                </AccordionTrigger>
+                <AccordionContent className="text-base text-gray-700">
+                  {faq.answer}
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+        </motion.div>
+      </div>
+    </>
   );
 };
 
