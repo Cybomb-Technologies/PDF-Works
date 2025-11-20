@@ -7,6 +7,9 @@ import HowItWorks from "./Homepage/HowItWorks";
 import PartnersSection from "./Homepage/PartnersSection";
 import TestimonialsSection from "./Homepage/TestimonialsSection";
 import CTASection from "./Homepage/CTASection";
+import ToolsShowcaseSection from "./Homepage/ToolsShowcaseSection"; // Add this import
+import FAQPreviewSection from "./Homepage/FAQPreviewSection"; // Add this import
+
 import Metatags from "../SEO/metatags";
 
 const metaPropsData = {
@@ -28,8 +31,10 @@ const HomePage = () => {
         <HeroSection />
         <ToolsGrid />
         <FeaturesShowcase />
+        <ToolsShowcaseSection />
         <PartnersSection />
         <HowItWorks />
+        <FAQPreviewSection />
         <TestimonialsSection />
         <CTASection />
       </div>
