@@ -1,129 +1,83 @@
+// Convert-Routes.js (FINAL FIXED VERSION)
 const express = require("express");
 const router = express.Router();
-const multer = require("multer");
 const path = require("path");
+const multer = require("multer");
+
+// Auth middleware
+const {
+  verifyToken,
+  optionalAuth,
+} = require("../../../middleware/authMiddleware");
+
+// Controllers
 const {
   convertToPdf,
   convertPdfToImage,
   convertImageToPdf,
   downloadConvertedFile,
   getConversionStatus,
+  testLimits // ADD THIS
 } = require("../../../controllers/tool-controller/Convert/Convert-Controller");
 
-// Configure multer for file uploads
+// -------------------------------------------------------
+// DEFINE ROOT DIRECTORY (IMPORTANT FIX)
+// Ensures all tools use: server/uploads/
+// -------------------------------------------------------
+const ROOT_DIR = path.join(__dirname, "../../../"); 
+
+// -------------------------------------------------------
+// MULTER CONFIG (250MB upload limit)
+// Files stored in /uploads/temp
+// -------------------------------------------------------
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadPath = path.join(__dirname, "../../../uploads/temp");
-    cb(null, uploadPath);
+    cb(null, path.join(ROOT_DIR, "uploads/temp"));
   },
   filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
+    cb(null, Date.now() + "-" + file.originalname);
   },
 });
 
-// File filter for "Convert PDF" tool - accepts multiple formats to convert TO PDF
-const convertToPdfFileFilter = (req, file, cb) => {
-  const fileExt = path.extname(file.originalname).toLowerCase();
-  const allowedExtensions = [
-    ".docx",
-    ".doc",
-    ".xlsx",
-    ".xls",
-    ".pptx",
-    ".ppt",
-    ".jpg",
-    ".jpeg",
-    ".png",
-  ];
-
-  if (allowedExtensions.includes(fileExt)) {
-    cb(null, true);
-  } else {
-    cb(
-      new Error(
-        "Only Word, Excel, PowerPoint, and Image files are allowed for this tool"
-      ),
-      false
-    );
-  }
-};
-
-// File filter for PDF-only endpoints
-const pdfFileFilter = (req, file, cb) => {
-  const fileExt = path.extname(file.originalname).toLowerCase();
-
-  if (fileExt === ".pdf") {
-    cb(null, true);
-  } else {
-    cb(new Error("Only PDF files are allowed for this tool"), false);
-  }
-};
-
-// File filter for image-only endpoints
-const imageFileFilter = (req, file, cb) => {
-  const fileExt = path.extname(file.originalname).toLowerCase();
-  const allowedExtensions = [".jpg", ".jpeg", ".png"];
-
-  if (allowedExtensions.includes(fileExt)) {
-    cb(null, true);
-  } else {
-    cb(
-      new Error("Only JPG, JPEG, and PNG files are allowed for this tool"),
-      false
-    );
-  }
-};
-
-// Create different upload configurations
-const uploadToPdf = multer({
-  storage: storage,
-  fileFilter: convertToPdfFileFilter,
-  limits: {
-    fileSize: 50 * 1024 * 1024, // 50MB limit
-  },
+const upload = multer({
+  storage,
+  limits: { fileSize: 250 * 1024 * 1024 }, // 250MB
 });
 
-const uploadPdf = multer({
-  storage: storage,
-  fileFilter: pdfFileFilter,
-  limits: {
-    fileSize: 50 * 1024 * 1024, // 50MB limit
-  },
-});
+// -------------------------------------------------------
+// ROUTES
+// -------------------------------------------------------
 
-const uploadImage = multer({
-  storage: storage,
-  fileFilter: imageFileFilter,
-  limits: {
-    fileSize: 50 * 1024 * 1024, // 50MB limit
-  },
-});
+// ⭐ Convert Word/Excel/PPT/Image → PDF
+router.post(
+  "/to-pdf",
+  verifyToken,
+  upload.single("file"),
+  convertToPdf
+);
 
-// Routes with appropriate file type handling
-router.post("/to-pdf", uploadToPdf.single("file"), convertToPdf);
-router.post("/pdf-to-image", uploadPdf.single("file"), convertPdfToImage);
-router.post("/image-to-pdf", uploadImage.single("file"), convertImageToPdf);
-router.get("/download/:conversionId", downloadConvertedFile);
-router.get("/status/:conversionId", getConversionStatus);
+// ⭐ Convert PDF → Image
+router.post(
+  "/pdf-to-image",
+  verifyToken,
+  upload.single("file"),
+  convertPdfToImage
+);
 
-// Error handling middleware
-router.use((error, req, res, next) => {
-  if (error instanceof multer.MulterError) {
-    if (error.code === "LIMIT_FILE_SIZE") {
-      return res.status(400).json({
-        error: "File too large",
-        details: "File size must be less than 50MB",
-      });
-    }
-    if (error.code === "Unexpected field") {
-      return res.status(400).json({
-        error: "Invalid field name",
-        details: "Please check the file upload field name",
-      });
-    }
-  }
-  res.status(500).json({ error: "Upload failed", details: error.message });
-});
+// ⭐ Convert Image → PDF
+router.post(
+  "/image-to-pdf",
+  verifyToken,
+  upload.single("file"),
+  convertImageToPdf
+);
 
+// ⭐ Download converted file
+router.get("/download/:conversionId", optionalAuth, downloadConvertedFile);
+
+// ⭐ Check conversion status
+router.get("/status/:conversionId", optionalAuth, getConversionStatus);
+
+// -------------------------------------------------------
 module.exports = router;

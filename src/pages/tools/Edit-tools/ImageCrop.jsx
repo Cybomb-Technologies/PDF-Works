@@ -8,6 +8,7 @@ import {
   EyeOff,
   RotateCcw,
 } from "lucide-react";
+import Metatags from "../../../SEO/metatags";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -390,275 +391,300 @@ const ImageCrop = () => {
     document.body.removeChild(a);
   };
 
+  const metaPropsData = {
+    title: "Free Image Crop Tool | Crop Images Online - PDF Works",
+    description:
+      "100% free online image crop tool. Crop PNG, JPG, WebP images with interactive selection. No registration required, client-side processing for privacy and instant results.",
+    keyword:
+      "free image crop, crop images online free, free photo crop, free image editor, free picture crop, free online crop tool, free image resizer, no cost image editing, free photo editor, completely free crop tool, free image utilities, free web image tools, free image processing",
+    image:
+      "https://res.cloudinary.com/dcfjt8shw/image/upload/v1761288318/wn8m8g8skdpl6iz2rwoa.svg",
+    url: "https://pdfworks.in/tools/",
+  };
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="glass-effect rounded-2xl p-8 max-w-4xl mx-auto"
-    >
-      <div className="flex items-center mb-6">
-        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-green-500 flex items-center justify-center mr-4">
-          <Scissors className="h-6 w-6 text-white" />
-        </div>
-        <div>
-          <h2 className="text-xl font-bold">Image Crop</h2>
-          <p className="text-sm text-muted-foreground">
-            Click and drag to select crop area, then click Crop Image
-          </p>
-        </div>
-      </div>
-
-      <canvas ref={canvasRef} style={{ display: "none" }} />
-
-      {downloadUrl ? (
-        <div className="text-center mt-8">
-          <h3 className="text-lg font-bold mb-4">
-            Your cropped image is ready! 🎉
-          </h3>
-
-          {/* File Saved Status */}
-          {fileSaved && (
-            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-              <p className="text-green-700 text-sm font-medium">
-                ✅ File automatically saved to <strong>My Files</strong> section
-              </p>
-            </div>
-          )}
-
-          {/* Preview Toggle */}
-          <div className="flex justify-center mb-4">
-            <button
-              onClick={() => setShowPreview(!showPreview)}
-              className="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
-            >
-              {showPreview ? (
-                <EyeOff className="h-4 w-4 mr-2" />
-              ) : (
-                <Eye className="h-4 w-4 mr-2" />
-              )}
-              {showPreview ? "Hide Preview" : "Show Preview"}
-            </button>
+    <>
+      <Metatags metaProps={metaPropsData} />
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="glass-effect rounded-2xl p-8 max-w-4xl mx-auto"
+      >
+        <div className="flex items-center mb-6">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-green-500 flex items-center justify-center mr-4">
+            <Scissors className="h-6 w-6 text-white" />
           </div>
+          <div>
+            <h2 className="text-xl font-bold">Image Crop</h2>
+            <p className="text-sm text-muted-foreground">
+              Click and drag to select crop area, then click Crop Image
+            </p>
+          </div>
+        </div>
 
-          {/* Image Preview */}
-          {showPreview && croppedImage && (
-            <div className="mb-6 p-4 border border-gray-300 rounded-lg bg-white">
-              <h4 className="text-sm font-semibold mb-3 text-center">
-                Cropped Image Preview
-              </h4>
-              <div className="flex justify-center">
-                <img
-                  src={croppedImage}
-                  alt="Cropped Preview"
-                  className="max-w-full max-h-96 object-contain border border-gray-200 rounded"
-                />
+        <canvas ref={canvasRef} style={{ display: "none" }} />
+
+        {downloadUrl ? (
+          <div className="text-center mt-8">
+            <h3 className="text-lg font-bold mb-4">
+              Your cropped image is ready! 🎉
+            </h3>
+
+            {/* File Saved Status */}
+            {fileSaved && (
+              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                <p className="text-green-700 text-sm font-medium">
+                  ✅ File automatically saved to <strong>My Files</strong>{" "}
+                  section
+                </p>
               </div>
+            )}
+
+            {/* Preview Toggle */}
+            <div className="flex justify-center mb-4">
+              <button
+                onClick={() => setShowPreview(!showPreview)}
+                className="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+              >
+                {showPreview ? (
+                  <EyeOff className="h-4 w-4 mr-2" />
+                ) : (
+                  <Eye className="h-4 w-4 mr-2" />
+                )}
+                {showPreview ? "Hide Preview" : "Show Preview"}
+              </button>
             </div>
-          )}
 
-          {/* Download Button */}
-          <button
-            onClick={handleDownload}
-            className="inline-flex items-center justify-center px-6 py-3 rounded-full text-white bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 transition-all font-semibold"
-          >
-            <Download className="h-5 w-5 mr-2" />
-            Download Image
-          </button>
-
-          {/* Start Over Button */}
-          <div className="mt-6 pt-4 border-t border-gray-200">
-            <button
-              onClick={handleReset}
-              className="px-6 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-full transition-colors"
-            >
-              Start over
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="mt-8">
-          {/* File Upload */}
-          <label
-            htmlFor="image-upload"
-            className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-gray-400 rounded-xl cursor-pointer hover:border-emerald-500 transition-colors mb-6"
-          >
-            <Upload className="w-10 h-10 text-gray-400 mb-2" />
-            <p className="font-semibold text-sm">
-              Click to upload or drag and drop
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              PNG, JPG, WebP files
-            </p>
-            <input
-              id="image-upload"
-              type="file"
-              ref={fileInputRef}
-              onChange={handleImageUpload}
-              className="hidden"
-              accept="image/*"
-            />
-          </label>
-
-          {error && (
-            <p className="text-red-500 text-sm text-center mb-4">{error}</p>
-          )}
-
-          {image && (
-            <>
-              {/* Interactive Crop Area */}
-              <div className="mb-6">
-                <h3 className="font-medium mb-2 text-sm">
-                  {selectionComplete
-                    ? 'Selection complete! Click "Crop Image" to process'
-                    : hasSelectedCrop
-                    ? "Drag to adjust your selection, then release to confirm"
-                    : "Click and drag on the image to select crop area"}
-                </h3>
-                <div
-                  ref={imageContainerRef}
-                  className="relative w-full h-64 border border-gray-300 rounded-lg overflow-hidden cursor-crosshair bg-gray-50 flex items-center justify-center"
-                  onMouseDown={handleMouseDown}
-                  onMouseMove={handleMouseMove}
-                  onMouseUp={handleMouseUp}
-                  onMouseLeave={handleMouseUp}
-                >
+            {/* Image Preview */}
+            {showPreview && croppedImage && (
+              <div className="mb-6 p-4 border border-gray-300 rounded-lg bg-white">
+                <h4 className="text-sm font-semibold mb-3 text-center">
+                  Cropped Image Preview
+                </h4>
+                <div className="flex justify-center">
                   <img
-                    ref={imageRef}
-                    src={image}
-                    alt="Original"
-                    className="max-w-full max-h-full object-contain"
+                    src={croppedImage}
+                    alt="Cropped Preview"
+                    className="max-w-full max-h-96 object-contain border border-gray-200 rounded"
                   />
+                </div>
+              </div>
+            )}
 
-                  {/* Image boundary overlay */}
+            {/* Download Button */}
+            <button
+              onClick={handleDownload}
+              className="inline-flex items-center justify-center px-6 py-3 rounded-full text-white bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 transition-all font-semibold"
+            >
+              <Download className="h-5 w-5 mr-2" />
+              Download Image
+            </button>
+
+            {/* Start Over Button */}
+            <div className="mt-6 pt-4 border-t border-gray-200">
+              <button
+                onClick={handleReset}
+                className="px-6 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                Start over
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-8">
+            {/* File Upload */}
+            <label
+              htmlFor="image-upload"
+              className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-gray-400 rounded-xl cursor-pointer hover:border-emerald-500 transition-colors mb-6"
+            >
+              <Upload className="w-10 h-10 text-gray-400 mb-2" />
+              <p className="font-semibold text-sm">
+                Click to upload or drag and drop
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                PNG, JPG, WebP files
+              </p>
+              <input
+                id="image-upload"
+                type="file"
+                ref={fileInputRef}
+                onChange={handleImageUpload}
+                className="hidden"
+                accept="image/*"
+              />
+            </label>
+
+            {error && (
+              <p className="text-red-500 text-sm text-center mb-4">{error}</p>
+            )}
+
+            {image && (
+              <>
+                {/* Interactive Crop Area */}
+                <div className="mb-6">
+                  <h3 className="font-medium mb-2 text-sm">
+                    {selectionComplete
+                      ? 'Selection complete! Click "Crop Image" to process'
+                      : hasSelectedCrop
+                      ? "Drag to adjust your selection, then release to confirm"
+                      : "Click and drag on the image to select crop area"}
+                  </h3>
                   <div
-                    className="absolute border border-blue-400 pointer-events-none"
-                    style={{
-                      left: `${getImagePosition().left}px`,
-                      top: `${getImagePosition().top}px`,
-                      width: `${getImagePosition().width}px`,
-                      height: `${getImagePosition().height}px`,
-                    }}
-                  />
+                    ref={imageContainerRef}
+                    className="relative w-full h-64 border border-gray-300 rounded-lg overflow-hidden cursor-crosshair bg-gray-50 flex items-center justify-center"
+                    onMouseDown={handleMouseDown}
+                    onMouseMove={handleMouseMove}
+                    onMouseUp={handleMouseUp}
+                    onMouseLeave={handleMouseUp}
+                  >
+                    <img
+                      ref={imageRef}
+                      src={image}
+                      alt="Original"
+                      className="max-w-full max-h-full object-contain"
+                    />
 
-                  {/* Crop overlay - only show when user has started selecting */}
-                  {hasSelectedCrop && crop.width > 0 && (
+                    {/* Image boundary overlay */}
                     <div
-                      className={`absolute border-2 border-dashed shadow-lg pointer-events-none ${
-                        selectionComplete
-                          ? "border-green-500 bg-green-500 bg-opacity-20"
-                          : "border-white bg-blue-500 bg-opacity-30"
-                      }`}
+                      className="absolute border border-blue-400 pointer-events-none"
                       style={{
-                        left: `${
-                          getDisplayCrop().x + getImagePosition().left
-                        }px`,
-                        top: `${getDisplayCrop().y + getImagePosition().top}px`,
-                        width: `${getDisplayCrop().width}px`,
-                        height: `${getDisplayCrop().height}px`,
+                        left: `${getImagePosition().left}px`,
+                        top: `${getImagePosition().top}px`,
+                        width: `${getImagePosition().width}px`,
+                        height: `${getImagePosition().height}px`,
                       }}
-                    >
+                    />
+
+                    {/* Crop overlay - only show when user has started selecting */}
+                    {hasSelectedCrop && crop.width > 0 && (
                       <div
-                        className={`absolute -right-1 -bottom-1 w-3 h-3 bg-white border rounded-sm ${
+                        className={`absolute border-2 border-dashed shadow-lg pointer-events-none ${
                           selectionComplete
-                            ? "border-green-500"
-                            : "border-blue-500"
+                            ? "border-green-500 bg-green-500 bg-opacity-20"
+                            : "border-white bg-blue-500 bg-opacity-30"
                         }`}
-                      />
-                      <div
-                        className={`absolute -left-1 -top-1 w-3 h-3 bg-white border rounded-sm ${
-                          selectionComplete
-                            ? "border-green-500"
-                            : "border-blue-500"
-                        }`}
-                      />
-                      <div
-                        className={`absolute -right-1 -top-1 w-3 h-3 bg-white border rounded-sm ${
-                          selectionComplete
-                            ? "border-green-500"
-                            : "border-blue-500"
-                        }`}
-                      />
-                      <div
-                        className={`absolute -left-1 -bottom-1 w-3 h-3 bg-white border rounded-sm ${
-                          selectionComplete
-                            ? "border-green-500"
-                            : "border-blue-500"
-                        }`}
-                      />
+                        style={{
+                          left: `${
+                            getDisplayCrop().x + getImagePosition().left
+                          }px`,
+                          top: `${
+                            getDisplayCrop().y + getImagePosition().top
+                          }px`,
+                          width: `${getDisplayCrop().width}px`,
+                          height: `${getDisplayCrop().height}px`,
+                        }}
+                      >
+                        <div
+                          className={`absolute -right-1 -bottom-1 w-3 h-3 bg-white border rounded-sm ${
+                            selectionComplete
+                              ? "border-green-500"
+                              : "border-blue-500"
+                          }`}
+                        />
+                        <div
+                          className={`absolute -left-1 -top-1 w-3 h-3 bg-white border rounded-sm ${
+                            selectionComplete
+                              ? "border-green-500"
+                              : "border-blue-500"
+                          }`}
+                        />
+                        <div
+                          className={`absolute -right-1 -top-1 w-3 h-3 bg-white border rounded-sm ${
+                            selectionComplete
+                              ? "border-green-500"
+                              : "border-blue-500"
+                          }`}
+                        />
+                        <div
+                          className={`absolute -left-1 -bottom-1 w-3 h-3 bg-white border rounded-sm ${
+                            selectionComplete
+                              ? "border-green-500"
+                              : "border-blue-500"
+                          }`}
+                        />
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    {selectionComplete
+                      ? 'Selection confirmed. Click "Crop Image" to process.'
+                      : hasSelectedCrop
+                      ? `Selected area: ${Math.round(crop.width)}×${Math.round(
+                          crop.height
+                        )} pixels - Release mouse to confirm selection`
+                      : "Click anywhere on the image and drag to create a selection box"}
+                  </p>
+                </div>
+
+                {/* Crop Info - Only show when user has selected an area */}
+                {hasSelectedCrop && crop.width > 0 && (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
+                    <div className="text-center">
+                      <p className="text-xs text-muted-foreground">Width</p>
+                      <p className="font-semibold">
+                        {Math.round(crop.width)}px
+                      </p>
                     </div>
-                  )}
+                    <div className="text-center">
+                      <p className="text-xs text-muted-foreground">Height</p>
+                      <p className="font-semibold">
+                        {Math.round(crop.height)}px
+                      </p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xs text-muted-foreground">
+                        Position X
+                      </p>
+                      <p className="font-semibold">{Math.round(crop.x)}px</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xs text-muted-foreground">
+                        Position Y
+                      </p>
+                      <p className="font-semibold">{Math.round(crop.y)}px</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Original Image Info */}
+                <div className="mb-6 p-3 bg-blue-50 rounded-lg">
+                  <p className="text-xs text-center text-blue-700">
+                    Original Image: {imageDimensions.width} ×{" "}
+                    {imageDimensions.height} pixels
+                  </p>
                 </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  {selectionComplete
-                    ? 'Selection confirmed. Click "Crop Image" to process.'
-                    : hasSelectedCrop
-                    ? `Selected area: ${Math.round(crop.width)}×${Math.round(
-                        crop.height
-                      )} pixels - Release mouse to confirm selection`
-                    : "Click anywhere on the image and drag to create a selection box"}
-                </p>
-              </div>
 
-              {/* Crop Info - Only show when user has selected an area */}
-              {hasSelectedCrop && crop.width > 0 && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
-                  <div className="text-center">
-                    <p className="text-xs text-muted-foreground">Width</p>
-                    <p className="font-semibold">{Math.round(crop.width)}px</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-xs text-muted-foreground">Height</p>
-                    <p className="font-semibold">{Math.round(crop.height)}px</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-xs text-muted-foreground">Position X</p>
-                    <p className="font-semibold">{Math.round(crop.x)}px</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-xs text-muted-foreground">Position Y</p>
-                    <p className="font-semibold">{Math.round(crop.y)}px</p>
-                  </div>
+                {/* Action Buttons */}
+                <div className="flex gap-4">
+                  <button
+                    onClick={handleCrop}
+                    disabled={
+                      isProcessing || !selectionComplete || crop.width < 10
+                    }
+                    className={`flex items-center gap-2 px-6 py-3 rounded-full font-bold text-white transition-all ${
+                      isProcessing || !selectionComplete || crop.width < 10
+                        ? "bg-gray-400 cursor-not-allowed"
+                        : "bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600"
+                    }`}
+                  >
+                    <Scissors className="h-4 w-4" />
+                    {isProcessing ? "Processing..." : "Crop Image"}
+                  </button>
+
+                  <button
+                    onClick={handleReset}
+                    className="flex items-center gap-2 px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-all"
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                    Reset
+                  </button>
                 </div>
-              )}
-
-              {/* Original Image Info */}
-              <div className="mb-6 p-3 bg-blue-50 rounded-lg">
-                <p className="text-xs text-center text-blue-700">
-                  Original Image: {imageDimensions.width} ×{" "}
-                  {imageDimensions.height} pixels
-                </p>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex gap-4">
-                <button
-                  onClick={handleCrop}
-                  disabled={
-                    isProcessing || !selectionComplete || crop.width < 10
-                  }
-                  className={`flex items-center gap-2 px-6 py-3 rounded-full font-bold text-white transition-all ${
-                    isProcessing || !selectionComplete || crop.width < 10
-                      ? "bg-gray-400 cursor-not-allowed"
-                      : "bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600"
-                  }`}
-                >
-                  <Scissors className="h-4 w-4" />
-                  {isProcessing ? "Processing..." : "Crop Image"}
-                </button>
-
-                <button
-                  onClick={handleReset}
-                  className="flex items-center gap-2 px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-all"
-                >
-                  <RotateCcw className="h-4 w-4" />
-                  Reset
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-      )}
-    </motion.div>
+              </>
+            )}
+          </div>
+        )}
+      </motion.div>
+    </>
   );
 };
 

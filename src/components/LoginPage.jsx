@@ -10,7 +10,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import ForgotPasswordForm from "./ForgotPasswordForm";
 import SignUpForm from "./SignUpForm";
-
+import Metatags from "../SEO/metatags";
 const API_URL1 = import.meta.env.VITE_API_URL;
 
 const LoginPage = () => {
@@ -206,13 +206,12 @@ const LoginPage = () => {
           </form>
 
           <div className="mt-6 text-center">
-          <button
-  onClick={() => navigate("/signup")}
-  className="text-purple-600 hover:text-purple-700 font-medium disabled:opacity-50"
->
-  Don't have an account? Sign up
-</button>
-
+            <button
+              onClick={() => navigate("/signup")}
+              className="text-purple-600 hover:text-purple-700 font-medium disabled:opacity-50"
+            >
+              Don't have an account? Sign up
+            </button>
           </div>
         </>
       );
@@ -230,55 +229,69 @@ const LoginPage = () => {
     }
   };
 
+  const metaPropsData = {
+    title: "Login Free PDF Tools Account PDF Works",
+    description:
+      "Login to your PDF Works account access free PDF tools online PDF editor converter compressor Sign in manage your PDF files documents",
+    keyword:
+      "free pdf tools login, pdf works account sign in, online pdf editor account, free pdf converter login, pdf tools user account",
+    image:
+      "https://res.cloudinary.com/dcfjt8shw/image/upload/v1761288318/wn8m8g8skdpl6iz2rwoa.svg",
+    url: "https://pdfworks.in/login",
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50">
-      <Helmet>
-        <title>
-          {forgotPassword ? "Reset Password" : isLogin ? "Login" : "Sign Up"} -
-          pdfworks
-        </title>
-      </Helmet>
+    <>
+      <Metatags metaProps={metaPropsData} />
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50">
+        <Helmet>
+          <title>
+            {forgotPassword ? "Reset Password" : isLogin ? "Login" : "Sign Up"}{" "}
+            - pdfworks
+          </title>
+        </Helmet>
 
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="glass-effect rounded-2xl p-8 max-w-md w-full shadow-lg bg-white/70 backdrop-blur-lg border border-white/30"
-      >
-        <Link to="/" className="flex items-center justify-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center shadow-md">
-            <FileText className="h-10 w-10 text-white" />
-          </div>
-        </Link>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="glass-effect rounded-2xl p-8 max-w-md w-full shadow-lg bg-white/70 backdrop-blur-lg border border-white/30"
+        >
+          <Link to="/" className="flex items-center justify-center mb-8">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center shadow-md">
+              <FileText className="h-10 w-10 text-white" />
+            </div>
+          </Link>
 
-        <h1 className="text-3xl font-bold text-center bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">
-          {forgotPassword
-            ? "Reset Password"
-            : isLogin
-            ? "Welcome Back!"
-            : "Create Account"}
-        </h1>
+          <h1 className="text-3xl font-bold text-center bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">
+            {forgotPassword
+              ? "Reset Password"
+              : isLogin
+              ? "Welcome Back!"
+              : "Create Account"}
+          </h1>
 
-        <p className="text-center text-gray-600 mb-6">
-          {forgotPassword
-            ? "Reset your password in simple steps"
-            : isLogin
-            ? "Sign in to access your files"
-            : "Join us to start managing your PDF files"}
-        </p>
+          <p className="text-center text-gray-600 mb-6">
+            {forgotPassword
+              ? "Reset your password in simple steps"
+              : isLogin
+              ? "Sign in to access your files"
+              : "Join us to start managing your PDF files"}
+          </p>
 
-        {forgotPassword ? (
-          <ForgotPasswordForm
-            formData={formData}
-            setFormData={setFormData}
-            forgotPasswordStep={forgotPasswordStep}
-            setForgotPasswordStep={setForgotPasswordStep}
-            handleBackToLogin={handleBackToLogin}
-          />
-        ) : (
-          renderLoginRegisterForm()
-        )}
-      </motion.div>
-    </div>
+          {forgotPassword ? (
+            <ForgotPasswordForm
+              formData={formData}
+              setFormData={setFormData}
+              forgotPasswordStep={forgotPasswordStep}
+              setForgotPasswordStep={setForgotPasswordStep}
+              handleBackToLogin={handleBackToLogin}
+            />
+          ) : (
+            renderLoginRegisterForm()
+          )}
+        </motion.div>
+      </div>
+    </>
   );
 };
 

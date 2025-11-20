@@ -6,11 +6,14 @@ const {
   getAllUsers,
   forgotPassword,
   resetPassword,
+  getCurrentUser,
+  updateToFreePlan,
   exportUsers,
   downloadUserTemplate,
   importUsers,
+  getUserLimits, // NEW: Import the getUserLimits function
 } = require("../controllers/userController");
-const { verifyAdmin } = require("../middleware/authMiddleware");
+const { verifyToken, verifyAdmin } = require("../middleware/authMiddleware");
 const multer = require("multer");
 
 // Configure multer for file uploads
@@ -55,6 +58,13 @@ router.post("/login", loginUser);
 // Password reset routes
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password", resetPassword);
+
+// Protected user routes
+router.get("/me", verifyToken, getCurrentUser);
+router.post("/plan/free", verifyToken, updateToFreePlan);
+
+// NEW: User limits route
+router.get("/limits", verifyToken, getUserLimits);
 
 // Protected admin routes
 router.get("/users", verifyAdmin, getAllUsers);

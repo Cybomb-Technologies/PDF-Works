@@ -5,9 +5,15 @@ const { exec } = require("child_process");
 const { promisify } = require("util");
 const execAsync = promisify(exec);
 
-// LibreOffice path
-// const LIBREOFFICE_PATH = "/usr/bin/libreoffice";
-const LIBREOFFICE_PATH = "C:\\Program Files\\LibreOffice\\program\\soffice.exe";
+// === FIXED USAGE IMPORTS ===
+const { checkLimits } = require("../../../utils/checkLimits");
+const { incrementUsage } = require("../../../utils/incrementUsage");
+
+// LibreOffice path - FIXED for cross-platform
+const LIBREOFFICE_PATH = process.env.LIBREOFFICE_PATH || 
+  (process.platform === "win32" 
+    ? "C:\\Program Files\\LibreOffice\\program\\soffice.exe"
+    : "/usr/bin/libreoffice");
 
 // Helper function to ensure uploads directory exists
 const ensureUploadsDir = async () => {
@@ -51,24 +57,20 @@ const saveFileToUserAccount = async (
   toolUsed = "convert"
 ) => {
   try {
-    const File = require("../../../../models/FileModel");
-    const fs = require("fs-extra");
+    const File = require("../../../models/FileModel");
+    const fsExtra = require("fs-extra");
     const path = require("path");
 
-    // Ensure uploads directory exists
     const uploadDir = "uploads/converted_files/";
-    await fs.ensureDir(uploadDir);
+    await fsExtra.ensureDir(uploadDir);
 
-    // Generate unique filename
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
     const fileExtension = path.extname(originalName) || ".pdf";
     const filename = `converted-${uniqueSuffix}${fileExtension}`;
     const filePath = path.join(uploadDir, filename);
 
-    // Save file to disk
-    await fs.writeFile(filePath, fileBuffer);
+    await fsExtra.writeFile(filePath, fileBuffer);
 
-    // Save file info to database
     const fileRecord = new File({
       filename: filename,
       originalName: originalName,
@@ -94,7 +96,6 @@ const convertWithLibreOffice = async (inputPath, outputPath, originalExt) => {
   try {
     console.log(`Converting ${originalExt} to PDF using LibreOffice...`);
 
-    // Escape paths for Windows command line
     const escapedInputPath = `"${inputPath}"`;
     const escapedOutputDir = `"${path.dirname(outputPath)}"`;
 
@@ -109,7 +110,6 @@ const convertWithLibreOffice = async (inputPath, outputPath, originalExt) => {
     }
     console.log("LibreOffice stdout:", stdout);
 
-    // LibreOffice creates file with same name but .pdf extension
     const inputFilename = path.basename(inputPath, originalExt);
     const convertedFilePath = path.join(
       path.dirname(outputPath),
@@ -119,11 +119,9 @@ const convertWithLibreOffice = async (inputPath, outputPath, originalExt) => {
     console.log("Expected converted file:", convertedFilePath);
     console.log("Target output path:", outputPath);
 
-    // Check if conversion was successful
     try {
       await fs.access(convertedFilePath);
 
-      // If output path is different, move the file
       if (convertedFilePath !== outputPath) {
         await fs.rename(convertedFilePath, outputPath);
       }
@@ -133,7 +131,6 @@ const convertWithLibreOffice = async (inputPath, outputPath, originalExt) => {
     } catch (accessError) {
       console.error("Converted file not found at:", convertedFilePath);
 
-      // Check if file exists with different naming
       const files = await fs.readdir(path.dirname(outputPath));
       const pdfFiles = files.filter((f) => f.endsWith(".pdf"));
       console.log("Available PDF files:", pdfFiles);
@@ -168,25 +165,20 @@ const convertImageToPdfReal = async (
 
     const ext = path.extname(originalFilename).toLowerCase();
 
-    // Try to embed the actual image based on file type
     try {
       let embeddedImage;
       const imageBytes = await fs.readFile(inputPath);
 
       if (ext === ".jpg" || ext === ".jpeg") {
-        // Embed JPEG image
         embeddedImage = await pdfDoc.embedJpg(imageBytes);
       } else if (ext === ".png") {
-        // Embed PNG image
         embeddedImage = await pdfDoc.embedPng(imageBytes);
       }
 
       if (embeddedImage) {
-        // Get image dimensions and create page with same aspect ratio
         const imageDims = embeddedImage.scale(1);
         const page = pdfDoc.addPage([imageDims.width, imageDims.height]);
 
-        // Draw the image to fill the entire page
         page.drawImage(embeddedImage, {
           x: 0,
           y: 0,
@@ -202,10 +194,8 @@ const convertImageToPdfReal = async (
       }
     } catch (embedError) {
       console.warn("Image embedding failed, using fallback:", embedError);
-      // Fall through to fallback method
     }
 
-    // Fallback: Create a PDF with image information
     return await createImageInfoPdf(inputPath, outputPath, originalFilename);
   } catch (error) {
     console.error("Image to PDF conversion error:", error);
@@ -221,11 +211,9 @@ const createImageInfoPdf = async (inputPath, outputPath, originalFilename) => {
     const page = pdfDoc.addPage([600, 400]);
     const { width, height } = page.getSize();
 
-    // Get file info
     const stats = await fs.stat(inputPath);
     const fileSize = (stats.size / 1024).toFixed(2);
 
-    // Add content to PDF
     page.drawText("IMAGE TO PDF CONVERSION", {
       x: 50,
       y: height - 50,
@@ -284,7 +272,7 @@ const convertPdfToImageReal = async (inputPath, outputPath, imageFormat) => {
   try {
     console.log(`Starting PDF to ${imageFormat} conversion...`);
 
-    // Method 1: Try using pdf-poppler if available (most reliable)
+    // Method 1: Try using pdf-poppler
     try {
       console.log("Attempting Method 1: pdf-poppler...");
       const result = await convertWithPdfPoppler(
@@ -300,7 +288,7 @@ const convertPdfToImageReal = async (inputPath, outputPath, imageFormat) => {
       console.warn("pdf-poppler failed:", popplerError.message);
     }
 
-    // Method 2: Try using Ghostscript if available
+    // Method 2: Try Ghostscript
     try {
       console.log("Attempting Method 2: Ghostscript...");
       const result = await convertWithGhostscript(
@@ -316,7 +304,7 @@ const convertPdfToImageReal = async (inputPath, outputPath, imageFormat) => {
       console.warn("Ghostscript failed:", gsError.message);
     }
 
-    // Method 3: Create a proper image using canvas with PDF information
+    // Method 3: Canvas fallback
     try {
       console.log("Attempting Method 3: Canvas fallback...");
       const result = await createPdfInfoImage(
@@ -332,12 +320,11 @@ const convertPdfToImageReal = async (inputPath, outputPath, imageFormat) => {
       console.warn("Canvas method failed:", canvasError.message);
     }
 
-    // If all methods fail, throw comprehensive error
     throw new Error(
-      "PDF to Image conversion failed. Please install one of these tools:\n" +
-        "- pdf-poppler: npm install pdf-poppler\n" +
-        "- Ghostscript: Download from https://www.ghostscript.com/\n" +
-        "- ImageMagick: Download from https://imagemagick.org/"
+      "PDF to Image conversion failed. Install one of:\n" +
+        "• pdf-poppler\n" +
+        "• Ghostscript\n" +
+        "• ImageMagick"
     );
   } catch (error) {
     console.error("PDF to Image conversion error:", error);
@@ -367,32 +354,29 @@ const convertWithPdfPoppler = async (inputPath, outputPath, imageFormat) => {
       format: format,
       out_dir: path.dirname(outputPath),
       out_prefix: path.basename(outputPath, path.extname(outputPath)),
-      page: null, // Convert all pages
+      page: null,
     };
 
     await pdftocairo.convert(inputPath, opts);
 
-    // Check if file was created
     const expectedFile = `${opts.out_prefix}-1.${imageFormat}`;
     const expectedPath = path.join(opts.out_dir, expectedFile);
 
     try {
       await fs.access(expectedPath);
-      // Rename to the expected output path
       await fs.rename(expectedPath, outputPath);
       return true;
     } catch {
-      throw new Error("Output file not created by pdf-poppler");
+      throw new Error("pdf-poppler did not produce output file.");
     }
   } catch (error) {
     throw new Error(`pdf-poppler conversion failed: ${error.message}`);
   }
 };
 
-// Method 2: Using Ghostscript (system command)
+// Method 2: Using Ghostscript
 const convertWithGhostscript = async (inputPath, outputPath, imageFormat) => {
   try {
-    // Check if Ghostscript is available
     let gsCommand;
     try {
       await execAsync("gswin64c --version");
@@ -402,14 +386,13 @@ const convertWithGhostscript = async (inputPath, outputPath, imageFormat) => {
         await execAsync("gs --version");
         gsCommand = "gs";
       } catch {
-        throw new Error("Ghostscript not found in system PATH");
+        throw new Error("Ghostscript not found in PATH");
       }
     }
 
     const device = imageFormat.toLowerCase() === "png" ? "png16m" : "jpeg";
-    const resolution = 150; // DPI
+    const resolution = 150;
 
-    // Ghostscript outputs multiple files for multi-page PDFs, we'll use the first one
     const tempOutput = path.join(
       path.dirname(outputPath),
       `temp_${Date.now()}_%d.${imageFormat}`
@@ -417,35 +400,32 @@ const convertWithGhostscript = async (inputPath, outputPath, imageFormat) => {
 
     const command = `"${gsCommand}" -dNOPAUSE -dBATCH -sDEVICE=${device} -r${resolution} -sOutputFile="${tempOutput}" "${inputPath}"`;
 
-    console.log("Executing Ghostscript command:", command);
+    console.log("Executing Ghostscript:", command);
 
-    const { stdout, stderr } = await execAsync(command, { timeout: 30000 });
+    const { stderr } = await execAsync(command, { timeout: 30000 });
 
-    if (stderr && !stderr.includes("This software comes with NO WARRANTY")) {
+    if (stderr && !stderr.includes("NO WARRANTY")) {
       console.warn("Ghostscript stderr:", stderr);
     }
 
-    // Find the generated file
     const outputDir = path.dirname(outputPath);
     const files = await fs.readdir(outputDir);
-    const generatedFiles = files.filter(
+    const generated = files.filter(
       (f) => f.includes("temp_") && f.endsWith(`.${imageFormat}`)
     );
 
-    if (generatedFiles.length === 0) {
-      throw new Error("No output files generated by Ghostscript");
+    if (generated.length === 0) {
+      throw new Error("Ghostscript created no output images.");
     }
 
-    // Use the first page
-    const firstImage = generatedFiles.sort()[0];
-    const sourcePath = path.join(outputDir, firstImage);
+    const first = generated.sort()[0];
+    const sourcePath = path.join(outputDir, first);
 
-    // Move to final location
     await fs.rename(sourcePath, outputPath);
 
-    // Clean up other temporary files
-    for (const file of generatedFiles) {
-      if (file !== firstImage) {
+    // Clean up others
+    for (const file of generated) {
+      if (file !== first) {
         await fs.unlink(path.join(outputDir, file));
       }
     }
@@ -456,62 +436,39 @@ const convertWithGhostscript = async (inputPath, outputPath, imageFormat) => {
   }
 };
 
-// Method 3: Create informative image using canvas (fallback)
+// Method 3: Canvas fallback (guaranteed output)
 const createPdfInfoImage = async (inputPath, outputPath, imageFormat) => {
   try {
-    // Use dynamic import for canvas since it's optional
-    let canvas;
+    let canvasLib;
     try {
-      canvas = require("canvas");
+      canvasLib = require("canvas");
     } catch {
-      throw new Error("Canvas not installed");
+      throw new Error("Canvas library not installed");
     }
 
-    const { createCanvas } = canvas;
+    const { createCanvas } = canvasLib;
+
     const stats = await fs.stat(inputPath);
     const fileSize = (stats.size / 1024).toFixed(2);
 
-    // Create canvas
-    const canvasWidth = 800;
-    const canvasHeight = 600;
-    const canva = createCanvas(canvasWidth, canvasHeight);
-    const ctx = canva.getContext("2d");
+    const width = 800;
+    const height = 600;
 
-    // Background gradient
-    const gradient = ctx.createLinearGradient(0, 0, canvasWidth, canvasHeight);
+    const canvas = createCanvas(width, height);
+    const ctx = canvas.getContext("2d");
+
+    const gradient = ctx.createLinearGradient(0, 0, width, height);
     gradient.addColorStop(0, "#667eea");
     gradient.addColorStop(1, "#764ba2");
     ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+    ctx.fillRect(0, 0, width, height);
 
-    // Main content area
-    ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
-    ctx.roundRect = function (x, y, width, height, radius) {
-      this.beginPath();
-      this.moveTo(x + radius, y);
-      this.lineTo(x + width - radius, y);
-      this.quadraticCurveTo(x + width, y, x + width, y + radius);
-      this.lineTo(x + width, y + height - radius);
-      this.quadraticCurveTo(
-        x + width,
-        y + height,
-        x + width - radius,
-        y + height
-      );
-      this.lineTo(x + radius, y + height);
-      this.quadraticCurveTo(x, y + height, x, y + height - radius);
-      this.lineTo(x, y + radius);
-      this.quadraticCurveTo(x, y, x + radius, y);
-      this.closePath();
-      this.fill();
-    };
+    ctx.fillStyle = "rgba(255,255,255,0.9)";
+    ctx.fillRect(50, 50, width - 100, height - 100);
 
-    ctx.roundRect(50, 50, canvasWidth - 100, canvasHeight - 100, 20);
-
-    // Text content
-    ctx.fillStyle = "#333333";
+    ctx.fillStyle = "#333";
     ctx.font = "bold 32px Arial";
-    ctx.fillText("PDF CONVERSION", canvasWidth / 2 - 120, 120);
+    ctx.fillText("PDF CONVERSION", width / 2 - 150, 120);
 
     ctx.font = "24px Arial";
     ctx.fillText(`Original: ${path.basename(inputPath)}`, 100, 180);
@@ -520,24 +477,10 @@ const createPdfInfoImage = async (inputPath, outputPath, imageFormat) => {
     ctx.fillText(`Date: ${new Date().toLocaleDateString()}`, 100, 300);
 
     ctx.font = "18px Arial";
-    ctx.fillText("This image represents your PDF content.", 100, 360);
-    ctx.fillText("For direct PDF to image conversion, install:", 100, 400);
-    ctx.fillText("• pdf-poppler (npm install pdf-poppler)", 120, 440);
-    ctx.fillText("• Ghostscript (from ghostscript.com)", 120, 480);
+    ctx.fillText("This is a fallback image.", 100, 360);
+    ctx.fillText("Install pdf-poppler or Ghostscript for real conversion.", 100, 400);
 
-    // PDF icon
-    ctx.fillStyle = "#e74c3c";
-    ctx.fillRect(600, 150, 120, 160);
-    ctx.fillStyle = "white";
-    ctx.font = "bold 48px Arial";
-    ctx.fillText("PDF", 615, 240);
-    ctx.font = "bold 18px Arial";
-    ctx.fillText("→", 660, 290);
-    ctx.font = "bold 24px Arial";
-    ctx.fillText(imageFormat.toUpperCase(), 610, 330);
-
-    // Convert to buffer and save
-    const buffer = canva.toBuffer(`image/${imageFormat}`);
+    const buffer = canvas.toBuffer(`image/${imageFormat}`);
     await fs.writeFile(outputPath, buffer);
 
     return true;
@@ -546,168 +489,75 @@ const createPdfInfoImage = async (inputPath, outputPath, imageFormat) => {
   }
 };
 
-// Convert various formats TO PDF (WITH REAL CONTENT)
-const convertToPdf = async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: "No file uploaded" });
-    }
-
-    // Define allowed input formats for conversion to PDF
-    const allowedInputTypes = [
-      ".docx",
-      ".doc",
-      ".xlsx",
-      ".xls",
-      ".pptx",
-      ".ppt",
-      ".jpg",
-      ".jpeg",
-      ".png",
-    ];
-
-    // Validate input file type
-    if (!validateFileType(req.file, allowedInputTypes)) {
-      return res.status(400).json({
-        error: "Invalid file type",
-        details: "Please upload Word, Excel, PowerPoint, or Image files",
-      });
-    }
-
-    const { conversionsDir } = await ensureUploadsDir();
-
-    const originalExt = path.extname(req.file.originalname).toLowerCase();
-    const outputFilename = `${
-      path.parse(req.file.originalname).name
-    }_converted.pdf`;
-    const outputPath = path.join(conversionsDir, outputFilename);
-
-    // Determine conversion type based on file extension
-    let conversionType = "";
-    if (originalExt === ".docx" || originalExt === ".doc") {
-      conversionType = "word-to-pdf";
-    } else if (originalExt === ".xlsx" || originalExt === ".xls") {
-      conversionType = "excel-to-pdf";
-    } else if (originalExt === ".pptx" || originalExt === ".ppt") {
-      conversionType = "ppt-to-pdf";
-    } else if ([".jpg", ".jpeg", ".png"].includes(originalExt)) {
-      conversionType = "image-to-pdf";
-    }
-
-    // Create conversion record
-    const conversion = new Convert({
-      originalFilename: req.file.originalname,
-      convertedFilename: outputFilename,
-      originalFileType: originalExt.replace(".", ""),
-      convertedFileType: "pdf",
-      conversionType: conversionType,
-      fileSize: req.file.size,
-      conversionStatus: "processing",
-    });
-
-    await conversion.save();
-
-    try {
-      // Perform actual file conversion based on file type
-      if (
-        [".docx", ".doc", ".xlsx", ".xls", ".pptx", ".ppt"].includes(
-          originalExt
-        )
-      ) {
-        // Use LibreOffice for document conversion (preserves actual content)
-        await convertWithLibreOffice(req.file.path, outputPath, originalExt);
-      } else if ([".jpg", ".jpeg", ".png"].includes(originalExt)) {
-        // Use image to PDF conversion with actual image embedding
-        await convertImageToPdfReal(
-          req.file.path,
-          outputPath,
-          req.file.originalname
-        );
-      }
-
-      // Generate download URL
-      const downloadUrl = `/api/convert/download/${conversion._id}`;
-
-      // Update conversion record
-      conversion.conversionStatus = "completed";
-      conversion.downloadUrl = downloadUrl;
-      conversion.outputPath = outputPath;
-      await conversion.save();
-
-      // NEW: Save converted file to user account if user is authenticated
-      if (req.user && req.user.id) {
-        try {
-          const fileBuffer = await fs.readFile(outputPath);
-          await saveFileToUserAccount(
-            fileBuffer,
-            outputFilename,
-            "application/pdf",
-            req.user.id,
-            "convert-to-pdf"
-          );
-          console.log("Converted file saved to user account");
-        } catch (saveError) {
-          console.error(
-            "Failed to save converted file to user account:",
-            saveError
-          );
-          // Don't fail the conversion if saving fails
-        }
-      }
-
-      res.json({
-        success: true,
-        message: `${originalExt
-          .toUpperCase()
-          .replace(".", "")} converted to PDF successfully`,
-        conversionId: conversion._id,
-        downloadUrl,
-        convertedFilename: conversion.convertedFilename,
-      });
-    } catch (conversionError) {
-      console.error("Conversion processing error:", conversionError);
-
-      conversion.conversionStatus = "failed";
-      conversion.errorMessage = conversionError.message;
-      await conversion.save();
-
-      throw conversionError;
-    }
-  } catch (error) {
-    console.error("Conversion error:", error);
-    res.status(500).json({
-      error: "Conversion failed",
-      details: error.message,
-    });
-  }
-};
-
-// PDF to Image conversion - FIXED
+// PDF to Image conversion - FIXED with notification-style alerts
 const convertPdfToImage = async (req, res) => {
   try {
+    // -------------------------------------------------------
+    // Usage limit check BEFORE processing - FIXED
+    // -------------------------------------------------------
+    if (req.user && req.user.id) {
+      try {
+        const limitCheck = await checkLimits(req.user.id, "convert", req.file?.size || 0);
+        if (!limitCheck.allowed) {
+          return res.status(200).json({
+            success: false,
+            type: "limit_exceeded",
+            title: "Usage Limit Reached",
+            message: limitCheck.reason,
+            notificationType: "error",
+            currentUsage: limitCheck.usage?.conversions || 0,
+            limit: limitCheck.plan?.conversionLimit || 0,
+            upgradeRequired: true
+          });
+        }
+      } catch (limitErr) {
+        return res.status(200).json({
+          success: false,
+          type: "limit_exceeded",
+          title: "Usage Limit Error",
+          message: limitErr.message,
+          notificationType: "error"
+        });
+      }
+    }
+
     if (!req.file) {
-      return res.status(400).json({ error: "No file uploaded" });
+      return res.status(200).json({
+        success: false,
+        type: "validation_error",
+        title: "File Required",
+        message: "No file uploaded",
+        notificationType: "warning"
+      });
     }
 
     const { imageFormat = "jpg" } = req.body;
     const allowedFormats = ["jpg", "jpeg", "png"];
 
     if (!allowedFormats.includes(imageFormat.toLowerCase())) {
-      return res.status(400).json({ error: "Invalid image format" });
+      return res.status(200).json({
+        success: false,
+        type: "validation_error",
+        title: "Invalid Format",
+        message: "Invalid image format selected",
+        notificationType: "warning"
+      });
     }
 
-    // Validate PDF file
     if (!validateFileType(req.file, [".pdf"])) {
-      return res
-        .status(400)
-        .json({ error: "Invalid file type. Please upload a PDF file." });
+      return res.status(200).json({
+        success: false,
+        type: "validation_error",
+        title: "Invalid File Type",
+        message: "Please upload a PDF file",
+        notificationType: "warning"
+      });
     }
 
     const { conversionsDir } = await ensureUploadsDir();
 
-    const outputFilename = `${
-      path.parse(req.file.originalname).name
-    }_converted.${imageFormat}`;
+    const outputFilename =
+      `${path.parse(req.file.originalname).name}_converted.${imageFormat}`;
     const outputPath = path.join(conversionsDir, outputFilename);
 
     // Create conversion record
@@ -724,10 +574,9 @@ const convertPdfToImage = async (req, res) => {
     await conversion.save();
 
     try {
-      // Perform REAL PDF to image conversion
+      // Perform REAL conversion
       await convertPdfToImageReal(req.file.path, outputPath, imageFormat);
 
-      // Verify the file was created and has content
       const stats = await fs.stat(outputPath);
       if (stats.size === 0) {
         throw new Error("Converted image file is empty");
@@ -740,10 +589,11 @@ const convertPdfToImage = async (req, res) => {
       conversion.outputPath = outputPath;
       await conversion.save();
 
-      // NEW: Save converted file to user account if user is authenticated
+      // Save to user account + increment usage
       if (req.user && req.user.id) {
         try {
           const fileBuffer = await fs.readFile(outputPath);
+
           await saveFileToUserAccount(
             fileBuffer,
             outputFilename,
@@ -751,68 +601,111 @@ const convertPdfToImage = async (req, res) => {
             req.user.id,
             "pdf-to-image"
           );
-          console.log("Converted image saved to user account");
-        } catch (saveError) {
-          console.error(
-            "Failed to save converted image to user account:",
-            saveError
-          );
-          // Don't fail the conversion if saving fails
+
+          await incrementUsage(req.user.id, "convert");
+        } catch (e) {
+          console.error("Save to user account failed:", e);
         }
       }
 
       res.json({
         success: true,
+        type: "conversion_success",
+        title: "Conversion Successful",
         message: "PDF converted to image successfully",
+        notificationType: "success",
         conversionId: conversion._id,
         downloadUrl,
         convertedFilename: conversion.convertedFilename,
       });
-    } catch (conversionError) {
-      console.error(
-        "PDF to Image conversion processing error:",
-        conversionError
-      );
+    } catch (err) {
+      console.error("PDF → Image process error:", err);
 
       conversion.conversionStatus = "failed";
-      conversion.errorMessage = conversionError.message;
+      conversion.errorMessage = err.message;
       await conversion.save();
 
-      throw conversionError;
+      return res.status(200).json({
+        success: false,
+        type: "conversion_error",
+        title: "Conversion Failed",
+        message: err.message,
+        notificationType: "error"
+      });
     }
   } catch (error) {
-    console.error("PDF to Image conversion error:", error);
-    res.status(500).json({
-      error: "PDF to Image conversion failed",
+    console.error("PDF → Image ERROR:", error);
+    res.status(200).json({
+      success: false,
+      type: "server_error",
+      title: "Conversion Error",
+      message: "PDF to Image conversion failed",
       details: error.message,
+      notificationType: "error"
     });
   }
 };
 
-// Image to PDF conversion
+// Image to PDF conversion - FIXED with notification-style alerts
 const convertImageToPdf = async (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: "No file uploaded" });
+    // -------------------------------------------------------
+    // Usage limit check BEFORE processing - FIXED
+    // -------------------------------------------------------
+    if (req.user && req.user.id) {
+      try {
+        const limitCheck = await checkLimits(req.user.id, "convert", req.file?.size || 0);
+        if (!limitCheck.allowed) {
+          return res.status(200).json({
+            success: false,
+            type: "limit_exceeded",
+            title: "Usage Limit Reached",
+            message: limitCheck.reason,
+            notificationType: "error",
+            currentUsage: limitCheck.usage?.conversions || 0,
+            limit: limitCheck.plan?.conversionLimit || 0,
+            upgradeRequired: true
+          });
+        }
+      } catch (limitErr) {
+        return res.status(200).json({
+          success: false,
+          type: "limit_exceeded",
+          title: "Usage Limit Error",
+          message: limitErr.message,
+          notificationType: "error"
+        });
+      }
     }
 
-    // Validate image file types for Image to PDF conversion
+    if (!req.file) {
+      return res.status(200).json({
+        success: false,
+        type: "validation_error",
+        title: "File Required",
+        message: "No file uploaded",
+        notificationType: "warning"
+      });
+    }
+
     const allowedImageTypes = [".jpg", ".jpeg", ".png"];
+
     if (!validateFileType(req.file, allowedImageTypes)) {
-      return res.status(400).json({
-        error:
-          "Invalid file type. Please upload an image file (JPG, JPEG, PNG).",
+      return res.status(200).json({
+        success: false,
+        type: "validation_error",
+        title: "Invalid File Type",
+        message: "Only JPG, JPEG, and PNG images are allowed",
+        notificationType: "warning"
       });
     }
 
     const { conversionsDir } = await ensureUploadsDir();
 
-    const outputFilename = `${
-      path.parse(req.file.originalname).name
-    }_converted.pdf`;
+    const outputFilename =
+      `${path.parse(req.file.originalname).name}_converted.pdf`;
     const outputPath = path.join(conversionsDir, outputFilename);
 
-    // Create conversion record for image to PDF
     const conversion = new Convert({
       originalFilename: req.file.originalname,
       convertedFilename: outputFilename,
@@ -826,7 +719,6 @@ const convertImageToPdf = async (req, res) => {
     await conversion.save();
 
     try {
-      // Perform image to PDF conversion with actual image embedding
       await convertImageToPdfReal(
         req.file.path,
         outputPath,
@@ -840,10 +732,10 @@ const convertImageToPdf = async (req, res) => {
       conversion.outputPath = outputPath;
       await conversion.save();
 
-      // NEW: Save converted file to user account if user is authenticated
       if (req.user && req.user.id) {
         try {
           const fileBuffer = await fs.readFile(outputPath);
+
           await saveFileToUserAccount(
             fileBuffer,
             outputFilename,
@@ -851,40 +743,218 @@ const convertImageToPdf = async (req, res) => {
             req.user.id,
             "image-to-pdf"
           );
-          console.log("Image to PDF saved to user account");
-        } catch (saveError) {
-          console.error(
-            "Failed to save image to PDF to user account:",
-            saveError
-          );
-          // Don't fail the conversion if saving fails
+
+          await incrementUsage(req.user.id, "convert");
+        } catch (e) {
+          console.error("Save to user account failed:", e);
         }
       }
 
       res.json({
         success: true,
+        type: "conversion_success",
+        title: "Conversion Successful",
         message: "Image converted to PDF successfully",
+        notificationType: "success",
         conversionId: conversion._id,
         downloadUrl,
         convertedFilename: conversion.convertedFilename,
       });
-    } catch (conversionError) {
-      console.error(
-        "Image to PDF conversion processing error:",
-        conversionError
-      );
+    } catch (err) {
+      console.error("Image → PDF process error:", err);
 
       conversion.conversionStatus = "failed";
-      conversion.errorMessage = conversionError.message;
+      conversion.errorMessage = err.message;
       await conversion.save();
 
-      throw conversionError;
+      return res.status(200).json({
+        success: false,
+        type: "conversion_error",
+        title: "Conversion Failed",
+        message: err.message,
+        notificationType: "error"
+      });
     }
   } catch (error) {
-    console.error("Image to PDF conversion error:", error);
-    res.status(500).json({
-      error: "Image to PDF conversion failed",
+    console.error("Image → PDF ERROR:", error);
+    res.status(200).json({
+      success: false,
+      type: "server_error",
+      title: "Conversion Error",
+      message: "Image to PDF conversion failed",
       details: error.message,
+      notificationType: "error"
+    });
+  }
+};
+
+// Convert various formats TO PDF (DOCX, XLSX, PPTX, JPG, PNG → PDF) - FIXED with notification-style alerts
+const convertToPdf = async (req, res) => {
+  try {
+    // -------------------------------------------------------
+    // Usage limit check - FIXED
+    // -------------------------------------------------------
+    if (req.user && req.user.id) {
+      try {
+        const limitCheck = await checkLimits(req.user.id, "convert", req.file?.size || 0);
+        if (!limitCheck.allowed) {
+          return res.status(200).json({
+            success: false,
+            type: "limit_exceeded",
+            title: "Usage Limit Reached",
+            message: limitCheck.reason,
+            notificationType: "error",
+            currentUsage: limitCheck.usage?.conversions || 0,
+            limit: limitCheck.plan?.conversionLimit || 0,
+            upgradeRequired: true
+          });
+        }
+      } catch (limitErr) {
+        return res.status(200).json({
+          success: false,
+          type: "limit_exceeded",
+          title: "Usage Limit Error",
+          message: limitErr.message,
+          notificationType: "error"
+        });
+      }
+    }
+
+    if (!req.file) {
+      return res.status(200).json({
+        success: false,
+        type: "validation_error",
+        title: "File Required",
+        message: "No file uploaded",
+        notificationType: "warning"
+      });
+    }
+
+    const allowedInputTypes = [
+      ".docx",
+      ".doc",
+      ".xlsx",
+      ".xls",
+      ".pptx",
+      ".ppt",
+      ".jpg",
+      ".jpeg",
+      ".png",
+    ];
+
+    if (!validateFileType(req.file, allowedInputTypes)) {
+      return res.status(200).json({
+        success: false,
+        type: "validation_error",
+        title: "Invalid File Type",
+        message: "Only Word, Excel, PowerPoint, JPG, and PNG files are allowed",
+        notificationType: "warning"
+      });
+    }
+
+    const { conversionsDir } = await ensureUploadsDir();
+
+    const originalExt = path.extname(req.file.originalname).toLowerCase();
+
+    const outputFilename =
+      `${path.parse(req.file.originalname).name}_converted.pdf`;
+
+    const outputPath = path.join(conversionsDir, outputFilename);
+
+    let conversionType = "";
+    if ([".doc", ".docx"].includes(originalExt)) conversionType = "word-to-pdf";
+    else if ([".xls", ".xlsx"].includes(originalExt))
+      conversionType = "excel-to-pdf";
+    else if ([".ppt", ".pptx"].includes(originalExt))
+      conversionType = "ppt-to-pdf";
+    else conversionType = "image-to-pdf";
+
+    const conversion = new Convert({
+      originalFilename: req.file.originalname,
+      convertedFilename: outputFilename,
+      originalFileType: originalExt.replace(".", ""),
+      convertedFileType: "pdf",
+      conversionType,
+      fileSize: req.file.size,
+      conversionStatus: "processing",
+    });
+
+    await conversion.save();
+
+    try {
+      if (
+        [".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx"].includes(
+          originalExt
+        )
+      ) {
+        await convertWithLibreOffice(req.file.path, outputPath, originalExt);
+      } else {
+        await convertImageToPdfReal(
+          req.file.path,
+          outputPath,
+          req.file.originalname
+        );
+      }
+
+      const downloadUrl = `/api/convert/download/${conversion._id}`;
+
+      conversion.conversionStatus = "completed";
+      conversion.downloadUrl = downloadUrl;
+      conversion.outputPath = outputPath;
+      await conversion.save();
+
+      if (req.user && req.user.id) {
+        try {
+          const buffer = await fs.readFile(outputPath);
+
+          await saveFileToUserAccount(
+            buffer,
+            outputFilename,
+            "application/pdf",
+            req.user.id,
+            "convert-to-pdf"
+          );
+
+          await incrementUsage(req.user.id, "convert");
+        } catch (e) {
+          console.error("Save to user account failed:", e);
+        }
+      }
+
+      res.json({
+        success: true,
+        type: "conversion_success",
+        title: "Conversion Successful",
+        message: `${originalExt.toUpperCase()} converted to PDF successfully`,
+        notificationType: "success",
+        conversionId: conversion._id,
+        downloadUrl,
+        convertedFilename: conversion.convertedFilename,
+      });
+    } catch (err) {
+      console.error("File → PDF conversion process error:", err);
+
+      conversion.conversionStatus = "failed";
+      conversion.errorMessage = err.message;
+      await conversion.save();
+
+      return res.status(200).json({
+        success: false,
+        type: "conversion_error",
+        title: "Conversion Failed",
+        message: err.message,
+        notificationType: "error"
+      });
+    }
+  } catch (error) {
+    console.error("ConvertToPdf ERROR:", error);
+    res.status(200).json({
+      success: false,
+      type: "server_error",
+      title: "Conversion Error",
+      message: "Conversion failed",
+      details: error.message,
+      notificationType: "error"
     });
   }
 };
@@ -896,11 +966,23 @@ const downloadConvertedFile = async (req, res) => {
 
     const conversion = await Convert.findById(conversionId);
     if (!conversion) {
-      return res.status(404).json({ error: "Conversion not found" });
+      return res.status(200).json({
+        success: false,
+        type: "not_found",
+        title: "Not Found",
+        message: "Conversion not found",
+        notificationType: "error"
+      });
     }
 
     if (conversion.conversionStatus !== "completed") {
-      return res.status(400).json({ error: "Conversion not completed yet" });
+      return res.status(200).json({
+        success: false,
+        type: "not_ready",
+        title: "Not Ready",
+        message: "Conversion not completed yet",
+        notificationType: "warning"
+      });
     }
 
     const filePath =
@@ -911,33 +993,50 @@ const downloadConvertedFile = async (req, res) => {
         conversion.convertedFilename
       );
 
-    // Check if file exists and has content
+    // Check if file exists & not empty
     try {
       const stats = await fs.stat(filePath);
       if (stats.size === 0) {
-        return res.status(404).json({ error: "Converted file is empty" });
+        return res.status(200).json({
+          success: false,
+          type: "file_error",
+          title: "File Error",
+          message: "Converted file is empty",
+          notificationType: "error"
+        });
       }
     } catch {
-      return res.status(404).json({ error: "Converted file not found" });
+      return res.status(200).json({
+        success: false,
+        type: "not_found",
+        title: "File Not Found",
+        message: "Converted file not found",
+        notificationType: "error"
+      });
     }
 
-    // Set appropriate headers for download
     res.setHeader(
       "Content-Disposition",
       `attachment; filename="${conversion.convertedFilename}"`
     );
     res.setHeader("Content-Type", getMimeType(conversion.convertedFileType));
 
-    // Stream the file
     const fileStream = require("fs").createReadStream(filePath);
     fileStream.pipe(res);
   } catch (error) {
     console.error("Download error:", error);
-    res.status(500).json({ error: "Download failed", details: error.message });
+    res.status(200).json({
+      success: false,
+      type: "server_error",
+      title: "Download Failed",
+      message: "Download failed",
+      details: error.message,
+      notificationType: "error"
+    });
   }
 };
 
-// Helper function to get MIME type
+// Helper function to get correct MIME type
 const getMimeType = (fileType) => {
   const mimeTypes = {
     pdf: "application/pdf",
@@ -962,10 +1061,17 @@ const getConversionStatus = async (req, res) => {
 
     const conversion = await Convert.findById(conversionId);
     if (!conversion) {
-      return res.status(404).json({ error: "Conversion not found" });
+      return res.status(200).json({
+        success: false,
+        type: "not_found",
+        title: "Not Found",
+        message: "Conversion not found",
+        notificationType: "error"
+      });
     }
-
+ 
     res.json({
+      success: true,
       conversionId: conversion._id,
       status: conversion.conversionStatus,
       downloadUrl: conversion.downloadUrl,
@@ -975,16 +1081,63 @@ const getConversionStatus = async (req, res) => {
     });
   } catch (error) {
     console.error("Status check error:", error);
-    res
-      .status(500)
-      .json({ error: "Status check failed", details: error.message });
+    res.status(200).json({
+      success: false,
+      type: "server_error",
+      title: "Status Check Failed",
+      message: "Status check failed",
+      details: error.message,
+      notificationType: "error"
+    });
   }
 };
 
+// TEST LIMITS FUNCTION - ADD THIS
+const testLimits = async (req, res) => {
+  try {
+    if (!req.user || !req.user.id) {
+      return res.status(200).json({
+        success: false,
+        type: "auth_error",
+        title: "Authentication Required",
+        message: "Not authenticated",
+        notificationType: "error"
+      });
+    }
+
+    const limitCheck = await checkLimits(req.user.id, "convert");
+    
+    res.json({
+      success: true,
+      userId: req.user.id,
+      allowed: limitCheck.allowed,
+      reason: limitCheck.reason,
+      usage: limitCheck.usage,
+      plan: limitCheck.plan ? {
+        name: limitCheck.plan.name,
+        planId: limitCheck.plan.planId,
+        conversionLimit: limitCheck.plan.conversionLimit
+      } : null,
+      userConversions: limitCheck.usage?.conversions || 0
+    });
+  } catch (error) {
+    console.error("Test limits error:", error);
+    res.status(200).json({
+      success: false,
+      type: "server_error",
+      title: "Test Failed",
+      message: error.message,
+      notificationType: "error"
+    });
+  }
+};
+
+// EXPORT ALL CONTROLLER HANDLERS
 module.exports = {
   convertToPdf,
   convertPdfToImage,
   convertImageToPdf,
   downloadConvertedFile,
   getConversionStatus,
+  testLimits
 };
