@@ -1,4 +1,4 @@
-node_modules
+/node_modules
 
 /ssh-pdfworks.txt/ssh-pdfworks.txtserver/.env
 .env
