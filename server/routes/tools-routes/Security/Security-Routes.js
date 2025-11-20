@@ -1,24 +1,28 @@
-// server/routes/tools-routes/Security/Security-Routes.js
-
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const securityController = require('../../../controllers/tool-controller/Security/Security-Controller');
+const securityController = require("../../../controllers/tool-controller/Security/Security-Controller");
+const multer = require("multer");
 
-// File Encryption/Decryption
-router.post('/encrypt', securityController.encryptFile);
-router.post('/decrypt', securityController.decryptFile);
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 500 * 1024 * 1024 },
+});
 
-// 2FA Protected PDF
-router.post('/protect-pdf-2fa', securityController.protectPDFWith2FA);
-router.post('/access-pdf-2fa', securityController.access2FAProtectedPDF);
-router.get('/list-2fa-files', securityController.list2FAProtectedFiles);
-router.delete('/remove-2fa-file', securityController.remove2FAProtectedFile);
+// Encryption / Decryption
+router.post("/encrypt", upload.single("file"), securityController.encryptFile);
+router.post("/decrypt", upload.single("file"), securityController.decryptFile);
 
-// File Sharing with Access Control
-router.post('/share-file', securityController.shareFileWithAccess);
-router.post('/add-user-access', securityController.addUserToFileAccess);
-router.post('/access-shared-file', securityController.accessSharedFile);
-router.get('/file-access-list', securityController.getFileAccessList);
-router.get('/list-shared-files', securityController.listSharedFiles);
+// 2FA
+router.post("/protect-pdf-2fa", upload.single("file"), securityController.protectPDFWith2FA);
+router.post("/access-pdf-2fa", securityController.access2FAProtectedPDF);
+router.get("/list-2fa-files", securityController.list2FAProtectedFiles);
+router.delete("/remove-2fa-file", securityController.remove2FAProtectedFile);
+
+// File Sharing
+router.post("/share-file", upload.single("file"), securityController.shareFileWithAccess);
+router.post("/add-user-access", securityController.addUserToFileAccess);
+router.post("/access-shared-file", securityController.accessSharedFile);
+router.get("/file-access-list", securityController.getFileAccessList);
+router.get("/list-shared-files", securityController.listSharedFiles);
 
 module.exports = router;
