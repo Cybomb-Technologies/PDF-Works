@@ -17,7 +17,7 @@ const NotificationContainer = () => {
   }, {});
 
   return (
-    <div className="fixed top-4 right-4 z-50 space-y-2">
+    <div className="fixed top-4 right-4 z-[9999] space-y-2 max-w-sm w-full">
       {Object.entries(groupedNotifications).map(([type, typeNotifications]) => (
         <div key={type} className="space-y-2">
           {typeNotifications.map(notification => (

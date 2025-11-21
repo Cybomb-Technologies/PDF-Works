@@ -1,4 +1,4 @@
 /node_modules
 # Uploaded files and conversions
 /uploads/
-.env
+/.env

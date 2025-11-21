@@ -9,6 +9,7 @@ import {
   ChevronDown,
   Eye,
   EyeOff,
+  AlertTriangle,
 } from "lucide-react";
 import { useNotification } from "@/contexts/NotificationContext";
 
@@ -212,38 +213,36 @@ const ConvertTools = () => {
         
         // Handle backend errors with detailed messages
         if (!response.ok || !result.success) {
-          // Use the detailed error information from backend
-          const errorTitle = result.title || 'Conversion Failed';
-          const errorMessage = result.message || result.error || result.details || 'Unknown error occurred';
-          const errorType = result.type || 'conversion_error';
-          
-          // Special handling for limit exceeded
-          if (errorType === 'limit_exceeded') {
+          // Check for limit exceeded error
+          if (result.type === 'limit_exceeded') {
             showNotification({
               type: 'error',
-              title: errorTitle,
-              message: errorMessage,
-              duration: 8000
+              title: result.title || 'Usage Limit Reached',
+              message: result.message || result.reason || 'Conversion limit reached',
+              duration: 8000,
+              currentUsage: result.currentUsage,
+              limit: result.limit,
+              upgradeRequired: result.upgradeRequired,
+              action: result.upgradeRequired ? {
+                label: 'Upgrade Plan',
+                onClick: () => window.location.href = '/billing',
+                external: true
+              } : undefined
             });
             
-            // Show upgrade suggestion
-            setTimeout(() => {
-              showNotification({
-                type: 'warning',
-                title: 'Upgrade Your Plan',
-                message: `You've used ${result.currentUsage || 0}/${result.limit || 0} conversions. Upgrade for unlimited conversions!`,
-                duration: 10000
-              });
-            }, 1000);
-          } else {
-            // Show other detailed errors
-            showNotification({
-              type: 'error',
-              title: errorTitle,
-              message: errorMessage,
-              duration: 8000
-            });
+            throw new Error('Usage limit exceeded');
           }
+          
+          // Handle other JSON errors
+          const errorTitle = result.title || 'Conversion Failed';
+          const errorMessage = result.message || result.error || result.details || 'Unknown error occurred';
+          
+          showNotification({
+            type: 'error',
+            title: errorTitle,
+            message: errorMessage,
+            duration: 8000
+          });
           
           throw new Error(errorMessage);
         }
@@ -275,12 +274,31 @@ const ConvertTools = () => {
             if (blob) {
               try {
                 await saveToMyFiles(blob, result.convertedFilename || "converted-file", selectedTool.id);
+                
+                showNotification({
+                  type: 'success',
+                  title: 'File Saved',
+                  message: 'Converted file automatically saved to My Files',
+                  duration: 5000
+                });
               } catch (saveError) {
                 console.warn('Failed to save file:', saveError);
+                showNotification({
+                  type: 'warning',
+                  title: 'Save Failed',
+                  message: 'File converted but could not be saved to My Files',
+                  duration: 5000
+                });
               }
             }
           } catch (downloadError) {
             console.error('Download error:', downloadError);
+            showNotification({
+              type: 'error',
+              title: 'Download Error',
+              message: 'Failed to download converted file',
+              duration: 5000
+            });
           }
         }
         
@@ -303,6 +321,26 @@ const ConvertTools = () => {
             errorData = JSON.parse(errorText);
           } catch {
             errorData = { error: errorText || `HTTP error! status: ${response.status}` };
+          }
+          
+          // Check for limit exceeded in error response
+          if (errorData.type === 'limit_exceeded') {
+            showNotification({
+              type: 'error',
+              title: errorData.title || 'Usage Limit Reached',
+              message: errorData.message || errorData.reason || 'Conversion limit reached',
+              duration: 8000,
+              currentUsage: errorData.currentUsage,
+              limit: errorData.limit,
+              upgradeRequired: errorData.upgradeRequired,
+              action: errorData.upgradeRequired ? {
+                label: 'Upgrade Plan',
+                onClick: () => window.location.href = '/billing',
+                external: true
+              } : undefined
+            });
+            
+            throw new Error('Usage limit exceeded');
           }
           
           throw new Error(errorData.error || errorData.message || `Conversion failed with status: ${response.status}`);
@@ -335,8 +373,21 @@ const ConvertTools = () => {
         if (blob) {
           try {
             await saveToMyFiles(blob, filename, selectedTool.id);
+            
+            showNotification({
+              type: 'success',
+              title: 'File Saved',
+              message: 'Converted file automatically saved to My Files',
+              duration: 5000
+            });
           } catch (saveError) {
             console.warn('Failed to save file:', saveError);
+            showNotification({
+              type: 'warning',
+              title: 'Save Failed',
+              message: 'File converted but could not be saved to My Files',
+              duration: 5000
+            });
           }
         }
 
@@ -360,6 +411,26 @@ const ConvertTools = () => {
         }
         
         if (!response.ok) {
+          // Check for limit exceeded in error response
+          if (errorData.type === 'limit_exceeded') {
+            showNotification({
+              type: 'error',
+              title: errorData.title || 'Usage Limit Reached',
+              message: errorData.message || errorData.reason || 'Conversion limit reached',
+              duration: 8000,
+              currentUsage: errorData.currentUsage,
+              limit: errorData.limit,
+              upgradeRequired: errorData.upgradeRequired,
+              action: errorData.upgradeRequired ? {
+                label: 'Upgrade Plan',
+                onClick: () => window.location.href = '/billing',
+                external: true
+              } : undefined
+            });
+            
+            throw new Error('Usage limit exceeded');
+          }
+          
           throw new Error(errorData.error || errorData.message || `HTTP error! status: ${response.status}`);
         }
         
@@ -380,33 +451,36 @@ const ConvertTools = () => {
     } catch (error) {
       console.error('Conversion error:', error);
       
-      // Show detailed error notification
-      let errorTitle = 'Conversion Failed';
-      let errorMessage = error.message;
-      
-      // Handle specific error types with better messages
-      if (error.message.includes('Usage limit exceeded') || error.message.includes('limit reached')) {
-        errorTitle = 'Usage Limit Reached';
-        errorMessage = 'You have reached your monthly conversion limit. Please upgrade your plan or wait until next month.';
-      } else if (error.message.includes('File too large')) {
-        errorTitle = 'File Too Large';
-      } else if (error.message.includes('Invalid file type')) {
-        errorTitle = 'Invalid File Type';
-      } else if (error.message.includes('network') || error.message.includes('Network')) {
-        errorTitle = 'Network Error';
-        errorMessage = 'Please check your internet connection and try again.';
-      } else if (error.message.includes('401') || error.message.includes('unauthorized')) {
-        errorTitle = 'Authentication Error';
-        errorMessage = 'Your session has expired. Please log in again.';
-        localStorage.removeItem('token');
+      // Don't show duplicate notifications for limit exceeded
+      if (!error.message.includes('Usage Limit Reached') && !error.message.includes('limit_exceeded')) {
+        // Show detailed error notification for other errors
+        let errorTitle = 'Conversion Failed';
+        let errorMessage = error.message;
+        
+        // Handle specific error types with better messages
+        if (error.message.includes('Usage limit exceeded') || error.message.includes('limit reached')) {
+          errorTitle = 'Usage Limit Reached';
+          errorMessage = 'You have reached your monthly conversion limit. Please upgrade your plan or wait until next month.';
+        } else if (error.message.includes('File too large')) {
+          errorTitle = 'File Too Large';
+        } else if (error.message.includes('Invalid file type')) {
+          errorTitle = 'Invalid File Type';
+        } else if (error.message.includes('network') || error.message.includes('Network')) {
+          errorTitle = 'Network Error';
+          errorMessage = 'Please check your internet connection and try again.';
+        } else if (error.message.includes('401') || error.message.includes('unauthorized')) {
+          errorTitle = 'Authentication Error';
+          errorMessage = 'Your session has expired. Please log in again.';
+          localStorage.removeItem('token');
+        }
+        
+        showNotification({
+          type: 'error',
+          title: errorTitle,
+          message: errorMessage,
+          duration: 8000
+        });
       }
-      
-      showNotification({
-        type: 'error',
-        title: errorTitle,
-        message: errorMessage,
-        duration: 8000
-      });
     } finally {
       setIsConverting(false);
     }
@@ -483,6 +557,16 @@ const ConvertTools = () => {
             </p>
           </div>
         </div>
+
+        {/* Usage Limit Warning */}
+        {/* <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-center text-blue-800">
+            <AlertTriangle className="h-4 w-4 mr-2" />
+            <span className="text-sm font-medium">
+              Conversion usage is limited based on your subscription plan
+            </span>
+          </div>
+        </div> */}
 
         {!conversionResult ? (
           <div className="mt-8">
@@ -628,6 +712,16 @@ const ConvertTools = () => {
 
   return (
     <div className="flex justify-start w-full">
+      {/* Usage Limit Warning */}
+      {/* <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg w-full">
+        <div className="flex items-center text-blue-800">
+          <AlertTriangle className="h-4 w-4 mr-2" />
+          <span className="text-sm font-medium">
+            Conversion usage is limited based on your subscription plan
+          </span>
+        </div>
+      </div> */}
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
         {tools.map((tool, i) => {
           const Icon = tool.icon;
