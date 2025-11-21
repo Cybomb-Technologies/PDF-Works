@@ -30,8 +30,9 @@ import TermsPage from "@/components/TermsPage";
 import CookiesPage from "@/components/CookiesPage";
 import ScrollToTop from "./components/ScrollToTop";
 import EditTools from "./pages/tools/EditTools";
-import PaymentResult from './pages/PaymentResult';
-import BillingSettings from './pages/BillingSettings';
+import PaymentResult from "./pages/PaymentResult";
+import BillingSettings from "./pages/BillingSettings";
+import AuthSuccess from "@/components/AuthSuccess";
 
 // 👤 User Dashboard
 import UserDashboard from "@/components/Dashboard";
@@ -45,8 +46,8 @@ import BlogManager from "@/pages/admin/BlogManager";
 import BlogDetailPage from "./components/BlogDetailPage";
 import HomePressReleaseDetail from "./components/HomePressReleaseDetail";
 import PressReleaseAdmin from "./pages/admin/PressReleaseAdmin";
-import CreatePressRelease from './pages/admin/CreatePressRelease';
-import EditPressRelease from './pages/admin/EditPressRelease';
+import CreatePressRelease from "./pages/admin/CreatePressRelease";
+import EditPressRelease from "./pages/admin/EditPressRelease";
 import PricingManagement from "./pages/admin/PricingManagement";
 
 // 🔐 Auth & Route Guards
@@ -66,11 +67,7 @@ import SignUpForm from "./components/SignUpForm";
 
 // 🏗️ Admin Layout Component
 const AdminLayout = ({ children }) => {
-  return (
-    <div className="min-h-screen bg-gray-100">
-      {children}
-    </div>
-  );
+  return <div className="min-h-screen bg-gray-100">{children}</div>;
 };
 
 // Create a SignUpPage component that uses SignUpForm
@@ -94,7 +91,9 @@ const NotFoundPage = () => (
   <div className="flex flex-col items-center justify-center min-h-screen">
     <h1 className="text-6xl font-bold text-red-600 mb-4">404</h1>
     <p className="text-xl text-gray-700 mb-4">Oops! Page not found.</p>
-    <a href="/" className="text-purple-600 hover:underline">Go back home</a>
+    <a href="/" className="text-purple-600 hover:underline">
+      Go back home
+    </a>
   </div>
 );
 
@@ -114,28 +113,32 @@ function AppContent() {
         <link rel="shortcut icon" href="/image (1).png" type="image/png" />
       </Helmet>
       <ScrollToTop />
-      
+
       {/* ✨ NEW: Notification Container */}
       <NotificationContainer />
-      
+
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname}>
           {/* ================= ADMIN ROUTES ================= */}
           <Route
             path="/admin"
             element={
-              JSON.parse(localStorage.getItem("pdfpro_admin"))
-                ? <Navigate to="/admin/dashboard" replace />
-                : <Navigate to="/admin/login" replace />
+              JSON.parse(localStorage.getItem("pdfpro_admin")) ? (
+                <Navigate to="/admin/dashboard" replace />
+              ) : (
+                <Navigate to="/admin/login" replace />
+              )
             }
           />
 
           <Route
             path="/admin/login"
             element={
-              JSON.parse(localStorage.getItem("pdfpro_admin"))
-                ? <Navigate to="/admin/dashboard" replace />
-                : <AdminLoginPage />
+              JSON.parse(localStorage.getItem("pdfpro_admin")) ? (
+                <Navigate to="/admin/dashboard" replace />
+              ) : (
+                <AdminLoginPage />
+              )
             }
           />
 
@@ -262,12 +265,21 @@ function AppContent() {
                     <Route path="/security" element={<SecurityPage />} />
                     <Route path="/privacy" element={<PrivacyPolicyPage />} />
                     <Route path="/refund-policy" element={<RefundPolicy />} />
-                    <Route path="/pricing-policy" element={<PricingPolicyPage />} />
-                    <Route path="/checkout/:planId" element={<CheckoutPage />} />
+                    <Route
+                      path="/pricing-policy"
+                      element={<PricingPolicyPage />}
+                    />
+                    <Route
+                      path="/checkout/:planId"
+                      element={<CheckoutPage />}
+                    />
                     <Route path="/payment/result" element={<PaymentResult />} />
                     <Route path="/terms" element={<TermsPage />} />
                     <Route path="/cookies" element={<CookiesPage />} />
-                    <Route path="/homepress" element={<HomePressReleaseDetail />} />
+                    <Route
+                      path="/homepress"
+                      element={<HomePressReleaseDetail />}
+                    />
 
                     {/* Protected User Pages */}
                     <Route
@@ -302,10 +314,10 @@ function AppContent() {
                         </ProtectedRoute>
                       }
                     />
+                    <Route path="/auth/success" element={<AuthSuccess />} />
 
                     {/* Not Found */}
                     <Route path="*" element={<NotFoundPage />} />
-
                   </Routes>
                 </main>
                 <Footer />
@@ -314,7 +326,6 @@ function AppContent() {
           />
         </Routes>
       </AnimatePresence>
-
 
       <Toaster />
     </div>

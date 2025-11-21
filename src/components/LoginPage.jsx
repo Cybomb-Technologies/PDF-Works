@@ -9,8 +9,8 @@ import { Helmet } from "react-helmet";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import ForgotPasswordForm from "./ForgotPasswordForm";
-import SignUpForm from "./SignUpForm";
 import Metatags from "../SEO/metatags";
+
 const API_URL1 = import.meta.env.VITE_API_URL;
 
 const LoginPage = () => {
@@ -18,6 +18,7 @@ const LoginPage = () => {
   const [forgotPassword, setForgotPassword] = useState(false);
   const [forgotPasswordStep, setForgotPasswordStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -28,6 +29,148 @@ const LoginPage = () => {
   });
   const { loginBackend } = useAuth();
   const navigate = useNavigate();
+
+  // Load Google SDK - SIMPLIFIED VERSION
+  React.useEffect(() => {
+    const loadGoogleSDK = () => {
+      if (window.google) return;
+
+      const script = document.createElement("script");
+      script.src = "https://accounts.google.com/gsi/client";
+      script.async = true;
+      script.defer = true;
+      document.head.appendChild(script);
+    };
+
+    loadGoogleSDK();
+  }, []);
+
+  // Initialize Google Sign-In when component mounts
+  React.useEffect(() => {
+    const initializeGoogleSignIn = () => {
+      if (!window.google) return;
+
+      window.google.accounts.id.initialize({
+        client_id:
+          "69147878779-uti783ij0hrf5p7upa962jmigv3mesj1.apps.googleusercontent.com",
+        callback: handleGoogleResponse,
+        context: "signin",
+      });
+
+      // Render button directly without One Tap
+      const buttonContainer = document.getElementById("googleSignInButton");
+      if (buttonContainer) {
+        window.google.accounts.id.renderButton(buttonContainer, {
+          theme: "outline",
+          size: "large",
+          width: "100%",
+          text: "continue_with",
+          type: "standard",
+        });
+      }
+    };
+
+    // Wait for Google SDK to load
+    const checkGoogleSDK = setInterval(() => {
+      if (window.google) {
+        initializeGoogleSignIn();
+        clearInterval(checkGoogleSDK);
+      }
+    }, 100);
+
+    return () => clearInterval(checkGoogleSDK);
+  }, []);
+
+  // Handle Google OAuth Response - UPDATED VERSION
+  const handleGoogleResponse = async (response) => {
+    try {
+      setGoogleLoading(true);
+      console.log("Google response received:", response);
+
+      if (!response.credential) {
+        throw new Error("No credential received from Google");
+      }
+
+      const API_URL = `${API_URL1}/api/auth/google`;
+
+      const backendResponse = await fetch(API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({ token: response.credential }),
+      });
+
+      console.log("Backend response status:", backendResponse.status);
+
+      if (!backendResponse.ok) {
+        const errorText = await backendResponse.text();
+        console.error("Backend error response:", errorText);
+        throw new Error(`HTTP error! status: ${backendResponse.status}`);
+      }
+
+      const result = await backendResponse.json();
+      console.log("Backend success response:", result);
+
+      if (result.success) {
+        // Store token and user data
+        if (result.token) {
+          localStorage.setItem("token", result.token);
+          console.log("JWT token stored");
+        }
+
+        const userData = result.user;
+        if (userData && result.token) {
+          // Create complete user object with token
+          const completeUser = {
+            ...userData,
+            token: result.token,
+          };
+          localStorage.setItem("pdfpro_user", JSON.stringify(completeUser));
+
+          // Update AuthContext
+          loginBackend(userData, result.token);
+        }
+
+        toast({
+          title: "Welcome! 🎉",
+          description: "Google sign-in successful",
+        });
+
+        // Navigate to home page
+        navigate("/");
+      } else {
+        throw new Error(result.error || "Authentication failed");
+      }
+    } catch (error) {
+      console.error("Google auth error:", error);
+      toast({
+        title: "Google Sign-In Failed",
+        description:
+          error.message || "Unable to sign in with Google. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  // Manual Google Sign-In trigger (fallback)
+  const handleManualGoogleSignIn = () => {
+    if (!window.google) {
+      toast({
+        title: "Google Sign-In Not Ready",
+        description:
+          "Please wait for Google Sign-In to load, or refresh the page.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Trigger Google Sign-In programmatically
+    window.google.accounts.id.prompt();
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -52,11 +195,32 @@ const LoginPage = () => {
 
       const response = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(
+          isLogin
+            ? {
+                email: formData.email,
+                password: formData.password,
+              }
+            : {
+                name: formData.name,
+                email: formData.email,
+                password: formData.password,
+              }
+        ),
       });
 
       const result = await response.json();
+
+      if (!response.ok) {
+        // Use the actual error message from backend instead of generic HTTP error
+        throw new Error(
+          result.error || `HTTP error! status: ${response.status}`
+        );
+      }
 
       if (result.success) {
         if (isLogin) {
@@ -102,9 +266,10 @@ const LoginPage = () => {
         });
       }
     } catch (error) {
+      console.error("Auth error:", error);
       toast({
-        title: "Server Error",
-        description: "Unable to connect to backend",
+        title: "Authentication Failed",
+        description: error.message || "Invalid email or password",
         variant: "destructive",
       });
     } finally {
@@ -134,99 +299,229 @@ const LoginPage = () => {
     });
   };
 
-  const renderLoginRegisterForm = () => {
-    if (isLogin) {
-      return (
-        <>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={formData.email}
-                  onChange={(e) =>
-                    setFormData({ ...formData, email: e.target.value })
-                  }
-                  className="pl-10"
-                  required
-                  disabled={isLoading}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={formData.password}
-                  onChange={(e) =>
-                    setFormData({ ...formData, password: e.target.value })
-                  }
-                  className="pl-10"
-                  required
-                  minLength={6}
-                  disabled={isLoading}
-                />
-              </div>
-            </div>
-
-            <div className="text-right">
-              <button
-                type="button"
-                onClick={() => setForgotPassword(true)}
-                className="text-sm text-purple-600 hover:text-purple-700 font-medium disabled:opacity-50"
+  const renderSignUpForm = () => {
+    return (
+      <>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="name">Full Name</Label>
+            <div className="relative">
+              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <Input
+                id="name"
+                type="text"
+                placeholder="John Doe"
+                value={formData.name}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
+                className="pl-10"
+                required
                 disabled={isLoading}
-              >
-                Forgot your password?
-              </button>
+              />
             </div>
+          </div>
 
-            <Button
-              type="submit"
-              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold"
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <Input
+                id="email"
+                type="email"
+                placeholder="you@example.com"
+                value={formData.email}
+                onChange={(e) =>
+                  setFormData({ ...formData, email: e.target.value })
+                }
+                className="pl-10"
+                required
+                disabled={isLoading}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="password">Password</Label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <Input
+                id="password"
+                type="password"
+                placeholder="••••••••"
+                value={formData.password}
+                onChange={(e) =>
+                  setFormData({ ...formData, password: e.target.value })
+                }
+                className="pl-10"
+                required
+                minLength={6}
+                disabled={isLoading}
+              />
+            </div>
+          </div>
+
+          <Button
+            type="submit"
+            className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <div className="flex items-center">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Creating Account...
+              </div>
+            ) : (
+              "Create Account"
+            )}
+          </Button>
+        </form>
+
+        {/* Google Sign In Section */}
+        <div className="mt-6">
+          <div className="relative mb-4">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-gray-300" />
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white text-gray-500">
+                Or continue with
+              </span>
+            </div>
+          </div>
+
+          {/* Google Sign In Button Container */}
+          <div className="w-full">
+            <div id="googleSignInButton" className="w-full"></div>
+          </div>
+
+          {googleLoading && (
+            <div className="flex justify-center mt-2">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
+              <span className="ml-2 text-sm text-gray-600">Processing...</span>
+            </div>
+          )}
+        </div>
+
+        <div className="mt-6 text-center">
+          <button
+            onClick={handleToggleMode}
+            className="text-purple-600 hover:text-purple-700 font-medium disabled:opacity-50"
+            disabled={isLoading}
+          >
+            Already have an account? Sign in
+          </button>
+        </div>
+      </>
+    );
+  };
+
+  const renderLoginForm = () => {
+    return (
+      <>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <Input
+                id="email"
+                type="email"
+                placeholder="you@example.com"
+                value={formData.email}
+                onChange={(e) =>
+                  setFormData({ ...formData, email: e.target.value })
+                }
+                className="pl-10"
+                required
+                disabled={isLoading}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="password">Password</Label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <Input
+                id="password"
+                type="password"
+                placeholder="••••••••"
+                value={formData.password}
+                onChange={(e) =>
+                  setFormData({ ...formData, password: e.target.value })
+                }
+                className="pl-10"
+                required
+                minLength={6}
+                disabled={isLoading}
+              />
+            </div>
+          </div>
+
+          <div className="text-right">
+            <button
+              type="button"
+              onClick={() => setForgotPassword(true)}
+              className="text-sm text-purple-600 hover:text-purple-700 font-medium disabled:opacity-50"
               disabled={isLoading}
             >
-              {isLoading ? (
-                <div className="flex items-center">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Logging in...
-                </div>
-              ) : (
-                "Login"
-              )}
-            </Button>
-          </form>
-
-          <div className="mt-6 text-center">
-            <button
-              onClick={() => navigate("/signup")}
-              className="text-purple-600 hover:text-purple-700 font-medium disabled:opacity-50"
-            >
-              Don't have an account? Sign up
+              Forgot your password?
             </button>
           </div>
-        </>
-      );
-    } else {
-      // Use the SignUpForm component with proper props
-      return (
-        <SignUpForm
-          formData={formData}
-          setFormData={setFormData}
-          isLoading={isLoading}
-          onToggleMode={handleToggleMode}
-          onSubmit={handleSubmit}
-        />
-      );
-    }
+
+          <Button
+            type="submit"
+            className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <div className="flex items-center">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Logging in...
+              </div>
+            ) : (
+              "Login"
+            )}
+          </Button>
+        </form>
+
+        {/* Google Sign In Section */}
+        <div className="mt-6">
+          <div className="relative mb-4">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-gray-300" />
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white text-gray-500">
+                Or continue with
+              </span>
+            </div>
+          </div>
+
+          {/* Google Sign In Button Container */}
+          <div className="w-full">
+            <div id="googleSignInButton" className="w-full"></div>
+          </div>
+
+          {googleLoading && (
+            <div className="flex justify-center mt-2">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
+              <span className="ml-2 text-sm text-gray-600">Processing...</span>
+            </div>
+          )}
+        </div>
+
+        <div className="mt-6 text-center">
+          <button
+            onClick={handleToggleMode}
+            className="text-purple-600 hover:text-purple-700 font-medium disabled:opacity-50"
+          >
+            Don't have an account? Sign up
+          </button>
+        </div>
+      </>
+    );
   };
 
   const metaPropsData = {
@@ -286,8 +581,10 @@ const LoginPage = () => {
               setForgotPasswordStep={setForgotPasswordStep}
               handleBackToLogin={handleBackToLogin}
             />
+          ) : isLogin ? (
+            renderLoginForm()
           ) : (
-            renderLoginRegisterForm()
+            renderSignUpForm()
           )}
         </motion.div>
       </div>
