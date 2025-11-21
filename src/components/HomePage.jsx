@@ -7,8 +7,9 @@ import HowItWorks from "./Homepage/HowItWorks";
 import PartnersSection from "./Homepage/PartnersSection";
 import TestimonialsSection from "./Homepage/TestimonialsSection";
 import CTASection from "./Homepage/CTASection";
-import ToolsShowcaseSection from "./Homepage/ToolsShowcaseSection"; // Add this import
-import FAQPreviewSection from "./Homepage/FAQPreviewSection"; // Add this import
+import ToolsShowcaseSection from "./Homepage/ToolsShowcaseSection";
+import FAQPreviewSection from "./Homepage/FAQPreviewSection";
+import MobileAppSection from "./Homepage/MobileAppSection";
 
 import Metatags from "../SEO/metatags";
 
@@ -34,6 +35,7 @@ const HomePage = () => {
         <ToolsShowcaseSection />
         <PartnersSection />
         <HowItWorks />
+        <MobileAppSection />
         <FAQPreviewSection />
         <TestimonialsSection />
         <CTASection />

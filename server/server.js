@@ -33,7 +33,13 @@ const ensureUploadsDirs = () => {
   const convertedFilesDir = path.join(uploadsDir, "converted_files");
   const pressReleasesDir = path.join(uploadsDir, "press-releases");
 
-  [uploadsDir, tempDir, conversionsDir, convertedFilesDir, pressReleasesDir].forEach((dir) => {
+  [
+    uploadsDir,
+    tempDir,
+    conversionsDir,
+    convertedFilesDir,
+    pressReleasesDir,
+  ].forEach((dir) => {
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
       console.log(`Created directory: ${dir}`);
@@ -53,7 +59,7 @@ const upload = multer({
 app.use(express.json({ limit: "500mb" }));
 app.use(express.urlencoded({ extended: true, limit: "500mb" }));
 
-// CORS
+// FIXED CORS CONFIGURATION - Moved to top and expanded
 app.use(
   cors({
     origin: [
@@ -61,14 +67,32 @@ app.use(
       "http://localhost:5173",
       "http://localhost:3000",
       "https://pdfworks.in",
+      "https://www.pdfworks.in",
       "https://cybombadmin.cybomb.com",
     ],
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "password"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Requested-With",
+      "password",
+      "Accept",
+      "Origin",
+      "Access-Control-Request-Method",
+      "Access-Control-Request-Headers",
+    ],
+    exposedHeaders: [
+      "Content-Range",
+      "X-Content-Range",
+      "Access-Control-Allow-Origin",
+      "Access-Control-Allow-Credentials",
+    ],
     credentials: true,
+    maxAge: 86400, // 24 hours
   })
 );
 
+// Handle preflight requests globally
 app.options("*", cors());
 
 // ROUTES
@@ -87,6 +111,9 @@ app.use("/api/advanced", AdvancedRoutes);
 app.use("/api/tools/pdf-editor", EditRoutes);
 app.use("/api/blogs", blogRoutes);
 
+// REMOVED DUPLICATE CORS MIDDLEWARE - This was causing issues
+// app.use(corsMiddleware);
+
 // For File Rename
 app.use(
   "/api/edit",
@@ -99,6 +126,23 @@ app.use(
   },
   EditRoutes
 );
+
+// Add a test route to verify CORS is working
+app.get("/api/test-cors", (req, res) => {
+  res.json({
+    success: true,
+    message: "CORS is working correctly!",
+    timestamp: new Date().toISOString(),
+    allowedOrigins: [
+      "http://localhost:3001",
+      "http://localhost:5173",
+      "http://localhost:3000",
+      "https://pdfworks.in",
+      "https://www.pdfworks.in",
+      "https://cybombadmin.cybomb.com",
+    ],
+  });
+});
 
 // GLOBAL ERROR HANDLER
 app.use((error, req, res, next) => {
@@ -113,7 +157,10 @@ app.use((error, req, res, next) => {
 
   res.status(500).json({
     error: "Internal server error",
-    details: process.env.NODE_ENV === "development" ? error.message : "Something went wrong",
+    details:
+      process.env.NODE_ENV === "development"
+        ? error.message
+        : "Something went wrong",
   });
 });
 
@@ -142,5 +189,14 @@ process.on("SIGINT", async () => {
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  console.log(
+    `CORS enabled for origins: ${[
+      "http://localhost:3001",
+      "http://localhost:5173",
+      "http://localhost:3000",
+      "https://pdfworks.in",
+      "https://www.pdfworks.in",
+      "https://cybombadmin.cybomb.com",
+    ].join(", ")}`
+  );
 });
-

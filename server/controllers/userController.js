@@ -1,4 +1,4 @@
-// controllers/userController.js (UPDATED WITH EDIT TOOLS LIMITS)
+// controllers/userController.js (FIXED GOOGLE AUTH)
 const User = require("../models/UserModel");
 const PricingPlan = require("../models/Pricing"); // ADD THIS IMPORT
 const bcrypt = require("bcryptjs");
@@ -9,6 +9,10 @@ const csv = require("csv-parser");
 const xlsx = require("xlsx");
 const fs = require("fs");
 const path = require("path");
+const { OAuth2Client } = require("google-auth-library");
+
+// Initialize Google OAuth2 client
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 // Function to generate a 6-digit numeric OTP
 const generateOTP = () => {
@@ -26,6 +30,218 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+// GOOGLE AUTH: Generate Google OAuth URL
+const getGoogleAuthURL = (req, res) => {
+  try {
+    const authUrl = googleClient.generateAuthUrl({
+      access_type: "offline",
+      scope: [
+        "https://www.googleapis.com/auth/userinfo.profile",
+        "https://www.googleapis.com/auth/userinfo.email",
+      ],
+      prompt: "consent",
+    });
+
+    res.json({
+      success: true,
+      authUrl,
+    });
+  } catch (error) {
+    console.error("Google auth URL error:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to generate Google auth URL",
+    });
+  }
+};
+
+// GOOGLE AUTH: Handle Google callback and authenticate user
+const googleAuthCallback = async (req, res) => {
+  try {
+    const { code } = req.query;
+
+    if (!code) {
+      return res.status(400).json({
+        success: false,
+        error: "Authorization code is required",
+      });
+    }
+
+    // Exchange code for tokens
+    const { tokens } = await googleClient.getToken(code);
+    googleClient.setCredentials(tokens);
+
+    // Get user info from Google
+    const ticket = await googleClient.verifyIdToken({
+      idToken: tokens.id_token,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    const { email, name, picture, sub: googleId } = payload;
+
+    // Check if user already exists
+    let user = await User.findOne({
+      $or: [{ email }, { googleId }],
+    });
+
+    if (user) {
+      // Update user with Google ID if not already set
+      if (!user.googleId) {
+        user.googleId = googleId;
+        await user.save();
+      }
+    } else {
+      // Create new user with Google auth
+      const defaultPassword = await bcrypt.hash(googleId + Date.now(), 10);
+
+      user = new User({
+        name,
+        email,
+        password: defaultPassword,
+        googleId,
+        role: "user",
+        planName: "Free",
+        subscriptionStatus: "active",
+        billingCycle: "monthly",
+        usage: {
+          conversions: 0,
+          compressions: 0,
+          ocr: 0,
+          signatures: 0,
+          edits: 0,
+          organizes: 0,
+          securityOps: 0,
+          operations: 0,
+          storageUsedBytes: 0,
+          editTools: 0,
+          organizeTools: 0,
+          securityTools: 0,
+          optimizeTools: 0,
+          advancedTools: 0,
+          resetDate: new Date(),
+        },
+      });
+      await user.save();
+    }
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { id: user._id, email: user.email, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "1d" }
+    );
+
+    // Redirect to frontend with token
+    const redirectUrl = `${process.env.FRONTEND_URL}/auth/success?token=${token}&userId=${user._id}`;
+    res.redirect(redirectUrl);
+  } catch (error) {
+    console.error("Google auth callback error:", error);
+    const errorRedirectUrl = `${process.env.FRONTEND_URL}/login?error=google_auth_failed`;
+    res.redirect(errorRedirectUrl);
+  }
+};
+
+// GOOGLE AUTH: Direct authentication (for frontend) - FIXED VERSION
+const googleAuth = async (req, res) => {
+  try {
+    const { token: googleToken } = req.body;
+
+    if (!googleToken) {
+      return res.status(400).json({
+        success: false,
+        error: "Google token is required",
+      });
+    }
+
+    // Verify Google token
+    const ticket = await googleClient.verifyIdToken({
+      idToken: googleToken,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    const { email, name, picture, sub: googleId } = payload;
+
+    // Check if user already exists
+    let user = await User.findOne({
+      $or: [{ email }, { googleId }],
+    });
+
+    if (user) {
+      // Update user with Google ID if not already set
+      if (!user.googleId) {
+        user.googleId = googleId;
+        await user.save();
+      }
+    } else {
+      // Create new user with Google auth
+      const defaultPassword = await bcrypt.hash(googleId + Date.now(), 10);
+
+      user = new User({
+        name,
+        email,
+        password: defaultPassword,
+        googleId,
+        role: "user",
+        planName: "Free",
+        subscriptionStatus: "active",
+        billingCycle: "monthly",
+        usage: {
+          conversions: 0,
+          compressions: 0,
+          ocr: 0,
+          signatures: 0,
+          edits: 0,
+          organizes: 0,
+          securityOps: 0,
+          operations: 0,
+          storageUsedBytes: 0,
+          editTools: 0,
+          organizeTools: 0,
+          securityTools: 0,
+          optimizeTools: 0,
+          advancedTools: 0,
+          resetDate: new Date(),
+        },
+      });
+      await user.save();
+    }
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { id: user._id, email: user.email, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "1d" }
+    );
+
+    res.json({
+      success: true,
+      message: "Google authentication successful",
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        plan: user.plan,
+        planName: user.planName,
+        billingCycle: user.billingCycle,
+        subscriptionStatus: user.subscriptionStatus,
+        planExpiry: user.planExpiry,
+        usage: user.usage,
+        autoRenewal: user.autoRenewal,
+      },
+    });
+  } catch (error) {
+    console.error("Google auth error:", error);
+    res.status(500).json({
+      success: false,
+      error: "Google authentication failed",
+    });
+  }
+};
+
 // REGISTER USER
 const registerUser = async (req, res) => {
   try {
@@ -39,14 +255,14 @@ const registerUser = async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = new User({ 
-      name, 
-      email, 
+    const newUser = new User({
+      name,
+      email,
       password: hashedPassword,
       // Default subscription values
-      planName: 'Free',
-      subscriptionStatus: 'active',
-      billingCycle: 'monthly',
+      planName: "Free",
+      subscriptionStatus: "active",
+      billingCycle: "monthly",
       usage: {
         conversions: 0,
         compressions: 0,
@@ -62,22 +278,22 @@ const registerUser = async (req, res) => {
         securityTools: 0,
         optimizeTools: 0,
         advancedTools: 0,
-        resetDate: new Date()
-      }
+        resetDate: new Date(),
+      },
     });
     await newUser.save();
 
     res.status(201).json({
       success: true,
       message: "User registered successfully",
-      user: { 
-        id: newUser._id, 
-        name: newUser.name, 
+      user: {
+        id: newUser._id,
+        name: newUser.name,
         email: newUser.email,
         role: newUser.role,
         plan: newUser.plan,
         planName: newUser.planName,
-        subscriptionStatus: newUser.subscriptionStatus
+        subscriptionStatus: newUser.subscriptionStatus,
       },
     });
   } catch (error) {
@@ -123,7 +339,7 @@ const loginUser = async (req, res) => {
         subscriptionStatus: user.subscriptionStatus,
         planExpiry: user.planExpiry,
         usage: user.usage,
-        autoRenewal: user.autoRenewal
+        autoRenewal: user.autoRenewal,
       },
     });
   } catch (error) {
@@ -219,12 +435,12 @@ const resetPassword = async (req, res) => {
 // GET CURRENT USER PROFILE
 const getCurrentUser = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select('-password');
-    
+    const user = await User.findById(req.user.id).select("-password");
+
     if (!user) {
       return res.status(404).json({
         success: false,
-        error: 'User not found'
+        error: "User not found",
       });
     }
 
@@ -241,14 +457,14 @@ const getCurrentUser = async (req, res) => {
         subscriptionStatus: user.subscriptionStatus,
         planExpiry: user.planExpiry,
         usage: user.usage,
-        autoRenewal: user.autoRenewal
-      }
+        autoRenewal: user.autoRenewal,
+      },
     });
   } catch (error) {
-    console.error('Get user profile error:', error);
+    console.error("Get user profile error:", error);
     res.status(500).json({
       success: false,
-      error: 'Server error'
+      error: "Server error",
     });
   }
 };
@@ -260,9 +476,9 @@ const updateToFreePlan = async (req, res) => {
       req.user.id,
       {
         plan: null,
-        planName: 'Free',
-        subscriptionStatus: 'active',
-        billingCycle: 'monthly',
+        planName: "Free",
+        subscriptionStatus: "active",
+        billingCycle: "monthly",
         autoRenewal: false,
         usage: {
           conversions: 0,
@@ -279,15 +495,15 @@ const updateToFreePlan = async (req, res) => {
           securityTools: 0,
           optimizeTools: 0,
           advancedTools: 0,
-          resetDate: new Date()
-        }
+          resetDate: new Date(),
+        },
       },
       { new: true }
-    ).select('-password');
+    ).select("-password");
 
     res.json({
       success: true,
-      message: 'Plan updated to Free',
+      message: "Plan updated to Free",
       user: {
         id: user._id,
         name: user.name,
@@ -297,14 +513,14 @@ const updateToFreePlan = async (req, res) => {
         planName: user.planName,
         billingCycle: user.billingCycle,
         subscriptionStatus: user.subscriptionStatus,
-        usage: user.usage
-      }
+        usage: user.usage,
+      },
     });
   } catch (error) {
-    console.error('Update to free plan error:', error);
+    console.error("Update to free plan error:", error);
     res.status(500).json({
       success: false,
-      error: 'Failed to update plan'
+      error: "Failed to update plan",
     });
   }
 };
@@ -636,7 +852,8 @@ const processUsers = async (users) => {
       const name = userData.name || userData.Name;
       const email = userData.email || userData.Email;
       const role = userData.role || userData.Role || "user";
-      const planName = userData.planname || userData.planName || userData.Plan || "Free";
+      const planName =
+        userData.planname || userData.planName || userData.Plan || "Free";
 
       if (!name || !email) {
         results.errors.push("Missing required fields (name or email) in row");
@@ -660,8 +877,8 @@ const processUsers = async (users) => {
         password: defaultPassword, // Set default password
         role: role,
         planName: planName,
-        subscriptionStatus: 'active',
-        billingCycle: 'monthly',
+        subscriptionStatus: "active",
+        billingCycle: "monthly",
         usage: {
           conversions: 0,
           compressions: 0,
@@ -677,8 +894,8 @@ const processUsers = async (users) => {
           securityTools: 0,
           optimizeTools: 0,
           advancedTools: 0,
-          resetDate: new Date()
-        }
+          resetDate: new Date(),
+        },
         // createdAt is automatically set by MongoDB
       });
 
@@ -705,29 +922,26 @@ const getUserLimits = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        error: 'User not found'
+        error: "User not found",
       });
     }
 
     let plan = null;
-    
+
     // Get user's plan
     if (user.plan) {
       plan = await PricingPlan.findById(user.plan);
     }
-    
+
     if (!plan && user.planName) {
       plan = await PricingPlan.findOne({
-        $or: [
-          { planId: user.planName.toLowerCase() },
-          { name: user.planName }
-        ]
+        $or: [{ planId: user.planName.toLowerCase() }, { name: user.planName }],
       });
     }
-    
+
     // Fallback to free plan
     if (!plan) {
-      plan = await PricingPlan.findOne({ planId: 'free' });
+      plan = await PricingPlan.findOne({ planId: "free" });
     }
 
     // Ensure usage object has all required fields
@@ -741,44 +955,62 @@ const getUserLimits = async (req, res) => {
       securityOps: 0,
       operations: 0,
       storageUsedBytes: 0,
-      
+
       // NEW: Tool-specific usage tracking
       editTools: 0,
       organizeTools: 0,
       securityTools: 0,
       optimizeTools: 0,
       advancedTools: 0,
-      
-      resetDate: new Date()
+
+      resetDate: new Date(),
     };
 
     // Merge with existing usage, filling in missing fields
     const userUsage = { ...defaultUsage, ...(user.usage || {}) };
 
     // Calculate usage percentages
-    const conversionPercentage = plan?.conversionLimit > 0 
-      ? Math.min(100, (userUsage.conversions / plan.conversionLimit) * 100)
-      : 0;
+    const conversionPercentage =
+      plan?.conversionLimit > 0
+        ? Math.min(100, (userUsage.conversions / plan.conversionLimit) * 100)
+        : 0;
 
-    const editToolsPercentage = plan?.editToolsLimit > 0 
-      ? Math.min(100, (userUsage.editTools / plan.editToolsLimit) * 100)
-      : 0;
+    const editToolsPercentage =
+      plan?.editToolsLimit > 0
+        ? Math.min(100, (userUsage.editTools / plan.editToolsLimit) * 100)
+        : 0;
 
-    const organizeToolsPercentage = plan?.organizeToolsLimit > 0 
-      ? Math.min(100, (userUsage.organizeTools / plan.organizeToolsLimit) * 100)
-      : 0;
+    const organizeToolsPercentage =
+      plan?.organizeToolsLimit > 0
+        ? Math.min(
+            100,
+            (userUsage.organizeTools / plan.organizeToolsLimit) * 100
+          )
+        : 0;
 
-    const securityToolsPercentage = plan?.securityToolsLimit > 0 
-      ? Math.min(100, (userUsage.securityTools / plan.securityToolsLimit) * 100)
-      : 0;
+    const securityToolsPercentage =
+      plan?.securityToolsLimit > 0
+        ? Math.min(
+            100,
+            (userUsage.securityTools / plan.securityToolsLimit) * 100
+          )
+        : 0;
 
-    const optimizeToolsPercentage = plan?.optimizeToolsLimit > 0 
-      ? Math.min(100, (userUsage.optimizeTools / plan.optimizeToolsLimit) * 100)
-      : 0;
+    const optimizeToolsPercentage =
+      plan?.optimizeToolsLimit > 0
+        ? Math.min(
+            100,
+            (userUsage.optimizeTools / plan.optimizeToolsLimit) * 100
+          )
+        : 0;
 
-    const advancedToolsPercentage = plan?.advancedToolsLimit > 0 
-      ? Math.min(100, (userUsage.advancedTools / plan.advancedToolsLimit) * 100)
-      : 0;
+    const advancedToolsPercentage =
+      plan?.advancedToolsLimit > 0
+        ? Math.min(
+            100,
+            (userUsage.advancedTools / plan.advancedToolsLimit) * 100
+          )
+        : 0;
 
     res.json({
       success: true,
@@ -789,11 +1021,11 @@ const getUserLimits = async (req, res) => {
         organizeTools: organizeToolsPercentage,
         securityTools: securityToolsPercentage,
         optimizeTools: optimizeToolsPercentage,
-        advancedTools: advancedToolsPercentage
+        advancedTools: advancedToolsPercentage,
       },
       plan: {
-        name: plan?.name || 'Free',
-        planId: plan?.planId || 'free',
+        name: plan?.name || "Free",
+        planId: plan?.planId || "free",
         conversionLimit: plan?.conversionLimit || 10,
         // NEW: Tool-specific limits
         editToolsLimit: plan?.editToolsLimit || 5,
@@ -803,30 +1035,34 @@ const getUserLimits = async (req, res) => {
         advancedToolsLimit: plan?.advancedToolsLimit || 0,
         maxFileSize: plan?.maxFileSize || 5,
         storage: plan?.storage || 1,
-        
+
         // Feature toggles
         hasOCR: plan?.hasOCR || false,
         hasBatchProcessing: plan?.hasBatchProcessing || false,
         hasDigitalSignatures: plan?.hasDigitalSignatures || false,
         hasWatermarks: plan?.hasWatermarks || false,
         hasAPIAccess: plan?.hasAPIAccess || false,
-        hasTeamCollaboration: plan?.hasTeamCollaboration || false
+        hasTeamCollaboration: plan?.hasTeamCollaboration || false,
       },
       subscriptionStatus: user.subscriptionStatus,
       planExpiry: user.planExpiry,
       // Add cycle information
-      cycleInfo: user.getCycleDates ? user.getCycleDates() : {
-        daysRemaining: 30,
-        cycleStart: new Date(user.usage?.resetDate || user.createdAt),
-        cycleEnd: new Date(new Date(user.usage?.resetDate || user.createdAt).getTime() + (30 * 24 * 60 * 60 * 1000))
-      }
+      cycleInfo: user.getCycleDates
+        ? user.getCycleDates()
+        : {
+            daysRemaining: 30,
+            cycleStart: new Date(user.usage?.resetDate || user.createdAt),
+            cycleEnd: new Date(
+              new Date(user.usage?.resetDate || user.createdAt).getTime() +
+                30 * 24 * 60 * 60 * 1000
+            ),
+          },
     });
-
   } catch (error) {
-    console.error('Error fetching user limits:', error);
+    console.error("Error fetching user limits:", error);
     res.status(500).json({
       success: false,
-      error: 'Failed to fetch user limits'
+      error: "Failed to fetch user limits",
     });
   }
 };
@@ -843,4 +1079,8 @@ module.exports = {
   downloadUserTemplate,
   importUsers,
   getUserLimits,
+  // Google Auth exports
+  getGoogleAuthURL,
+  googleAuthCallback,
+  googleAuth,
 };

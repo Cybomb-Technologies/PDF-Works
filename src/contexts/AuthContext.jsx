@@ -1,11 +1,11 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect } from "react";
 
 const AuthContext = createContext(null);
 const API_URL = import.meta.env.VITE_API_URL;
+
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth must be used within AuthProvider');
-  if (!context) throw new Error('useAuth must be used within AuthProvider');
+  if (!context) throw new Error("useAuth must be used within AuthProvider");
   return context;
 };
 
@@ -19,36 +19,61 @@ export const AuthProvider = ({ children }) => {
 
   const checkAuthStatus = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const storedUser = localStorage.getItem('pdfpro_user');
-      
+      const token = localStorage.getItem("token");
+      const storedUser = localStorage.getItem("pdfpro_user");
+
       if (token && storedUser) {
         try {
           // Verify token is still valid by making API call
           const response = await fetch(`${API_URL}/api/auth/me`, {
             headers: {
-              'Authorization': `Bearer ${token}`
-            }
+              Authorization: `Bearer ${token}`,
+            },
           });
-          
+
           if (response.ok) {
             const userInfo = await response.json();
             if (userInfo.success) {
               setUser(userInfo.user);
+              // Update localStorage with fresh user data
+              localStorage.setItem(
+                "pdfpro_user",
+                JSON.stringify(userInfo.user)
+              );
             } else {
-              throw new Error('Token invalid');
+              throw new Error("Token invalid");
             }
           } else {
-            throw new Error('Token validation failed');
+            throw new Error("Token validation failed");
           }
         } catch (error) {
-          console.error('Token validation failed:', error);
+          console.error("Token validation failed:", error);
+          // Don't logout immediately, try to use stored user data
+          if (storedUser) {
+            try {
+              const parsedUser = JSON.parse(storedUser);
+              setUser(parsedUser);
+            } catch (parseError) {
+              console.error("Failed to parse stored user:", parseError);
+              logout();
+            }
+          } else {
+            logout();
+          }
+        }
+      } else if (storedUser && !token) {
+        // If we have user data but no token, try to use the stored user
+        try {
+          const parsedUser = JSON.parse(storedUser);
+          setUser(parsedUser);
+        } catch (parseError) {
+          console.error("Failed to parse stored user:", parseError);
           logout();
         }
       }
     } catch (error) {
-      console.error('Auth check error:', error);
-      logout();
+      console.error("Auth check error:", error);
+      // Don't logout on general errors, just set loading to false
     } finally {
       setLoading(false);
     }
@@ -61,37 +86,37 @@ export const AuthProvider = ({ children }) => {
     };
 
     setUser(fullUser);
-    localStorage.setItem('pdfpro_user', JSON.stringify(fullUser));
-    localStorage.setItem('token', token);
+    localStorage.setItem("pdfpro_user", JSON.stringify(fullUser));
+    localStorage.setItem("token", token);
   };
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('pdfpro_user');
-    localStorage.removeItem('token');
+    localStorage.removeItem("pdfpro_user");
+    localStorage.removeItem("token");
   };
 
   const updateUser = (updatedData) => {
     const updatedUser = { ...user, ...updatedData };
     setUser(updatedUser);
-    localStorage.setItem('pdfpro_user', JSON.stringify(updatedUser));
+    localStorage.setItem("pdfpro_user", JSON.stringify(updatedUser));
   };
 
   const updateUserPlan = (newPlanData) => {
-    const updatedUser = { 
-      ...user, 
+    const updatedUser = {
+      ...user,
       plan: newPlanData.plan,
       planName: newPlanData.planName,
       billingCycle: newPlanData.billingCycle,
       subscriptionStatus: newPlanData.subscriptionStatus,
-      planExpiry: newPlanData.planExpiry
+      planExpiry: newPlanData.planExpiry,
     };
     setUser(updatedUser);
-    localStorage.setItem('pdfpro_user', JSON.stringify(updatedUser));
+    localStorage.setItem("pdfpro_user", JSON.stringify(updatedUser));
   };
 
   const getToken = () => {
-    return localStorage.getItem('token');
+    return localStorage.getItem("token");
   };
 
   // Check if user can perform conversion based on plan limits
@@ -102,39 +127,39 @@ export const AuthProvider = ({ children }) => {
       const token = getToken();
       const response = await fetch(`${API_URL}/api/auth/me`, {
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
+          Authorization: `Bearer ${token}`,
+        },
       });
 
       if (response.ok) {
         const userInfo = await response.json();
         if (userInfo.success) {
           const currentUser = userInfo.user;
-          
+
           // Update local user state
           setUser(currentUser);
-          localStorage.setItem('pdfpro_user', JSON.stringify(currentUser));
+          localStorage.setItem("pdfpro_user", JSON.stringify(currentUser));
 
           // Check conversion limits
-          if (currentUser.planName === 'Free') {
+          if (currentUser.planName === "Free") {
             return currentUser.usage.conversions < 10; // Free plan limit
           }
-          
-          if (currentUser.planName === 'Starter') {
+
+          if (currentUser.planName === "Starter") {
             return currentUser.usage.conversions < 50; // Starter plan limit
           }
-          
-          if (currentUser.planName === 'Professional') {
+
+          if (currentUser.planName === "Professional") {
             return currentUser.usage.conversions < 500; // Professional plan limit
           }
-          
+
           // Enterprise or unlimited plans
           return true;
         }
       }
       return false;
     } catch (error) {
-      console.error('Error checking conversion limit:', error);
+      console.error("Error checking conversion limit:", error);
       return false;
     }
   };
@@ -147,8 +172,8 @@ export const AuthProvider = ({ children }) => {
       const token = getToken();
       const response = await fetch(`${API_URL}/api/auth/me`, {
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
+          Authorization: `Bearer ${token}`,
+        },
       });
 
       if (response.ok) {
@@ -158,31 +183,33 @@ export const AuthProvider = ({ children }) => {
             ...userInfo.user,
             usage: {
               ...userInfo.user.usage,
-              conversions: userInfo.user.usage.conversions + 1
-            }
+              conversions: userInfo.user.usage.conversions + 1,
+            },
           };
-          
+
           setUser(updatedUser);
-          localStorage.setItem('pdfpro_user', JSON.stringify(updatedUser));
+          localStorage.setItem("pdfpro_user", JSON.stringify(updatedUser));
         }
       }
     } catch (error) {
-      console.error('Error incrementing conversion count:', error);
+      console.error("Error incrementing conversion count:", error);
     }
   };
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      loginBackend, 
-      logout, 
-      updateUser,
-      updateUserPlan,
-      getToken,
-      canPerformConversion,
-      incrementConversionCount,
-      loading 
-    }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loginBackend,
+        logout,
+        updateUser,
+        updateUserPlan,
+        getToken,
+        canPerformConversion,
+        incrementConversionCount,
+        loading,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

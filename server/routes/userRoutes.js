@@ -12,6 +12,10 @@ const {
   downloadUserTemplate,
   importUsers,
   getUserLimits, // NEW: Import the getUserLimits function
+  // Google Auth imports
+  getGoogleAuthURL,
+  googleAuthCallback,
+  googleAuth,
 } = require("../controllers/userController");
 const { verifyToken, verifyAdmin } = require("../middleware/authMiddleware");
 const multer = require("multer");
@@ -54,6 +58,11 @@ const upload = multer({
 // Public routes for user authentication
 router.post("/register", registerUser);
 router.post("/login", loginUser);
+
+// Google OAuth routes
+router.get("/google/url", getGoogleAuthURL);
+router.get("/google/callback", googleAuthCallback);
+router.post("/google", googleAuth);
 
 // Password reset routes
 router.post("/forgot-password", forgotPassword);

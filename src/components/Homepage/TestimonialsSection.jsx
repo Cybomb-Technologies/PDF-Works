@@ -1,31 +1,34 @@
 // src/components/sections/TestimonialsSection.jsx
-import React from 'react';
-import { motion } from 'framer-motion';
-import { Star } from 'lucide-react';
+import React from "react";
+import { motion } from "framer-motion";
+import { Star } from "lucide-react";
 
 const TestimonialsSection = () => {
   const testimonials = [
     {
-      name: 'Sarah Chen',
-      role: 'Marketing Manager',
-      text: 'This file editor has transformed how our team handles documents. The batch processing feature saves us hours every week!',
-      avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face',
-      rating: 5
+      name: "Sarah Chen",
+      role: "Marketing Manager",
+      text: "This file editor has transformed how our team handles documents. The batch processing feature saves us hours every week!",
+      avatar:
+        "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=150&h=150&fit=crop&crop=face",
+      rating: 5,
     },
     {
-      name: 'Marcus Johnson',
-      role: 'Freelance Designer',
-      text: 'The conversion quality is exceptional. I use it daily for client work and it never disappoints. Fast and reliable!',
-      avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
-      rating: 5
+      name: "Marcus Johnson",
+      role: "Freelance Designer",
+      text: "The conversion quality is exceptional. I use it daily for client work and it never disappoints. Fast and reliable!",
+      avatar:
+        "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face",
+      rating: 5,
     },
     {
-      name: 'Dr. Emily Rodriguez',
-      role: 'University Professor',
-      text: 'As someone who works with hundreds of research papers, the OCR and annotation tools are absolutely essential for my workflow.',
-      avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&h=150&fit=crop&crop=face',
-      rating: 5
-    }
+      name: "Dr. Emily Rodriguez",
+      role: "University Professor",
+      text: "As someone who works with hundreds of research papers, the OCR and annotation tools are absolutely essential for my workflow.",
+      avatar:
+        "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&h=150&fit=crop&crop=face",
+      rating: 5,
+    },
   ];
 
   return (
@@ -52,14 +55,17 @@ const TestimonialsSection = () => {
             >
               <div className="flex mb-4">
                 {[...Array(testimonial.rating)].map((_, i) => (
-                  <Star key={i} className="w-5 h-5 text-yellow-400 fill-current" />
+                  <Star
+                    key={i}
+                    className="w-5 h-5 text-yellow-400 fill-current"
+                  />
                 ))}
               </div>
-              
+
               <p className="text-gray-700 dark:text-gray-300 mb-6 italic">
                 "{testimonial.text}"
               </p>
-              
+
               <div className="flex items-center">
                 <img
                   src={testimonial.avatar}
