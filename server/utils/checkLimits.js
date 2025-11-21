@@ -1,22 +1,6 @@
-// utils/checkLimits.js - COMPLETE UPDATED VERSION
 const User = require("../models/UserModel");
 const PricingPlan = require("../models/Pricing");
 const File = require("../models/FileModel");
-
-/**
- * Check if usage should reset based on subscription cycle (30 days from last reset)
- */
-function shouldResetBySubscription(lastResetDate, currentDate) {
-  if (!lastResetDate) return true;
-  
-  const lastReset = new Date(lastResetDate);
-  const daysSinceLastReset = Math.floor(
-    (currentDate - lastReset) / (1000 * 60 * 60 * 24)
-  );
-  
-  // Reset every 30 days from last reset date
-  return daysSinceLastReset >= 30;
-}
 
 /**
  * Get the latest plan data for a user (always fresh from database)
@@ -85,9 +69,18 @@ async function checkLimits(userId, feature, fileSizeBytes = 0) {
       userPlan: user.planName,
       resolvedPlan: plan.name,
       feature: feature,
+      conversionLimit: plan.conversionLimit,
+      currentConversions: user.usage?.conversions || 0,
       editToolsLimit: plan.editToolsLimit,
-      currentEditToolsUsage: user.usage?.editTools || 0,
-      allowed: user.usage?.editTools < plan.editToolsLimit
+      currentEditTools: user.usage?.editTools || 0,
+      organizeToolsLimit: plan.organizeToolsLimit,
+      currentOrganizeTools: user.usage?.organizeTools || 0,
+      securityToolsLimit: plan.securityToolsLimit,
+      currentSecurityTools: user.usage?.securityTools || 0,
+      optimizeToolsLimit: plan.optimizeToolsLimit,
+      currentOptimizeTools: user.usage?.optimizeTools || 0,
+      advancedToolsLimit: plan.advancedToolsLimit,
+      currentAdvancedTools: user.usage?.advancedTools || 0
     });
 
     const now = new Date();
@@ -103,11 +96,14 @@ async function checkLimits(userId, feature, fileSizeBytes = 0) {
       securityOps: 0,
       operations: 0,
       storageUsedBytes: 0,
+      
+      // Tool-specific usage tracking
       editTools: 0,
       organizeTools: 0,
       securityTools: 0,
       optimizeTools: 0,
       advancedTools: 0,
+      
       resetDate: now
     };
 
@@ -132,8 +128,8 @@ async function checkLimits(userId, feature, fileSizeBytes = 0) {
     // Reload usage after potential fix
     const usage = user.usage;
 
-    // 4. SUBSCRIPTION CYCLE RESET
-    const cycleChanged = shouldResetBySubscription(usage.resetDate, now);
+    // 4. ✅ FIXED: SUBSCRIPTION CYCLE RESET - Use User model method
+    const cycleChanged = user.shouldResetUsage();
 
     if (cycleChanged) {
       user.usage = { ...defaultUsage, resetDate: now };
@@ -279,7 +275,7 @@ async function checkLimits(userId, feature, fileSizeBytes = 0) {
         if (advancedToolsLimit > 0 && usage.advancedTools >= advancedToolsLimit) {
           return {
             allowed: false,
-            reason: `Advanced tools limit reached (${usage.advancedTools}/${advancedToolsLimit}). Please upgrade your plan.`,
+            reason: `Advanced tools limit reached. You've used ${usage.advancedTools} of ${advancedToolsLimit} advanced operations this month.`,
             notificationType: "error",
             title: "Advanced Tools Limit Reached",
             currentUsage: usage.advancedTools,
@@ -360,4 +356,4 @@ async function checkLimits(userId, feature, fileSizeBytes = 0) {
   }
 }
 
-module.exports = { checkLimits, shouldResetBySubscription, getUserPlan };
+module.exports = { checkLimits, getUserPlan };

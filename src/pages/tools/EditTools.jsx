@@ -119,7 +119,7 @@ const EditTools = () => {
         )}
       </AnimatePresence>
     </div>
-  );
+  ); 
 };
 
 export default EditTools;

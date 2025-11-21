@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { Cpu, Settings2, BarChart3 } from "lucide-react";
+import { Cpu, Settings2, BarChart3, Download, Save } from "lucide-react";
 const API_URL = import.meta.env.VITE_API_URL;
 
 // Tools data - code
@@ -26,7 +26,23 @@ const tools = [
     icon: BarChart3,
     color: "from-yellow-500 to-orange-500",
   },
-];
+]; 
+
+// Get auth token from localStorage
+const getAuthToken = () => {
+  return localStorage.getItem('token');
+};
+
+// Enhanced fetch with auth
+const authFetch = async (url, options = {}) => {
+  const token = getAuthToken();
+  const headers = {
+    ...options.headers,
+    ...(token && { 'Authorization': `Bearer ${token}` }),
+  };
+
+  return fetch(url, { ...options, headers });
+};
 
 const AdvancedTools = () => {
   const [loading, setLoading] = useState(false);
@@ -36,82 +52,47 @@ const AdvancedTools = () => {
   const [method, setMethod] = useState("GET");
   const [body, setBody] = useState("");
   const [headers, setHeaders] = useState("");
-
-  const containerStyle = {
-    padding: "1.5rem",
-    background: "linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)",
-    minHeight: "100vh",
-  };
-  const titleStyle = {
-    fontSize: "2rem",
-    fontWeight: "700",
-    marginBottom: "1.5rem",
-    display: "flex",
-    alignItems: "center",
-    gap: "0.5rem",
-    color: "#1e293b",
-    textShadow: "0 2px 4px rgba(0,0,0,0.1)",
-  };
-  const inputContainerStyle = {
-    marginBottom: "1rem",
-    padding: "1rem",
-    backgroundColor: "rgba(255, 255, 255, 0.8)",
-    borderRadius: "0.75rem",
-    boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
-  };
-  const inputStyle = {
-    width: "100%",
-    padding: "0.75rem",
-    border: "1px solid #d1d5db",
-    borderRadius: "0.5rem",
-    fontSize: "0.875rem",
-    boxShadow: "inset 0 2px 4px rgba(0, 0, 0, 0.05)",
-  };
-  const labelStyle = {
-    display: "block",
-    color: "#374151",
-    marginBottom: "0.5rem",
-    fontWeight: "500",
-  };
-  const cardStyle = {
-    backdropFilter: "blur(10px)",
-    backgroundColor: "rgba(255, 255, 255, 0.8)",
-    borderRadius: "1rem",
-    padding: "1.5rem",
-    cursor: "pointer",
-    transition: "all 0.3s ease",
-    border: "1px solid rgba(255, 255, 255, 0.5)",
-    boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)",
-  };
-  const statusStyle = {
-    marginTop: "2rem",
-    padding: "1rem",
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
-    borderRadius: "0.75rem",
-    border: "1px solid #e5e7eb",
-    boxShadow: "0 4px 6px rgba(0, 0, 0, 0.05)",
-  };
+  const [operationSaved, setOperationSaved] = useState(false);
+  const [advancedId, setAdvancedId] = useState(null);
 
   const handleToolClick = async (tool) => {
     setLoading(true);
     setError("");
     setResult(null);
+    setOperationSaved(false);
+    setAdvancedId(null);
+    
     try {
-      let res;
+      let response;
       if (tool.id === "automation") {
-        res = await fetch(`${API_URL}/api/advanced/automation`, {
+        response = await authFetch(`${API_URL}/api/tools/advanced/automation`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ tasks: ["convert", "compress", "merge"] }),
         });
       } else if (tool.id === "api-connect") {
         if (!apiUrl.trim()) throw new Error("Please enter an API URL");
+        
         let parsedBody = null;
         let parsedHeaders = null;
-        if (body.trim()) parsedBody = JSON.parse(body);
-        if (headers.trim()) parsedHeaders = JSON.parse(headers);
+        
+        if (body.trim()) {
+          try {
+            parsedBody = JSON.parse(body);
+          } catch (e) {
+            throw new Error("Invalid JSON in Body");
+          }
+        }
+        
+        if (headers.trim()) {
+          try {
+            parsedHeaders = JSON.parse(headers);
+          } catch (e) {
+            throw new Error("Invalid JSON in Headers");
+          }
+        }
 
-        res = await fetch(`${API_URL}/api/advanced/api-connect`, {
+        response = await authFetch(`${API_URL}/api/tools/advanced/api-connect`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -122,14 +103,27 @@ const AdvancedTools = () => {
           }),
         });
       } else if (tool.id === "analytics") {
-        res = await fetch(`${API_URL}/api/advanced/analytics`);
+        response = await authFetch(`${API_URL}/api/tools/advanced/analytics`);
       }
 
-      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-      const data = await res.json();
-      if (!data.success)
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || `HTTP error! status: ${response.status}`);
+      }
+
+      if (!data.success) {
         throw new Error(data.message || "Something went wrong");
+      }
+
       setResult(data);
+      
+      // Check if operation was saved to database
+      if (data.advancedId) {
+        setOperationSaved(true);
+        setAdvancedId(data.advancedId);
+      }
+
     } catch (err) {
       setError(err.message);
     } finally {
@@ -143,6 +137,18 @@ const AdvancedTools = () => {
         <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
           ⚙️ Advanced Tools
         </h2>
+
+        {/* Operation Saved Status */}
+        {operationSaved && (
+          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+            <div className="flex items-center text-green-800">
+              <Save className="h-4 w-4 mr-2" />
+              <span className="text-sm font-medium">
+                Operation saved to your advanced history {advancedId && `(ID: ${advancedId})`}
+              </span>
+            </div>
+          </div>
+        )}
 
         {tools.find((t) => t.id === "api-connect") && (
           <div className="grid gap-4 md:grid-cols-3 w-full">
