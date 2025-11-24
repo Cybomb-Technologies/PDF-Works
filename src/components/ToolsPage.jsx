@@ -82,9 +82,11 @@ const ToolsPage = () => {
   };
 
   const metaPropsData = {
-    title: "Free PDF Tools Online PDF Editor Converter Compressor PDF Works",
+    title:
+      "Our PDF Works Tools - Online PDF Editor, Converter, Compressor & Merger",
+
     description:
-      "Free online PDF tools editor converter compressor merger splitter organizer Free PDF tools online PDF editor converter compressor security optimize advanced tools",
+      "Use our free online PDF Works tools including PDF editor, converter, compressor, merger, splitter, and organizer. Optimize and secure your documents with our advanced free PDF editor tools.",
     keyword:
       "free pdf tools, online pdf editor, pdf converter, pdf compressor, pdf merger, pdf splitter, pdf organizer, pdf security, pdf optimize, free pdf editor tools",
     image:

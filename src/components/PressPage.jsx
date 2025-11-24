@@ -28,9 +28,9 @@ const PressPage = () => {
   ];
 
   const metaPropsData = {
-    title: "Press Media Free PDF Tools News Updates PDF Works",
+    title: "Press Release | Free PDF Works Tools News Updates",
     description:
-      "Latest press releases media kit about PDF Works free PDF tools platform Download media resources free online PDF editor converter compressor news",
+      "PDF Works press releases and media kit for our free PDF tools platform. Download media resources and get news about our free online PDF editor, converter, and compressor tools.",
     keyword:
       "free pdf tools press release, pdf works media kit, online pdf editor news, free pdf converter announcements, pdf tools company updates",
     image:

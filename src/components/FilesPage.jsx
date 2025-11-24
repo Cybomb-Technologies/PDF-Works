@@ -175,9 +175,9 @@ const FilesPage = () => {
   }
 
   const metaPropsData = {
-    title: "My Files - Free PDF Storage & Management | PDF Works",
+    title: "My Files - Free PDF Works Storage & Document Management",
     description:
-      "Access and manage all your processed PDF files for free. View, download, and organize your converted, compressed, and edited PDF documents in one place.",
+      "Access and manage all your processed PDF files with our free storage and document management system. View, download, and organize your converted, edited, and compressed PDF documents in one secure workspace.",
     keyword:
       "free pdf storage, pdf file management, online pdf files, free pdf organizer, pdf documents storage, manage pdf files, free pdf workspace",
     image:

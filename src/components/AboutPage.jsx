@@ -120,12 +120,11 @@ const AboutPage = () => {
   ];
 
   const metaPropsData = {
-    title:
-      "About PDF Works - Free PDF Tools Company | Our 2025 Story & Mission",
+    title: "About PDF Works - Free PDF Editor & Online PDF Tools",
     description:
-      "Learn about PDF Works - founded in 2025 to provide 100% free PDF tools with enterprise security. Our story, mission, and commitment to free document solutions for everyone worldwide.",
+      "Learn about PDF Works and our mission to provide 100% free PDF editor tools and document management solutions. Discover our commitment to free online PDF tools with enterprise security for everyone worldwide.",
     keyword:
-      "about pdf works, free pdf tools company, pdf works story, our mission, free pdf editor company, document management startup, pdf tools 2025, free online pdf tools, completely free pdf solutions, pdf works team, our technology, company values, free document tools, pdf works mission, about our free tools",
+      "about pdf works, free pdf editor, about our free tools, document management startup, free online pdf tools, pdf works mission",
     image:
       "https://res.cloudinary.com/dcfjt8shw/image/upload/v1761288318/wn8m8g8skdpl6iz2rwoa.svg",
     url: "https://pdfworks.in/about",
