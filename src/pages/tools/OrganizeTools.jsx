@@ -1,5 +1,4 @@
 // src/pages/tools/OrganizeTools.jsx
-
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import {
@@ -11,8 +10,11 @@ import {
   ChevronDown,
   Eye,
   EyeOff,
+  AlertTriangle,
 } from "lucide-react";
+import { useNotification } from "@/contexts/NotificationContext";
 import Metatags from "../../SEO/metatags";
+
 const API_URL = import.meta.env.VITE_API_URL;
 
 const tools = [
@@ -49,6 +51,9 @@ const OrganizeTools = () => {
   const [rotationSide, setRotationSide] = useState("90");
   const [showPreview, setShowPreview] = useState(false);
   const [fileSaved, setFileSaved] = useState(false);
+  const [organizeId, setOrganizeId] = useState("");
+  
+  const { showNotification } = useNotification();
 
   // Get token from localStorage
   const getToken = () => {
@@ -64,6 +69,7 @@ const OrganizeTools = () => {
     setRotationSide("90");
     setShowPreview(false);
     setFileSaved(false);
+    setOrganizeId("");
   };
 
   const handleFileChange = (e) => {
@@ -76,77 +82,6 @@ const OrganizeTools = () => {
 
   const handleRotationChange = (e) => {
     setRotationSide(e.target.value);
-  };
-
-  // Function to save organized file to My Files with token
-  const saveToMyFiles = async (fileBlob, filename, toolUsed) => {
-    try {
-      // Get token from localStorage
-      const token = getToken();
-
-      if (!token) {
-        return { success: false, error: "Please log in to save files" };
-      }
-
-      // Convert blob to base64 for sending to backend
-      const reader = new FileReader();
-
-      return new Promise((resolve, reject) => {
-        reader.onloadend = async () => {
-          const base64data = reader.result;
-
-          try {
-            const saveResponse = await fetch(
-              `${API_URL}/api/files/save-converted`,
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: `Bearer ${token}`,
-                },
-                body: JSON.stringify({
-                  originalName: filename,
-                  fileBuffer: base64data,
-                  mimetype: fileBlob.type,
-                  toolUsed: toolUsed,
-                }),
-              }
-            );
-
-            if (!saveResponse.ok) {
-              if (saveResponse.status === 401) {
-                localStorage.removeItem("token");
-                resolve({
-                  success: false,
-                  error: "Session expired. Please log in again.",
-                });
-                return;
-              }
-              throw new Error(`Failed to save file: ${saveResponse.status}`);
-            }
-
-            const saveResult = await saveResponse.json();
-
-            if (saveResult.success) {
-              setFileSaved(true);
-              resolve(saveResult);
-            } else {
-              resolve({ success: false, error: saveResult.error });
-            }
-          } catch (error) {
-            resolve({ success: false, error: error.message });
-          }
-        };
-
-        reader.onerror = () => {
-          resolve({ success: false, error: "File reading failed" });
-        };
-
-        reader.readAsDataURL(fileBlob);
-      });
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
   };
 
   const handleProcessPDF = async () => {
@@ -162,8 +97,11 @@ const OrganizeTools = () => {
     setProcessing(true);
     setError(null);
     setFileSaved(false);
+    setOrganizeId("");
 
     const formData = new FormData();
+    
+    // Add files to form data
     files.forEach((file) => {
       formData.append("files", file);
     });
@@ -177,42 +115,107 @@ const OrganizeTools = () => {
     }
 
     try {
+      const token = getToken();
+      if (!token) {
+        setError("Please log in to process files");
+        return;
+      }
+
       const response = await fetch(
-        `${API_URL}/api/organize/${selectedTool.id}?${queryParams.toString()}`,
+        `${API_URL}/api/tools/organize/${selectedTool.id}?${queryParams.toString()}`,
         {
           method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
           body: formData,
         }
       );
 
-      if (!response.ok) {
-        throw new Error(`Failed to process PDF: ${response.statusText}`);
+      // Check content type to determine if it's PDF or JSON error
+      const contentType = response.headers.get('content-type');
+      
+      // Handle JSON responses (errors or limit exceeded)
+      if (contentType && contentType.includes('application/json')) {
+        const result = await response.json();
+        
+        // Check for limit exceeded error
+        if (result.type === 'limit_exceeded') {
+          showNotification({
+            type: 'error',
+            title: result.title || 'Usage Limit Reached',
+            message: result.message || result.reason || 'Organize tools limit reached',
+            duration: 8000,
+            currentUsage: result.currentUsage,
+            limit: result.limit,
+            upgradeRequired: result.upgradeRequired,
+            action: result.upgradeRequired ? {
+              label: 'Upgrade Plan',
+              onClick: () => window.location.href = '/billing',
+              external: true
+            } : undefined
+          });
+          
+          setProcessing(false);
+          return;
+        }
+        
+        // Handle other JSON errors
+        if (!response.ok || !result.success) {
+          throw new Error(result.error || result.message || `Server error: ${response.status}`);
+        }
       }
 
+      // Check if response is successful for PDF
+      if (!response.ok) {
+        // For error responses, try to read as JSON first
+        try {
+          const errorData = await response.json();
+          throw new Error(errorData.error || `Server error: ${response.status}`);
+        } catch (jsonError) {
+          // If not JSON, use text error
+          const errorText = await response.text();
+          throw new Error(errorText || `Failed to process PDF: ${response.status}`);
+        }
+      }
+
+      // Success - it's a PDF file
+      const organizeId = response.headers.get('X-Organize-Id');
+      const fileSaved = response.headers.get('X-File-Saved');
+
+      if (organizeId && fileSaved === "true") {
+        setFileSaved(true);
+        setOrganizeId(organizeId);
+      }
+
+      // Get the PDF blob from response
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       setDownloadUrl(url);
+      
+      // Show success notification
+      showNotification({
+        type: 'success',
+        title: 'PDF Processed Successfully',
+        message: `${selectedTool.name} completed successfully!`,
+        duration: 5000
+      });
 
-      // Check if file was saved automatically by backend
-      const fileSavedByBackend =
-        response.headers.get("X-File-Saved") === "true";
+      console.log("✅ File processed successfully. Organize ID:", organizeId);
 
-      if (fileSavedByBackend) {
-        setFileSaved(true);
-      } else {
-        // If backend didn't save it, save it from frontend
-        try {
-          await saveToMyFiles(
-            blob,
-            `${selectedTool.id}-output.pdf`,
-            selectedTool.id
-          );
-        } catch (saveError) {
-          // Don't fail the processing if saving fails
-        }
-      }
     } catch (err) {
-      setError("Failed to process PDF. Please try again.");
+      console.error("Processing error:", err);
+      
+      // Don't show duplicate notifications for limit exceeded
+      if (!err.message.includes('Usage Limit Reached') && !err.message.includes('limit_exceeded')) {
+        setError(err.message || "Failed to process PDF. Please try again.");
+        showNotification({
+          type: 'error',
+          title: 'Processing Failed',
+          message: err.message || "Failed to process PDF. Please try again.",
+          duration: 5000
+        });
+      }
     } finally {
       setProcessing(false);
     }
@@ -247,9 +250,13 @@ const OrganizeTools = () => {
             {fileSaved && (
               <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
                 <p className="text-green-700 text-sm font-medium">
-                  ✅ File automatically saved to <strong>My Files</strong>{" "}
-                  section
+                  ✅ File automatically saved to <strong>Organize History</strong>
                 </p>
+                {organizeId && (
+                  <p className="text-green-600 text-xs mt-1">
+                    Organize ID: {organizeId}
+                  </p>
+                )}
               </div>
             )}
 
@@ -282,8 +289,7 @@ const OrganizeTools = () => {
                   />
                 </div>
                 <p className="text-xs text-muted-foreground mt-2 text-center">
-                  Note: Preview may not work in all browsers. Download to view
-                  the full document.
+                  Note: Preview may not work in all browsers. Download to view the full document.
                 </p>
               </div>
             )}
@@ -292,14 +298,14 @@ const OrganizeTools = () => {
             <a
               href={downloadUrl}
               download={`${selectedTool.id}-output.pdf`}
-              className="inline-flex items-center justify-center py-3 rounded-full text-white bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 transition-all font-semibold"
+              className="inline-flex items-center justify-center px-6 py-3 rounded-full text-white bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 transition-all font-semibold mb-4"
             >
               <Download className="h-5 w-5 mr-2" />
               Download PDF
             </a>
 
             {/* Start Over Button */}
-            <div className="mt-6 pt-4 border-t border-gray-200">
+            <div className="mt-4 pt-4 border-t border-gray-200">
               <button
                 onClick={() => {
                   setSelectedTool(null);
@@ -309,6 +315,7 @@ const OrganizeTools = () => {
                   setRotationSide("90");
                   setShowPreview(false);
                   setFileSaved(false);
+                  setOrganizeId("");
                 }}
                 className="px-6 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-full transition-colors"
               >
@@ -328,26 +335,26 @@ const OrganizeTools = () => {
               </p>
               <p className="text-xs text-muted-foreground mt-1">
                 {selectedTool.id === "merge"
-                  ? "PDF files"
+                  ? "PDF files (2-10 files)"
                   : "A single PDF file"}
               </p>
-              <input
-                id="file-upload"
-                type="file"
-                multiple={selectedTool.id === "merge"}
-                onChange={handleFileChange}
-                className="hidden"
-                accept=".pdf"
-              />
             </label>
+            <input
+              id="file-upload"
+              type="file"
+              multiple={selectedTool.id === "merge"}
+              onChange={handleFileChange}
+              className="hidden"
+              accept=".pdf"
+            />
 
             {files.length > 0 && (
               <div className="mt-4">
-                <p className="text-sm font-semibold mb-2">Selected Files:</p>
-                <ul className="list-disc pl-5">
+                <p className="text-sm font-semibold mb-2">Selected Files ({files.length}):</p>
+                <ul className="list-disc pl-5 space-y-1">
                   {files.map((file, index) => (
                     <li key={index} className="text-sm text-muted-foreground">
-                      {file.name}
+                      {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
                     </li>
                   ))}
                 </ul>
@@ -399,7 +406,11 @@ const OrganizeTools = () => {
               </div>
             )}
 
-            {error && <p className="text-red-500 text-sm mt-4">{error}</p>}
+            {error && (
+              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-red-700 text-sm">{error}</p>
+              </div>
+            )}
 
             <button
               onClick={handleProcessPDF}
@@ -407,18 +418,27 @@ const OrganizeTools = () => {
                 files.length === 0 ||
                 processing ||
                 (selectedTool.id === "split" && !splitRange) ||
-                (selectedTool.id === "rotate" && !rotationSide)
+                (selectedTool.id === "rotate" && !rotationSide) ||
+                (selectedTool.id === "merge" && files.length < 2)
               }
               className={`w-full mt-6 px-6 py-3 rounded-full font-bold text-white transition-all ${
                 files.length === 0 ||
                 processing ||
                 (selectedTool.id === "split" && !splitRange) ||
-                (selectedTool.id === "rotate" && !rotationSide)
+                (selectedTool.id === "rotate" && !rotationSide) ||
+                (selectedTool.id === "merge" && files.length < 2)
                   ? "bg-gray-400 cursor-not-allowed"
                   : "bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
               }`}
             >
-              {processing ? "Processing..." : `Process ${selectedTool.name}`}
+              {processing ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                  Processing...
+                </>
+              ) : (
+                `Process ${selectedTool.name}`
+              )}
             </button>
 
             <button

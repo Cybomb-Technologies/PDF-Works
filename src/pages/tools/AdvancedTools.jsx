@@ -1,10 +1,11 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { Cpu, Settings2, BarChart3 } from "lucide-react";
+import { Cpu, Settings2, BarChart3, AlertTriangle } from "lucide-react";
+import { useNotification } from "@/contexts/NotificationContext";
 const API_URL = import.meta.env.VITE_API_URL;
 import Metatags from "../../SEO/metatags";
 
-// Tools data - code
+// Tools data
 const tools = [
   {
     id: "automation",
@@ -29,6 +30,23 @@ const tools = [
   },
 ];
 
+// Get auth token from localStorage
+const getAuthToken = () => {
+  return localStorage.getItem('token');
+};
+
+// Enhanced fetch with auth (same as your other tools)
+const authFetch = async (url, options = {}) => {
+  const token = getAuthToken();
+  const headers = {
+    'Content-Type': 'application/json',
+    ...options.headers,
+    ...(token && { 'Authorization': `Bearer ${token}` }),
+  };
+
+  return fetch(url, { ...options, headers });
+};
+
 const AdvancedTools = () => {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
@@ -37,105 +55,125 @@ const AdvancedTools = () => {
   const [method, setMethod] = useState("GET");
   const [body, setBody] = useState("");
   const [headers, setHeaders] = useState("");
-
-  const containerStyle = {
-    padding: "1.5rem",
-    background: "linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)",
-    minHeight: "100vh",
-  };
-  const titleStyle = {
-    fontSize: "2rem",
-    fontWeight: "700",
-    marginBottom: "1.5rem",
-    display: "flex",
-    alignItems: "center",
-    gap: "0.5rem",
-    color: "#1e293b",
-    textShadow: "0 2px 4px rgba(0,0,0,0.1)",
-  };
-  const inputContainerStyle = {
-    marginBottom: "1rem",
-    padding: "1rem",
-    backgroundColor: "rgba(255, 255, 255, 0.8)",
-    borderRadius: "0.75rem",
-    boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
-  };
-  const inputStyle = {
-    width: "100%",
-    padding: "0.75rem",
-    border: "1px solid #d1d5db",
-    borderRadius: "0.5rem",
-    fontSize: "0.875rem",
-    boxShadow: "inset 0 2px 4px rgba(0, 0, 0, 0.05)",
-  };
-  const labelStyle = {
-    display: "block",
-    color: "#374151",
-    marginBottom: "0.5rem",
-    fontWeight: "500",
-  };
-  const cardStyle = {
-    backdropFilter: "blur(10px)",
-    backgroundColor: "rgba(255, 255, 255, 0.8)",
-    borderRadius: "1rem",
-    padding: "1.5rem",
-    cursor: "pointer",
-    transition: "all 0.3s ease",
-    border: "1px solid rgba(255, 255, 255, 0.5)",
-    boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)",
-  };
-  const statusStyle = {
-    marginTop: "2rem",
-    padding: "1rem",
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
-    borderRadius: "0.75rem",
-    border: "1px solid #e5e7eb",
-    boxShadow: "0 4px 6px rgba(0, 0, 0, 0.05)",
-  };
+  
+  const { showNotification } = useNotification();
 
   const handleToolClick = async (tool) => {
     setLoading(true);
     setError("");
     setResult(null);
+    
     try {
-      let res;
+      let requestBody = {};
+
       if (tool.id === "automation") {
-        res = await fetch(`${API_URL}/api/advanced/automation`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tasks: ["convert", "compress", "merge"] }),
-        });
+        requestBody = { tasks: ["convert", "compress", "merge"] };
       } else if (tool.id === "api-connect") {
-        if (!apiUrl.trim()) throw new Error("Please enter an API URL");
+        if (!apiUrl.trim()) {
+          throw new Error("Please enter an API URL");
+        }
+        
         let parsedBody = null;
         let parsedHeaders = null;
-        if (body.trim()) parsedBody = JSON.parse(body);
-        if (headers.trim()) parsedHeaders = JSON.parse(headers);
+        
+        if (body.trim()) {
+          try {
+            parsedBody = JSON.parse(body);
+          } catch (e) {
+            throw new Error("Invalid JSON in body");
+          }
+        }
+        
+        if (headers.trim()) {
+          try {
+            parsedHeaders = JSON.parse(headers);
+          } catch (e) {
+            throw new Error("Invalid JSON in headers");
+          }
+        }
 
-        res = await fetch(`${API_URL}/api/advanced/api-connect`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            url: apiUrl,
-            method,
-            body: parsedBody,
-            headers: parsedHeaders,
-          }),
-        });
+        requestBody = {
+          url: apiUrl,
+          method,
+          body: parsedBody,
+          headers: parsedHeaders,
+        };
       } else if (tool.id === "analytics") {
-        res = await fetch(`${API_URL}/api/advanced/analytics`);
+        requestBody = {}; // Analytics doesn't need body
       }
 
-      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-      const data = await res.json();
-      if (!data.success)
-        throw new Error(data.message || "Something went wrong");
-      setResult(data);
+      // ✅ FIXED: Use unified route like OrganizeTools
+      const response = await authFetch(`${API_URL}/api/advanced/${tool.id}`, {
+        method: "POST",
+        body: JSON.stringify(requestBody),
+      });
+
+      const result = await response.json();
+      
+      // Handle backend errors with detailed messages
+      if (!response.ok || !result.success) {
+        // Check for limit exceeded error
+        if (result.type === 'limit_exceeded') {
+          showNotification({
+            type: 'error',
+            title: result.title || 'Usage Limit Reached',
+            message: result.message || result.reason || 'Advanced tools limit reached',
+            duration: 8000,
+            currentUsage: result.currentUsage,
+            limit: result.limit,
+            upgradeRequired: result.upgradeRequired,
+            action: result.upgradeRequired ? {
+              label: 'Upgrade Plan',
+              onClick: () => window.location.href = '/billing',
+              external: true
+            } : undefined
+          });
+          
+          return;
+        } else {
+          // Show other detailed errors
+          showNotification({
+            type: 'error',
+            title: result.title || 'Operation Failed',
+            message: result.message || result.error || 'Something went wrong',
+            duration: 5000
+          });
+        }
+        
+        throw new Error(result.message || `HTTP error! status: ${response.status}`);
+      }
+      
+      setResult(result);
+
+      // Show success notification
+      showNotification({
+        type: 'success',
+        title: `${tool.name} Completed`,
+        message: result.message || 'Operation completed successfully',
+        duration: 5000
+      });
+
     } catch (err) {
-      setError(err.message);
+      console.error("Tool execution error:", err);
+      
+      // Don't show duplicate notifications for limit exceeded
+      if (!err.message.includes('Usage Limit Reached') && !err.message.includes('limit_exceeded')) {
+        setError(err.message);
+        showNotification({
+          type: 'error',
+          title: 'Operation Failed',
+          message: err.message,
+          duration: 5000
+        });
+      }
     } finally {
       setLoading(false);
     }
+  };
+
+  // Check if user is authenticated
+  const isAuthenticated = () => {
+    return !!getAuthToken();
   };
 
   const metaPropsData = {
@@ -158,8 +196,19 @@ const AdvancedTools = () => {
             ⚙️ Advanced Tools
           </h2>
 
+          {/* Authentication Warning */}
+          {!isAuthenticated() && (
+            <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+              <p className="text-yellow-800 flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4" />
+                Some features require authentication. Please log in for full access.
+              </p>
+            </div>
+          )}
+
+          {/* API Configuration Section - Only shown for API Connect tool */}
           {tools.find((t) => t.id === "api-connect") && (
-            <div className="grid gap-4 md:grid-cols-3 w-full">
+            <div className="grid gap-4 md:grid-cols-3 w-full mb-6">
               {/* API URL */}
               <div className="flex flex-col w-full">
                 <label className="mb-1 font-medium text-gray-700">
@@ -184,10 +233,11 @@ const AdvancedTools = () => {
                   onChange={(e) => setMethod(e.target.value)}
                   className="border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
                 >
-                  <option>GET</option>
-                  <option>POST</option>
-                  <option>PUT</option>
-                  <option>DELETE</option>
+                  <option value="GET">GET</option>
+                  <option value="POST">POST</option>
+                  <option value="PUT">PUT</option>
+                  <option value="DELETE">DELETE</option>
+                  <option value="PATCH">PATCH</option>
                 </select>
               </div>
 
@@ -220,7 +270,7 @@ const AdvancedTools = () => {
           )}
 
           {/* Tools Cards */}
-          <div className="grid gap-6 mt-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 w-full">
+          <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 w-full">
             {tools.map((tool, i) => {
               const Icon = tool.icon;
               return (
@@ -240,7 +290,7 @@ const AdvancedTools = () => {
                   }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => handleToolClick(tool)}
-                  className="p-4 bg-white rounded-xl shadow hover:shadow-lg cursor-pointer w-full"
+                  className="p-4 bg-white rounded-xl shadow hover:shadow-lg cursor-pointer w-full border border-gray-100"
                 >
                   <div
                     className={`w-14 h-14 rounded-xl bg-gradient-to-br ${tool.color} flex items-center justify-center mb-4`}
@@ -270,15 +320,17 @@ const AdvancedTools = () => {
                 Processing your request...
               </div>
             )}
+            
             {error && (
               <div className="p-3 bg-red-50 border border-red-200 text-red-600 rounded-md font-medium">
                 ❌ {error}
               </div>
             )}
+            
             {result && (
               <div className="w-full">
                 <h4 className="text-green-600 font-semibold mb-2">
-                  ✅ Result:
+                  ✅ Operation Completed:
                 </h4>
                 <pre className="bg-gray-50 p-4 rounded-md text-xs overflow-auto max-h-64 border border-gray-200 w-full">
                   {JSON.stringify(result, null, 2)}

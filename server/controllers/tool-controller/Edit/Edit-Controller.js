@@ -1,9 +1,14 @@
-// controllers/tool-controller/Edit/Edit-Controller.js
 const path = require('path');
 const fs = require('fs').promises;
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const pdfjsLib = require('pdfjs-dist/legacy/build/pdf');
 const { createCanvas } = require('canvas');
+const Edit = require("../../../models/tools-models/Edit/Edit-Model");
+const archiver = require('archiver');
+
+// === FIXED USAGE IMPORTS ===
+const { checkLimits } = require("../../../utils/checkLimits");
+const { incrementUsage } = require("../../../utils/incrementUsage");
 
 // Configure PDF.js
 pdfjsLib.GlobalWorkerOptions.workerSrc = path.join(__dirname, '../../../node_modules/pdfjs-dist/build/pdf.worker.js');
@@ -25,6 +30,15 @@ class EditController {
     this.getEdits = this.getEdits.bind(this);
     this.embedCanvasAsPage = this.embedCanvasAsPage.bind(this);
     this.addOriginalPageAsImage = this.addOriginalPageAsImage.bind(this);
+    
+    // New methods for Edit model
+    this.saveToEditModel = this.saveToEditModel.bind(this);
+    this.savePdfEdit = this.savePdfEdit.bind(this);
+    this.saveImageCrop = this.saveImageCrop.bind(this);
+    this.saveFileRename = this.saveFileRename.bind(this);
+    this.downloadEditedFile = this.downloadEditedFile.bind(this);
+    this.getEditHistory = this.getEditHistory.bind(this);
+    this.downloadBatch = this.downloadBatch.bind(this);
   }
 
   // Configure PDF.js to suppress font warnings
@@ -41,67 +55,701 @@ class EditController {
     };
   }
 
-  // Upload PDF and extract structure
-  async uploadPDF(req, res) {
-    console.log('uploadPDF method called');
+  // Save edited file to Edit model (for single files)
+  async saveToEditModel(fileBuffer, originalName, editedName, fileType, editType, userId, metadata = {}) {
     try {
-      if (!req.file) {
+      const uploadsDir = path.join(__dirname, '../../../uploads/edited');
+      await fs.mkdir(uploadsDir, { recursive: true });
+
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+      const filename = `edited-${uniqueSuffix}-${editedName}`;
+      const filePath = path.join(uploadsDir, filename);
+
+      await fs.writeFile(filePath, fileBuffer);
+
+      const editRecord = new Edit({
+        userId: userId,
+        originalFilename: originalName,
+        editedFilename: editedName,
+        originalFileType: path.extname(originalName).replace('.', '') || 'unknown',
+        editedFileType: path.extname(editedName).replace('.', '') || fileType,
+        editType: editType,
+        fileSize: fileBuffer.length,
+        editStatus: "completed",
+        downloadUrl: `/api/tools/pdf-editor/download-edited/${filename}`,
+        outputPath: filePath,
+        editMetadata: metadata
+      });
+
+      await editRecord.save();
+      console.log("File saved to Edit model:", editRecord._id);
+      return editRecord;
+    } catch (error) {
+      console.error("Error saving to Edit model:", error);
+      throw error;
+    }
+  }
+
+  // Save PDF Editor output
+  async savePdfEdit(req, res) {
+    try {
+      const { sessionId, originalName, totalPages } = req.body;
+      const file = req.file;
+      const userId = req.user?.id;
+
+      if (!file) {
         return res.status(400).json({
           success: false,
-          error: 'No file uploaded'
+          error: 'No file provided'
         });
       }
 
-      if (req.file.mimetype !== 'application/pdf') {
-        return res.status(400).json({
-          success: false,
-          error: 'Only PDF files are allowed'
-        });
-      }
-
-      console.log('PDF file received, size:', req.file.size);
-
-      const sessionId = `edit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      const sessionDir = path.join(__dirname, '../../../uploads/sessions', sessionId);
-      
-      await fs.mkdir(sessionDir, { recursive: true });
-      console.log('Session directory created:', sessionDir);
-
-      const originalFilePath = path.join(sessionDir, 'original.pdf');
-      await fs.writeFile(originalFilePath, req.file.buffer);
-
-      // Extract PDF structure and render pages to images
-      console.log('Starting PDF processing...');
-      const pdfUint8Array = new Uint8Array(req.file.buffer);
-      const pdfStructure = await this.extractPDFStructure(pdfUint8Array, sessionId);
-      
-      // Save structure to file
-      const structureFile = path.join(sessionDir, 'structure.json');
-      await fs.writeFile(structureFile, JSON.stringify(pdfStructure, null, 2));
-
-      // Render each page to image for background
-      for (let pageNum = 1; pageNum <= pdfStructure.pages.length; pageNum++) {
-        await this.renderPageToImage(pdfUint8Array, pageNum, sessionId);
-      }
-
-      console.log('PDF processing completed');
+      const editRecord = await this.saveToEditModel(
+        file.buffer,
+        originalName || 'document.pdf',
+        `edited-${sessionId}.pdf`,
+        'pdf',
+        'pdf-edit',
+        userId,
+        { sessionId, totalPages: parseInt(totalPages) || 1 }
+      );
 
       res.json({
         success: true,
-        sessionId,
-        totalPages: pdfStructure.pages.length,
-        structure: pdfStructure,
-        message: 'PDF uploaded and processed successfully'
+        editId: editRecord._id,
+        downloadUrl: editRecord.downloadUrl,
+        message: 'PDF edit saved successfully'
       });
 
     } catch (error) {
-      console.error('Upload error:', error);
+      console.error('Save PDF edit error:', error);
       res.status(500).json({
         success: false,
-        error: error.message,
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        error: error.message
       });
     }
+  }
+
+  // Save Image Crop output
+async saveImageCrop(req, res) {
+  try {
+    console.log('Save Image Crop called');
+    console.log('Body:', req.body);
+    console.log('File:', req.file ? `Present - ${req.file.originalname}` : 'Missing');
+
+    const { originalName, cropDimensions } = req.body;
+    const file = req.file;
+    const userId = req.user?.id;
+
+    // -------------------------------------------------------
+    // Usage limit check BEFORE processing - EDIT TOOLS
+    // -------------------------------------------------------
+    if (userId) {
+      try {
+        const limitCheck = await checkLimits(userId, "edit-tools");
+        console.log('🔍 Image Crop Limit Check:', {
+          allowed: limitCheck.allowed,
+          reason: limitCheck.reason,
+          currentUsage: limitCheck.usage?.editTools,
+          limit: limitCheck.plan?.editToolsLimit
+        });
+
+        if (!limitCheck.allowed) {
+          console.log('🚫 Image Crop blocked - limit exceeded');
+          return res.status(200).json({
+            success: false,
+            type: "limit_exceeded",
+            title: limitCheck.title || "Usage Limit Reached",
+            message: limitCheck.reason,
+            notificationType: "error",
+            currentUsage: limitCheck.usage?.editTools || 0,
+            limit: limitCheck.plan?.editToolsLimit || 0,
+            upgradeRequired: limitCheck.upgradeRequired || true
+          });
+        }
+      } catch (limitErr) {
+        console.error('Limit check error:', limitErr);
+        return res.status(200).json({
+          success: false,
+          type: "limit_exceeded",
+          title: "Usage Limit Error",
+          message: limitErr.message,
+          notificationType: "error"
+        });
+      }
+    }
+
+    // If we reach here, limit check passed - proceed with processing
+    if (!file) {
+      console.log('No file provided in request');
+      return res.status(400).json({
+        success: false,
+        error: 'No file provided'
+      });
+    }
+
+    // Handle cropDimensions - it might be string or object
+    let cropData = {};
+    if (cropDimensions) {
+      if (typeof cropDimensions === 'string') {
+        try {
+          cropData = JSON.parse(cropDimensions);
+        } catch (parseError) {
+          console.warn('Failed to parse cropDimensions as JSON:', parseError);
+          // Try to extract basic info
+          cropData = { raw: cropDimensions };
+        }
+      } else if (typeof cropDimensions === 'object') {
+        cropData = cropDimensions;
+      }
+    }
+
+    console.log('Processing crop data:', cropData);
+
+    const editRecord = await this.saveToEditModel(
+      file.buffer,
+      originalName || file.originalname,
+      `cropped-${Date.now()}.png`,
+      'png',
+      'image-crop',
+      userId,
+      { cropDimensions: cropData }
+    );
+
+    console.log('Image crop saved successfully:', editRecord._id);
+
+    // ✅ Increment usage for edit tools AFTER successful crop
+    if (userId) {
+      await incrementUsage(userId, "edit-tools");
+      console.log('✅ Usage incremented for image crop');
+    }
+
+    res.json({
+      success: true,
+      editId: editRecord._id,
+      downloadUrl: editRecord.downloadUrl,
+      message: 'Image crop saved successfully'
+    });
+
+  } catch (error) {
+    console.error('Save image crop error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+}
+
+  // Save File Rename output as BATCH
+  async saveFileRename(req, res) {
+    try {
+      console.log('🔍 [DEBUG] Save File Rename called with:', {
+        body: req.body,
+        filesCount: req.files ? req.files.length : 0,
+        userId: req.user?.id
+      });
+
+      const { filesData, batchName } = req.body;
+      const files = req.files || [];
+      const userId = req.user?.id;
+
+      // -------------------------------------------------------
+      // Usage limit check BEFORE processing - EDIT TOOLS
+      // -------------------------------------------------------
+      if (userId) {
+        try {
+          const limitCheck = await checkLimits(userId, "edit-tools");
+          console.log('🔍 File Rename Limit Check:', {
+            allowed: limitCheck.allowed,
+            reason: limitCheck.reason,
+            currentUsage: limitCheck.usage?.editTools,
+            limit: limitCheck.plan?.editToolsLimit
+          });
+
+          if (!limitCheck.allowed) {
+            // Delete all uploaded files since we're not processing them
+            if (files && files.length > 0) {
+              console.log('🚫 Limit exceeded, discarding uploaded files');
+            }
+
+            return res.status(200).json({
+              success: false,
+              type: "limit_exceeded",
+              title: limitCheck.title || "Usage Limit Reached",
+              message: limitCheck.reason,
+              notificationType: "error",
+              currentUsage: limitCheck.usage?.editTools || 0,
+              limit: limitCheck.plan?.editToolsLimit || 0,
+              upgradeRequired: limitCheck.upgradeRequired || true
+            });
+          }
+        } catch (limitErr) {
+          console.error('Limit check error:', limitErr);
+          return res.status(200).json({
+            success: false,
+            type: "limit_exceeded",
+            title: "Usage Limit Error",
+            message: limitErr.message,
+            notificationType: "error"
+          });
+        }
+      }
+
+      if (!files || files.length === 0) {
+        console.log('❌ [DEBUG] No files provided');
+        return res.status(400).json({
+          success: false,
+          error: 'No files provided'
+        });
+      }
+
+      let filesDataParsed = [];
+      try {
+        filesDataParsed = filesData ? JSON.parse(filesData) : [];
+      } catch (parseError) {
+        console.warn('Failed to parse filesData:', parseError);
+      }
+
+      // Create batch ID for grouping
+      const batchId = `batch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      console.log('🔍 [DEBUG] Generated batchId:', batchId);
+
+      const savedRecords = [];
+      const batchFiles = [];
+
+      // Process each file and save to disk
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const fileData = filesDataParsed[i] || {};
+        
+        const newFilename = fileData.newName || `renamed-${Date.now()}-${file.originalname}`;
+        
+        // Save file to disk
+        const uploadsDir = path.join(__dirname, '../../../uploads/edited');
+        await fs.mkdir(uploadsDir, { recursive: true });
+
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+        const filename = `batch-${batchId}-file-${i}-${newFilename}`;
+        const filePath = path.join(uploadsDir, filename);
+
+        await fs.writeFile(filePath, file.buffer);
+
+        // Collect file info for batch
+        batchFiles.push({
+          originalName: fileData.originalName || file.originalname,
+          newName: newFilename,
+          fileSize: file.buffer.length,
+          fileType: path.extname(fileData.originalName || file.originalname).replace('.', '') || 'file',
+          downloadUrl: `/api/tools/pdf-editor/download-edited/${filename}`,
+          outputPath: filePath,
+          fileIndex: i
+        });
+
+        savedRecords.push({
+          originalName: fileData.originalName || file.originalname,
+          newName: newFilename,
+          downloadUrl: `/api/tools/pdf-editor/download-edited/${filename}`
+        });
+
+        console.log(`✅ [DEBUG] File processed for batch: ${file.originalname} -> ${newFilename}`);
+      }
+
+      // Create SINGLE batch record in database
+      const batchRecord = new Edit({
+        userId: userId,
+        originalFilename: batchName || `File Batch (${files.length} files)`,
+        editedFilename: `Renamed Batch (${files.length} files)`,
+        originalFileType: 'batch',
+        editedFileType: 'batch',
+        editType: 'file-rename',
+        fileSize: batchFiles.reduce((total, file) => total + file.fileSize, 0),
+        editStatus: "completed",
+        downloadUrl: `/api/tools/pdf-editor/download-batch/${batchId}`,
+        outputPath: '', // Not needed for batches
+        editMetadata: {
+          batchId: batchId,
+          totalFiles: files.length,
+          pattern: filesDataParsed[0]?.pattern || 'default',
+          files: batchFiles, // Store all file info in metadata
+          batchName: batchName || `File Rename Batch ${new Date().toLocaleDateString()}`,
+          processedAt: new Date().toISOString()
+        }
+      });
+
+      await batchRecord.save();
+      
+      console.log('✅ [DEBUG] Batch saved successfully:', {
+        batchRecordId: batchRecord._id,
+        batchId: batchId,
+        totalFiles: files.length,
+        userId: userId
+      });
+
+      // ✅ Increment usage for edit tools AFTER successful batch rename
+      if (userId) {
+        await incrementUsage(userId, "edit-tools");
+        console.log('✅ Usage incremented for file rename batch');
+      }
+
+      res.json({
+        success: true,
+        batchId: batchId,
+        editId: batchRecord._id,
+        savedRecords: savedRecords,
+        message: `Successfully saved ${files.length} files as batch`
+      });
+
+    } catch (error) {
+      console.error('❌ [DEBUG] Save file rename error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+
+  // Upload PDF and extract structure
+async uploadPDF(req, res) {
+  console.log('uploadPDF method called');
+  try {
+    const userId = req.user?.id;
+    
+    // -------------------------------------------------------
+    // Usage limit check BEFORE processing - EDIT TOOLS
+    // -------------------------------------------------------
+    if (userId) {
+      try {
+        const limitCheck = await checkLimits(userId, "edit-tools");
+        console.log('🔍 PDF Upload Limit Check:', {
+          allowed: limitCheck.allowed,
+          reason: limitCheck.reason,
+          currentUsage: limitCheck.usage?.editTools,
+          limit: limitCheck.plan?.editToolsLimit
+        });
+
+        if (!limitCheck.allowed) {
+          console.log('🚫 PDF Upload blocked - limit exceeded');
+          return res.status(200).json({
+            success: false,
+            type: "limit_exceeded",
+            title: limitCheck.title || "Usage Limit Reached",
+            message: limitCheck.reason,
+            notificationType: "error",
+            currentUsage: limitCheck.usage?.editTools || 0,
+            limit: limitCheck.plan?.editToolsLimit || 0,
+            upgradeRequired: limitCheck.upgradeRequired || true
+          });
+        }
+      } catch (limitErr) {
+        console.error('Limit check error:', limitErr);
+        return res.status(200).json({
+          success: false,
+          type: "limit_exceeded",
+          title: "Usage Limit Error",
+          message: limitErr.message,
+          notificationType: "error"
+        });
+      }
+    }
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: 'No file uploaded'
+      });
+    }
+
+    if (req.file.mimetype !== 'application/pdf') {
+      return res.status(400).json({
+        success: false,
+        error: 'Only PDF files are allowed'
+      });
+    }
+
+    console.log('PDF file received, size:', req.file.size);
+
+    const sessionId = `edit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const sessionDir = path.join(__dirname, '../../../uploads/sessions', sessionId);
+    
+    await fs.mkdir(sessionDir, { recursive: true });
+    console.log('Session directory created:', sessionDir);
+
+    const originalFilePath = path.join(sessionDir, 'original.pdf');
+    await fs.writeFile(originalFilePath, req.file.buffer);
+
+    // Extract PDF structure and render pages to images
+    console.log('Starting PDF processing...');
+    const pdfUint8Array = new Uint8Array(req.file.buffer);
+    const pdfStructure = await this.extractPDFStructure(pdfUint8Array, sessionId);
+    
+    // Save structure to file
+    const structureFile = path.join(sessionDir, 'structure.json');
+    await fs.writeFile(structureFile, JSON.stringify(pdfStructure, null, 2));
+
+    // Render each page to image for background
+    for (let pageNum = 1; pageNum <= pdfStructure.pages.length; pageNum++) {
+      await this.renderPageToImage(pdfUint8Array, pageNum, sessionId);
+    }
+
+    console.log('PDF processing completed');
+
+    // ✅ Increment usage for edit tools AFTER successful upload
+    if (userId) {
+      await incrementUsage(userId, "edit-tools");
+      console.log('✅ Usage incremented for PDF upload');
+    }
+
+    res.json({
+      success: true,
+      sessionId,
+      totalPages: pdfStructure.pages.length,
+      structure: pdfStructure,
+      message: 'PDF uploaded and processed successfully'
+    });
+
+  } catch (error) {
+    console.error('Upload error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+}
+
+  // Download entire batch as ZIP
+  async downloadBatch(req, res) {
+    try {
+      const { batchId } = req.params;
+      const userId = req.user?.id;
+      
+      console.log('🔍 [DEBUG] Download batch requested:', {
+        batchId,
+        userId,
+        timestamp: new Date().toISOString()
+      });
+
+      // Find the batch record
+      const batchRecord = await Edit.findOne({ 
+        'editMetadata.batchId': batchId,
+        editType: 'file-rename'
+      });
+
+      console.log('🔍 [DEBUG] Batch record search result:', {
+        found: !!batchRecord,
+        batchIdSearched: batchId,
+        recordId: batchRecord?._id,
+        recordBatchId: batchRecord?.editMetadata?.batchId,
+        userId: batchRecord?.userId,
+        totalFiles: batchRecord?.editMetadata?.totalFiles
+      });
+
+      if (!batchRecord) {
+        // Debug: Check what batches exist for this user
+        const userBatches = await Edit.find({ 
+          userId: userId,
+          editType: 'file-rename' 
+        });
+        
+        console.log('🔍 [DEBUG] All batches for user:', {
+          userId,
+          totalBatches: userBatches.length,
+          batches: userBatches.map(b => ({
+            id: b._id,
+            batchId: b.editMetadata?.batchId,
+            batchName: b.editMetadata?.batchName,
+            totalFiles: b.editMetadata?.totalFiles,
+            createdAt: b.createdAt
+          }))
+        });
+
+        return res.status(404).json({
+          success: false,
+          error: 'Batch not found',
+          debug: {
+            searchedBatchId: batchId,
+            userBatches: userBatches.map(b => b.editMetadata?.batchId),
+            userId: userId
+          }
+        });
+      }
+
+      // Check if user owns this batch
+      if (batchRecord.userId.toString() !== userId.toString()) {
+        console.log('🚫 [DEBUG] User unauthorized for batch:', {
+          batchUserId: batchRecord.userId.toString(),
+          requestUserId: userId.toString()
+        });
+        return res.status(403).json({
+          success: false,
+          error: 'Unauthorized to access this batch'
+        });
+      }
+
+      // Check if files exist
+      const existingFiles = [];
+      const missingFiles = [];
+      
+      for (const fileInfo of batchRecord.editMetadata.files) {
+        try {
+          await fs.access(fileInfo.outputPath);
+          existingFiles.push(fileInfo);
+        } catch (error) {
+          console.warn(`❌ [DEBUG] File not found: ${fileInfo.outputPath}`);
+          missingFiles.push(fileInfo.outputPath);
+        }
+      }
+
+      console.log('🔍 [DEBUG] File check results:', {
+        totalFiles: batchRecord.editMetadata.files.length,
+        existingFiles: existingFiles.length,
+        missingFiles: missingFiles.length,
+        missingFilePaths: missingFiles
+      });
+
+      if (existingFiles.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'No files found in batch',
+          debug: {
+            totalFiles: batchRecord.editMetadata.files.length,
+            missingFiles: missingFiles.length
+          }
+        });
+      }
+
+      // Create ZIP file containing all batch files
+      const zip = archiver('zip', { 
+        zlib: { level: 9 } 
+      });
+
+      res.setHeader('Content-Type', 'application/zip');
+      res.setHeader('Content-Disposition', `attachment; filename="file-batch-${batchId}.zip"`);
+
+      zip.pipe(res);
+
+      // Add each file to the ZIP
+      for (const fileInfo of existingFiles) {
+        console.log(`📦 [DEBUG] Adding to ZIP: ${fileInfo.newName} -> ${fileInfo.outputPath}`);
+        zip.file(fileInfo.outputPath, { name: fileInfo.newName });
+      }
+
+      zip.on('error', (err) => {
+        console.error('❌ [DEBUG] ZIP creation error:', err);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to create ZIP file'
+        });
+      });
+
+      zip.on('end', () => {
+        console.log('✅ [DEBUG] ZIP creation completed successfully');
+      });
+
+      await zip.finalize();
+
+      console.log(`✅ [DEBUG] Batch ZIP downloaded: ${batchId} with ${existingFiles.length} files`);
+
+    } catch (error) {
+      console.error('❌ [DEBUG] Download batch error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+
+  // Download edited file (individual files from batch)
+  async downloadEditedFile(req, res) {
+    try {
+      const { filename } = req.params;
+
+      const filePath = path.join(__dirname, '../../../uploads/edited', filename);
+
+      try {
+        await fs.access(filePath);
+      } catch {
+        return res.status(404).json({
+          success: false,
+          error: 'File not found'
+        });
+      }
+
+      const fileBuffer = await fs.readFile(filePath);
+      const fileType = path.extname(filename).toLowerCase().replace('.', '');
+
+      res.setHeader('Content-Type', this.getMimeType(fileType));
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.send(fileBuffer);
+
+    } catch (error) {
+      console.error('Download edited file error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+
+  // Get user's edit history
+  async getEditHistory(req, res) {
+    try {
+      const userId = req.user.id;
+      
+      const edits = await Edit.find({ userId })
+        .sort({ createdAt: -1 })
+        .limit(50);
+
+      // Format response to show batch info
+      const formattedEdits = edits.map(edit => ({
+        _id: edit._id,
+        originalFilename: edit.originalFilename,
+        editedFilename: edit.editedFilename,
+        editType: edit.editType,
+        fileSize: edit.fileSize,
+        createdAt: edit.createdAt,
+        downloadUrl: edit.downloadUrl,
+        isBatch: edit.editType === 'file-rename',
+        batchInfo: edit.editType === 'file-rename' ? {
+          totalFiles: edit.editMetadata?.totalFiles || 0,
+          batchId: edit.editMetadata?.batchId,
+          batchName: edit.editMetadata?.batchName
+        } : null
+      }));
+
+      res.json({
+        success: true,
+        edits: formattedEdits
+      });
+
+    } catch (error) {
+      console.error('Get edit history error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+
+  // Helper function to get MIME type
+  getMimeType(fileType) {
+    const mimeTypes = {
+      pdf: "application/pdf",
+      jpg: "image/jpeg",
+      jpeg: "image/jpeg",
+      png: "image/png",
+      gif: "image/gif",
+      txt: "text/plain",
+      doc: "application/msword",
+      docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      xls: "application/vnd.ms-excel",
+      xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      ppt: "application/vnd.ms-powerpoint",
+      pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    };
+
+    return mimeTypes[fileType.toLowerCase()] || "application/octet-stream";
   }
 
   // Extract PDF structure with precise coordinates

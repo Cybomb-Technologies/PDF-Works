@@ -1,4 +1,3 @@
-// utils/incrementUsage.js (UPDATED WITH SUBSCRIPTION-BASED RESET)
 const User = require("../models/UserModel");
 
 /**
@@ -54,7 +53,7 @@ async function incrementUsage(userId, feature, options = {}) {
         }
 
         // ---------------------------------------
-        // 2. SUBSCRIPTION CYCLE RESET (30 days) - UPDATED
+        // 2. ✅ FIXED: SUBSCRIPTION CYCLE RESET - Use User model method
         // ---------------------------------------
         const cycleChanged = user.shouldResetUsage();
 
@@ -148,11 +147,15 @@ async function incrementUsage(userId, feature, options = {}) {
         }
 
         await user.save();
+        
+        console.log(`✅ Usage incremented: ${feature} +${count} for user ${userId}`);
+        console.log(`📊 Current usage - Conversions: ${usage.conversions}, Edit Tools: ${usage.editTools}, Organize Tools: ${usage.organizeTools}, Security Tools: ${usage.securityTools}, Optimize Tools: ${usage.optimizeTools}, Advanced Tools: ${usage.advancedTools}`);
+        
         return user;
 
     } catch (error) {
         console.error("incrementUsage error:", error);
-        return null;
+        throw new Error(`Failed to increment usage for ${feature}: ${error.message}`);
     }
 }
 

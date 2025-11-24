@@ -9,6 +9,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import Metatags from "../../../SEO/metatags";
+import { useNotification } from "@/contexts/NotificationContext";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -29,17 +30,90 @@ const ImageCrop = () => {
   const [hasSelectedCrop, setHasSelectedCrop] = useState(false);
   const [selectionComplete, setSelectionComplete] = useState(false);
   const [fileSaved, setFileSaved] = useState(false);
+  const [uploadedFile, setUploadedFile] = useState(null);
   const fileInputRef = useRef(null);
   const imageContainerRef = useRef(null);
   const canvasRef = useRef(null);
   const imageRef = useRef(null);
+
+  const { showNotification } = useNotification();
 
   // Get token from localStorage
   const getToken = () => {
     return localStorage.getItem("token");
   };
 
-  // Function to save cropped image to My Files with authentication
+  // Save to Edit model function with proper error handling
+  const saveToEditModel = async (fileBlob, filename, editType, originalName, metadata = {}) => {
+    try {
+      const token = getToken();
+      if (!token) {
+        if (showNotification) {
+          showNotification({
+            type: 'error',
+            title: 'Authentication Required',
+            message: 'Please log in to save files',
+            duration: 5000
+          });
+        }
+        return { success: false, error: "Please log in to save files" };
+      }
+
+      const formData = new FormData();
+      formData.append("file", fileBlob, filename);
+      formData.append("originalName", originalName);
+      
+      if (metadata) {
+        Object.keys(metadata).forEach(key => {
+          formData.append(key, typeof metadata[key] === 'object' ? JSON.stringify(metadata[key]) : metadata[key]);
+        });
+      }
+
+      const response = await fetch(`${API_URL}/api/tools/pdf-editor/save-image-crop`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      // First parse the response
+      let result;
+      try {
+        result = await response.json();
+      } catch (parseError) {
+        console.error('Failed to parse response:', parseError);
+        throw new Error('Invalid server response');
+      }
+
+      console.log('Save image crop response:', result);
+
+      // Handle limit exceeded response
+      if (result.type === 'limit_exceeded') {
+        return {
+          success: false,
+          type: 'limit_exceeded',
+          title: result.title,
+          message: result.message || result.reason,
+          currentUsage: result.currentUsage,
+          limit: result.limit,
+          upgradeRequired: result.upgradeRequired
+        };
+      }
+
+      if (!response.ok) {
+        throw new Error(result.error || `Failed to save: ${response.status}`);
+      }
+
+      return result;
+
+    } catch (error) {
+      console.error("Save to Edit model error:", error);
+      return { success: false, error: error.message };
+    }
+  };
+
+  // Function to save cropped image to My Files with authentication (from code 1)
   const saveToMyFiles = async (fileBlob, filename, toolUsed) => {
     try {
       // Get token from localStorage
@@ -115,10 +189,19 @@ const ImageCrop = () => {
     if (file) {
       if (!file.type.startsWith("image/")) {
         setError("Please upload a valid image file");
+        if (showNotification) {
+          showNotification({
+            type: 'error',
+            title: 'Invalid File Type',
+            message: 'Please upload a valid image file',
+            duration: 5000
+          });
+        }
         return;
       }
 
       setError("");
+      setUploadedFile(file);
       const reader = new FileReader();
       reader.onload = (e) => {
         const img = new Image();
@@ -132,6 +215,15 @@ const ImageCrop = () => {
           setSelectionComplete(false);
           setCrop({ x: 0, y: 0, width: 0, height: 0 });
           setFileSaved(false);
+          
+          if (showNotification) {
+            showNotification({
+              type: 'success',
+              title: 'Image Selected',
+              message: `${file.name} ready for cropping`,
+              duration: 3000
+            });
+          }
         };
         img.src = e.target.result;
       };
@@ -254,8 +346,24 @@ const ImageCrop = () => {
     // Only mark as complete if user actually dragged to create a meaningful selection
     if (crop.width >= 10 && crop.height >= 10) {
       setSelectionComplete(true);
+      if (showNotification) {
+        showNotification({
+          type: 'success',
+          title: 'Selection Complete',
+          message: 'Crop area selected. Click "Crop Image" to process.',
+          duration: 3000
+        });
+      }
     } else {
       setError("Please select a larger area (minimum 10x10 pixels)");
+      if (showNotification) {
+        showNotification({
+          type: 'warning',
+          title: 'Selection Too Small',
+          message: 'Please select a larger area (minimum 10x10 pixels)',
+          duration: 4000
+        });
+      }
       setHasSelectedCrop(false);
       setCrop({ x: 0, y: 0, width: 0, height: 0 });
     }
@@ -264,6 +372,14 @@ const ImageCrop = () => {
   const handleCrop = async () => {
     if (!image) {
       setError("Please upload an image first");
+      if (showNotification) {
+        showNotification({
+          type: 'error',
+          title: 'No Image',
+          message: 'Please upload an image first',
+          duration: 5000
+        });
+      }
       return;
     }
 
@@ -271,11 +387,29 @@ const ImageCrop = () => {
       setError(
         "Please select a crop area first by clicking and dragging on the image"
       );
+      if (showNotification) {
+        showNotification({
+          type: 'error',
+          title: 'No Selection',
+          message: 'Please select a crop area first',
+          duration: 5000
+        });
+      }
       return;
     }
 
     setIsProcessing(true);
     setError("");
+
+    if (showNotification) {
+      showNotification({
+        type: 'info',
+        title: 'Processing Image',
+        message: 'Cropping your image...',
+        duration: 0,
+        autoClose: false
+      });
+    }
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
@@ -287,7 +421,6 @@ const ImageCrop = () => {
         canvas.height = crop.height;
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-
         ctx.drawImage(
           img,
           crop.x,
@@ -312,15 +445,89 @@ const ImageCrop = () => {
         const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
         const filename = `cropped-image-${timestamp}.png`;
 
-        // Save to My Files
-        try {
-          await saveToMyFiles(blob, filename, "image-crop");
-        } catch (saveError) {
-          // Don't fail the crop operation if saving fails
-          console.warn("Failed to save to My Files:", saveError);
+        const token = getToken();
+        
+        if (token) {
+          // Save to Edit model (preferred method from code 2)
+          console.log('Saving image crop to Edit model...');
+          const saveResult = await saveToEditModel(
+            blob, 
+            filename, 
+            "image-crop",
+            uploadedFile.name,
+            { cropDimensions: crop }
+          );
+
+          console.log('Save result:', saveResult);
+
+          // Handle limit exceeded error from backend
+          if (!saveResult.success && saveResult.type === 'limit_exceeded') {
+            setError(saveResult.message || "Edit tools limit reached");
+            
+            if (showNotification) {
+              showNotification({
+                type: 'error',
+                title: saveResult.title || 'Usage Limit Reached',
+                message: saveResult.message || saveResult.reason,
+                duration: 8000,
+                currentUsage: saveResult.currentUsage,
+                limit: saveResult.limit,
+                upgradeRequired: saveResult.upgradeRequired,
+                action: saveResult.upgradeRequired ? {
+                  label: 'Upgrade Plan',
+                  onClick: () => window.open('/pricing', '_blank'),
+                  external: true
+                } : null
+              });
+            }
+
+            // Reset the crop state since it failed
+            setCroppedImage(null);
+            setDownloadUrl("");
+            return;
+          }
+
+          if (saveResult.success) {
+            setFileSaved(true);
+            console.log("Image crop saved successfully to Edit model");
+            
+            if (showNotification) {
+              showNotification({
+                type: 'success',
+                title: 'Image Cropped Successfully! 🎉',
+                message: 'Your image has been cropped and saved to your edit history!',
+                duration: 5000
+              });
+            }
+          } else {
+            console.warn("Failed to save to Edit model:", saveResult.error);
+            // Fallback to My Files save
+            await saveToMyFilesFallback(blob, filename);
+          }
+        } else {
+          // Guest user - just process without saving
+          if (showNotification) {
+            showNotification({
+              type: 'success',
+              title: 'Image Cropped Successfully! 🎉',
+              message: 'Your image has been cropped!',
+              duration: 5000
+            });
+          }
         }
+
       } catch (err) {
+        console.error("Error cropping image:", err);
         setError("Error cropping image: " + err.message);
+        
+        if (showNotification) {
+          showNotification({
+            type: 'error',
+            title: 'Processing Error',
+            message: 'Error cropping image: ' + err.message,
+            duration: 5000
+          });
+        }
       } finally {
         setIsProcessing(false);
       }
@@ -329,9 +536,32 @@ const ImageCrop = () => {
     img.onerror = () => {
       setError("Error loading image");
       setIsProcessing(false);
+      if (showNotification) {
+        showNotification({
+          type: 'error',
+          title: 'Image Error',
+          message: 'Error loading image for processing',
+          duration: 5000
+        });
+      }
     };
 
     img.src = image;
+  };
+
+  // Fallback save function using My Files
+  const saveToMyFilesFallback = async (blob, filename) => {
+    try {
+      const saveResult = await saveToMyFiles(blob, filename, "image-crop");
+      if (saveResult.success) {
+        setFileSaved(true);
+        console.log("Image saved to My Files as fallback");
+      } else {
+        console.warn("Failed to save to My Files:", saveResult.error);
+      }
+    } catch (error) {
+      console.warn("Fallback save failed:", error);
+    }
   };
 
   const handleReset = () => {
@@ -345,8 +575,18 @@ const ImageCrop = () => {
     setHasSelectedCrop(false);
     setSelectionComplete(false);
     setFileSaved(false);
+    setUploadedFile(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
+    }
+    
+    if (showNotification) {
+      showNotification({
+        type: 'info',
+        title: 'Reset',
+        message: 'Ready to crop another image',
+        duration: 3000
+      });
     }
   };
 
@@ -389,6 +629,15 @@ const ImageCrop = () => {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+    
+    if (showNotification) {
+      showNotification({
+        type: 'success',
+        title: 'Download Started',
+        message: 'Downloading cropped image',
+        duration: 3000
+      });
+    }
   };
 
   const metaPropsData = {
@@ -401,6 +650,8 @@ const ImageCrop = () => {
       "https://res.cloudinary.com/dcfjt8shw/image/upload/v1761288318/wn8m8g8skdpl6iz2rwoa.svg",
     url: "https://pdfworks.in/tools/",
   };
+
+  const isLoggedIn = !!getToken();
 
   return (
     <>
@@ -431,11 +682,10 @@ const ImageCrop = () => {
             </h3>
 
             {/* File Saved Status */}
-            {fileSaved && (
+            {fileSaved && isLoggedIn && (
               <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
                 <p className="text-green-700 text-sm font-medium">
-                  ✅ File automatically saved to <strong>My Files</strong>{" "}
-                  section
+                  ✅ File automatically saved to <strong>Edit History</strong>
                 </p>
               </div>
             )}
