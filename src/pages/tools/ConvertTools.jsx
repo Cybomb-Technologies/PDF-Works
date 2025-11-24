@@ -9,6 +9,7 @@ import {
   ChevronDown,
   Eye,
   EyeOff,
+  AlertTriangle,
 } from "lucide-react";
 import { useNotification } from "@/contexts/NotificationContext";
 import Metatags from "../../SEO/metatags";
@@ -53,7 +54,7 @@ const ConvertTools = () => {
   const [showPreview, setShowPreview] = useState(false);
   const [downloadUrl, setDownloadUrl] = useState(null);
   const [fileSaved, setFileSaved] = useState(false);
-
+  
   const { showNotification } = useNotification();
 
   const getToken = () => {
@@ -77,13 +78,15 @@ const ConvertTools = () => {
       setConversionResult(null);
       setDownloadUrl(null);
       setFileSaved(false);
-
-      showNotification({
-        type: "success",
-        title: "File Selected",
-        message: `${file.name} ready for conversion`,
-        duration: 3000,
-      });
+      
+      if (showNotification) {
+        showNotification({
+          type: 'success',
+          title: 'File Selected',
+          message: `${file.name} ready for conversion`,
+          duration: 3000
+        });
+      }
     }
   };
 
@@ -166,12 +169,14 @@ const ConvertTools = () => {
     try {
       const token = getToken();
       if (!token) {
-        showNotification({
-          type: "error",
-          title: "Authentication Required",
-          message: "Please log in to convert files",
-          duration: 5000,
-        });
+        if (showNotification) {
+          showNotification({
+            type: 'error',
+            title: 'Authentication Required',
+            message: 'Please log in to convert files',
+            duration: 5000
+          });
+        }
         setIsConverting(false);
         return;
       }
@@ -210,54 +215,50 @@ const ConvertTools = () => {
       // Try to parse JSON response first (for errors and success messages)
       if (contentType && contentType.includes("application/json")) {
         result = await response.json();
-
+        
         // Handle backend errors with detailed messages
         if (!response.ok || !result.success) {
-          // Use the detailed error information from backend
-          const errorTitle = result.title || "Conversion Failed";
-          const errorMessage =
-            result.message ||
-            result.error ||
-            result.details ||
-            "Unknown error occurred";
-          const errorType = result.type || "conversion_error";
-
-          // Special handling for limit exceeded
-          if (errorType === "limit_exceeded") {
-            showNotification({
-              type: "error",
-              title: errorTitle,
-              message: errorMessage,
-              duration: 8000,
-            });
-
-            // Show upgrade suggestion
-            setTimeout(() => {
+          // Check for limit exceeded error
+          if (result.type === 'limit_exceeded') {
+            if (showNotification) {
               showNotification({
-                type: "warning",
-                title: "Upgrade Your Plan",
-                message: `You've used ${result.currentUsage || 0}/${
-                  result.limit || 0
-                } conversions. Upgrade for unlimited conversions!`,
-                duration: 10000,
+                type: 'error',
+                title: result.title || 'Usage Limit Reached',
+                message: result.message || result.reason || 'Conversion limit reached',
+                duration: 8000,
+                currentUsage: result.currentUsage,
+                limit: result.limit,
+                upgradeRequired: result.upgradeRequired,
+                action: result.upgradeRequired ? {
+                  label: 'Upgrade Plan',
+                  onClick: () => window.location.href = '/billing',
+                  external: true
+                } : undefined
               });
-            }, 1000);
-          } else {
-            // Show other detailed errors
+            }
+            
+            throw new Error('Usage limit exceeded');
+          }
+          
+          // Handle other JSON errors
+          const errorTitle = result.title || 'Conversion Failed';
+          const errorMessage = result.message || result.error || result.details || 'Unknown error occurred';
+          
+          if (showNotification) {
             showNotification({
-              type: "error",
+              type: 'error',
               title: errorTitle,
               message: errorMessage,
-              duration: 8000,
+              duration: 8000
             });
           }
-
+          
           throw new Error(errorMessage);
         }
-
+        
         // If we reach here, conversion was successful via JSON response
         setConversionResult(result);
-
+        
         // Handle download URL if provided
         if (result.downloadUrl) {
           try {
@@ -269,47 +270,66 @@ const ConvertTools = () => {
                 },
               }
             );
-
+            
             if (!downloadResponse.ok) {
-              throw new Error("Failed to fetch converted file");
+              throw new Error('Failed to fetch converted file');
             }
-
+            
             const blob = await downloadResponse.blob();
             const url = window.URL.createObjectURL(blob);
             setDownloadUrl(url);
-
+            
             // Save to My Files
             if (blob) {
               try {
-                await saveToMyFiles(
-                  blob,
-                  result.convertedFilename || "converted-file",
-                  selectedTool.id
-                );
+                await saveToMyFiles(blob, result.convertedFilename || "converted-file", selectedTool.id);
+                
+                if (showNotification) {
+                  showNotification({
+                    type: 'success',
+                    title: 'File Saved',
+                    message: 'Converted file automatically saved to My Files',
+                    duration: 5000
+                  });
+                }
               } catch (saveError) {
-                console.warn("Failed to save file:", saveError);
+                console.warn('Failed to save file:', saveError);
+                if (showNotification) {
+                  showNotification({
+                    type: 'warning',
+                    title: 'Save Failed',
+                    message: 'File converted but could not be saved to My Files',
+                    duration: 5000
+                  });
+                }
               }
             }
           } catch (downloadError) {
-            console.error("Download error:", downloadError);
+            console.error('Download error:', downloadError);
+            if (showNotification) {
+              showNotification({
+                type: 'error',
+                title: 'Download Error',
+                message: 'Failed to download converted file',
+                duration: 5000
+              });
+            }
           }
         }
-
+        
         // Show success notification
-        showNotification({
-          type: "success",
-          title: result.title || "Conversion Successful!",
-          message:
-            result.message || `Your file has been converted successfully`,
-          duration: 5000,
-        });
-      }
+        if (showNotification) {
+          showNotification({
+            type: 'success',
+            title: result.title || 'Conversion Successful!',
+            message: result.message || `Your file has been converted successfully`,
+            duration: 5000
+          });
+        }
+        
+      } 
       // Handle direct file responses (PDF, images, etc.)
-      else if (
-        contentType &&
-        (contentType.includes("application/pdf") ||
-          contentType.includes("image/"))
-      ) {
+      else if (contentType && (contentType.includes("application/pdf") || contentType.includes("image/"))) {
         if (!response.ok) {
           // Try to read error message from response
           const errorText = await response.text();
@@ -317,18 +337,34 @@ const ConvertTools = () => {
           try {
             errorData = JSON.parse(errorText);
           } catch {
-            errorData = {
-              error: errorText || `HTTP error! status: ${response.status}`,
-            };
+            errorData = { error: errorText || `HTTP error! status: ${response.status}` };
           }
-
-          throw new Error(
-            errorData.error ||
-              errorData.message ||
-              `Conversion failed with status: ${response.status}`
-          );
+          
+          // Check for limit exceeded in error response
+          if (errorData.type === 'limit_exceeded') {
+            if (showNotification) {
+              showNotification({
+                type: 'error',
+                title: errorData.title || 'Usage Limit Reached',
+                message: errorData.message || errorData.reason || 'Conversion limit reached',
+                duration: 8000,
+                currentUsage: errorData.currentUsage,
+                limit: errorData.limit,
+                upgradeRequired: errorData.upgradeRequired,
+                action: errorData.upgradeRequired ? {
+                  label: 'Upgrade Plan',
+                  onClick: () => window.location.href = '/billing',
+                  external: true
+                } : undefined
+              });
+            }
+            
+            throw new Error('Usage limit exceeded');
+          }
+          
+          throw new Error(errorData.error || errorData.message || `Conversion failed with status: ${response.status}`);
         }
-
+        
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
         setDownloadUrl(url);
@@ -349,104 +385,133 @@ const ConvertTools = () => {
           convertedFilename: filename,
           downloadUrl: url,
         };
-
+        
         setConversionResult(successResult);
 
         // Save to My Files
         if (blob) {
           try {
             await saveToMyFiles(blob, filename, selectedTool.id);
+            
+            if (showNotification) {
+              showNotification({
+                type: 'success',
+                title: 'File Saved',
+                message: 'Converted file automatically saved to My Files',
+                duration: 5000
+              });
+            }
           } catch (saveError) {
-            console.warn("Failed to save file:", saveError);
+            console.warn('Failed to save file:', saveError);
+            if (showNotification) {
+              showNotification({
+                type: 'warning',
+                title: 'Save Failed',
+                message: 'File converted but could not be saved to My Files',
+                duration: 5000
+              });
+            }
           }
         }
 
         // Show success notification
-        showNotification({
-          type: "success",
-          title: "Conversion Successful!",
-          message: `Your file has been converted to ${
-            selectedTool.name.includes("to PDF")
-              ? "PDF"
-              : selectedTool.name.replace("PDF to ", "")
-          }`,
-          duration: 5000,
-        });
-      }
+        if (showNotification) {
+          showNotification({
+            type: 'success',
+            title: 'Conversion Successful!',
+            message: `Your file has been converted to ${selectedTool.name.includes('to PDF') ? 'PDF' : selectedTool.name.replace('PDF to ', '')}`,
+            duration: 5000
+          });
+        }
+      } 
       // Handle other response types
       else {
         const responseText = await response.text();
         let errorData;
-
+        
         try {
           errorData = JSON.parse(responseText);
         } catch {
-          errorData = {
-            error: responseText || `Unexpected response type: ${contentType}`,
-          };
+          errorData = { error: responseText || `Unexpected response type: ${contentType}` };
         }
-
+        
         if (!response.ok) {
-          throw new Error(
-            errorData.error ||
-              errorData.message ||
-              `HTTP error! status: ${response.status}`
-          );
+          // Check for limit exceeded in error response
+          if (errorData.type === 'limit_exceeded') {
+            if (showNotification) {
+              showNotification({
+                type: 'error',
+                title: errorData.title || 'Usage Limit Reached',
+                message: errorData.message || errorData.reason || 'Conversion limit reached',
+                duration: 8000,
+                currentUsage: errorData.currentUsage,
+                limit: errorData.limit,
+                upgradeRequired: errorData.upgradeRequired,
+                action: errorData.upgradeRequired ? {
+                  label: 'Upgrade Plan',
+                  onClick: () => window.location.href = '/billing',
+                  external: true
+                } : undefined
+              });
+            }
+            
+            throw new Error('Usage limit exceeded');
+          }
+          
+          throw new Error(errorData.error || errorData.message || `HTTP error! status: ${response.status}`);
         }
-
+        
         // If we get here with a successful but unexpected response, show generic success
         setConversionResult({
           success: true,
           convertedFilename: "converted-file",
         });
-
-        showNotification({
-          type: "success",
-          title: "Conversion Completed",
-          message: "Your file has been processed successfully",
-          duration: 5000,
-        });
+        
+        if (showNotification) {
+          showNotification({
+            type: 'success',
+            title: 'Conversion Completed',
+            message: 'Your file has been processed successfully',
+            duration: 5000
+          });
+        }
       }
+
     } catch (error) {
-      console.error("Conversion error:", error);
-
-      // Show detailed error notification
-      let errorTitle = "Conversion Failed";
-      let errorMessage = error.message;
-
-      // Handle specific error types with better messages
-      if (
-        error.message.includes("Usage limit exceeded") ||
-        error.message.includes("limit reached")
-      ) {
-        errorTitle = "Usage Limit Reached";
-        errorMessage =
-          "You have reached your monthly conversion limit. Please upgrade your plan or wait until next month.";
-      } else if (error.message.includes("File too large")) {
-        errorTitle = "File Too Large";
-      } else if (error.message.includes("Invalid file type")) {
-        errorTitle = "Invalid File Type";
-      } else if (
-        error.message.includes("network") ||
-        error.message.includes("Network")
-      ) {
-        errorTitle = "Network Error";
-        errorMessage = "Please check your internet connection and try again.";
-      } else if (
-        error.message.includes("401") ||
-        error.message.includes("unauthorized")
-      ) {
-        errorTitle = "Authentication Error";
-        errorMessage = "Your session has expired. Please log in again.";
-        localStorage.removeItem("token");
+      console.error('Conversion error:', error);
+      
+      // Don't show duplicate notifications for limit exceeded
+      if (!error.message.includes('Usage Limit Reached') && !error.message.includes('limit_exceeded')) {
+        // Show detailed error notification for other errors
+        let errorTitle = 'Conversion Failed';
+        let errorMessage = error.message;
+        
+        // Handle specific error types with better messages
+        if (error.message.includes('Usage limit exceeded') || error.message.includes('limit reached')) {
+          errorTitle = 'Usage Limit Reached';
+          errorMessage = 'You have reached your monthly conversion limit. Please upgrade your plan or wait until next month.';
+        } else if (error.message.includes('File too large')) {
+          errorTitle = 'File Too Large';
+        } else if (error.message.includes('Invalid file type')) {
+          errorTitle = 'Invalid File Type';
+        } else if (error.message.includes('network') || error.message.includes('Network')) {
+          errorTitle = 'Network Error';
+          errorMessage = 'Please check your internet connection and try again.';
+        } else if (error.message.includes('401') || error.message.includes('unauthorized')) {
+          errorTitle = 'Authentication Error';
+          errorMessage = 'Your session has expired. Please log in again.';
+          localStorage.removeItem('token');
+        }
+        
+        if (showNotification) {
+          showNotification({
+            type: 'error',
+            title: errorTitle,
+            message: errorMessage,
+            duration: 8000
+          });
+        }
       }
-
-      showNotification({
-        type: "error",
-        title: errorTitle,
-        message: errorMessage,
-        duration: 8000,
-      });
     } finally {
       setIsConverting(false);
     }
@@ -470,21 +535,23 @@ const ConvertTools = () => {
       a.click();
       document.body.removeChild(a);
 
-      showNotification({
-        type: "success",
-        title: "Download Started",
-        message: `Downloading ${
-          conversionResult.convertedFilename || "converted file"
-        }`,
-        duration: 3000,
-      });
+      if (showNotification) {
+        showNotification({
+          type: 'success',
+          title: 'Download Started',
+          message: `Downloading ${conversionResult.convertedFilename || 'converted file'}`,
+          duration: 3000
+        });
+      }
     } catch (error) {
-      showNotification({
-        type: "error",
-        title: "Download Failed",
-        message: error.message,
-        duration: 5000,
-      });
+      if (showNotification) {
+        showNotification({
+          type: 'error',
+          title: 'Download Failed',
+          message: error.message,
+          duration: 5000
+        });
+      }
     }
   };
 
@@ -496,13 +563,15 @@ const ConvertTools = () => {
     setShowPreview(false);
     setDownloadUrl(null);
     setFileSaved(false);
-
-    showNotification({
-      type: "info",
-      title: "Reset",
-      message: "Ready to convert another file",
-      duration: 3000,
-    });
+    
+    if (showNotification) {
+      showNotification({
+        type: 'info',
+        title: 'Reset',
+        message: 'Ready to convert another file',
+        duration: 3000
+      });
+    }
   };
 
   if (selectedTool) {

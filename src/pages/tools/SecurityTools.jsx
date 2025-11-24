@@ -1,5 +1,4 @@
 // src/pages/tools/SecurityTools.jsx
-
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import {
@@ -15,8 +14,12 @@ import {
   FileText,
   Trash2,
   List,
+  Save,
+  AlertTriangle,
 } from "lucide-react";
+import { useNotification } from "@/contexts/NotificationContext";
 import Metatags from "../../SEO/metatags";
+
 const API_URL = import.meta.env.VITE_API_URL;
 
 const tools = [
@@ -50,6 +53,8 @@ const SecurityTools = () => {
   const [downloadUrl, setDownloadUrl] = useState(null);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const [fileSaved, setFileSaved] = useState(false);
+  const [securityId, setSecurityId] = useState(null);
 
   // Encryption states
   const [password, setPassword] = useState("");
@@ -58,7 +63,7 @@ const SecurityTools = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // 2FApdfworkstection states
+  // 2FA Protection states
   const [twoFactorCode, setTwoFactorCode] = useState("");
   const [qrCodeUrl, setQrCodeUrl] = useState("");
   const [secretKey, setSecretKey] = useState("");
@@ -78,12 +83,16 @@ const SecurityTools = () => {
   const [accessUserEmail, setAccessUserEmail] = useState("");
   const [sharedFiles, setSharedFiles] = useState([]);
 
+  const { showNotification } = useNotification();
+
   const handleToolClick = (tool) => {
     setSelectedTool(tool);
     setFiles([]);
     setDownloadUrl(null);
     setError(null);
     setSuccess(null);
+    setFileSaved(false);
+    setSecurityId(null);
     setPassword("");
     setUseRandomPassword(false);
     setGeneratedPassword("");
@@ -119,6 +128,75 @@ const SecurityTools = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
+  // Get auth token from localStorage
+  const getAuthToken = () => {
+    return localStorage.getItem('token');
+  };
+
+  // Enhanced fetch with auth
+  const authFetch = async (url, options = {}) => {
+    const token = getAuthToken();
+    const headers = {
+      ...options.headers,
+      ...(token && { 'Authorization': `Bearer ${token}` }),
+    };
+
+    return fetch(url, { ...options, headers });
+  };
+
+  // Handle response for file operations
+  const handleFileResponse = async (response, operation) => {
+    // Check for JSON responses first (errors or limit exceeded)
+    const contentType = response.headers.get('content-type');
+    
+    if (contentType && contentType.includes('application/json')) {
+      const result = await response.json();
+      
+      // Check for limit exceeded error
+      if (result.type === 'limit_exceeded') {
+        showNotification({
+          type: 'error',
+          title: result.title || 'Usage Limit Reached',
+          message: result.message || result.reason || 'Security tools limit reached',
+          duration: 8000,
+          currentUsage: result.currentUsage,
+          limit: result.limit,
+          upgradeRequired: result.upgradeRequired,
+          action: result.upgradeRequired ? {
+            label: 'Upgrade Plan',
+            onClick: () => window.location.href = '/billing',
+            external: true
+          } : undefined
+        });
+        
+        throw new Error('Usage limit exceeded');
+      }
+      
+      // Handle other JSON errors
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || result.message || `${operation} failed: ${response.statusText}`);
+      }
+      
+      return result;
+    }
+
+    if (!response.ok) {
+      const errorResult = await response.json();
+      throw new Error(errorResult.error || `${operation} failed: ${response.statusText}`);
+    }
+
+    // Check if file was saved to database
+    const securityId = response.headers.get('X-Security-Id');
+    const fileSaved = response.headers.get('X-File-Saved') === 'true';
+    
+    if (fileSaved && securityId) {
+      setFileSaved(true);
+      setSecurityId(securityId);
+    }
+
+    return response;
+  };
+
   // Encryption Functions
   const handleEncryption = async () => {
     if (!files.length) {
@@ -133,23 +211,20 @@ const SecurityTools = () => {
     setProcessing(true);
     setError(null);
     setDownloadUrl(null);
+    setFileSaved(false);
+    setSecurityId(null);
 
     const formData = new FormData();
     formData.append("files", files[0]);
 
     try {
-      const response = await fetch(`${API_URL}/api/security/encrypt`, {
+      const response = await authFetch(`${API_URL}/api/tools/security/encrypt`, {
         method: "POST",
         headers: useRandomPassword ? {} : { Password: password },
         body: formData,
       });
 
-      if (!response.ok) {
-        const errorResult = await response.json();
-        throw new Error(
-          errorResult.error || `Encryption failed: ${response.statusText}`
-        );
-      }
+      await handleFileResponse(response, "Encryption");
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -161,9 +236,26 @@ const SecurityTools = () => {
       }
 
       setSuccess("File encrypted successfully!");
+      
+      showNotification({
+        type: 'success',
+        title: 'File Encrypted',
+        message: 'Your file has been encrypted successfully!',
+        duration: 5000
+      });
+
     } catch (err) {
       console.error("Encryption failed:", err);
-      setError(err.message);
+      // Don't show duplicate notifications for limit exceeded
+      if (!err.message.includes('Usage Limit Reached') && !err.message.includes('limit_exceeded')) {
+        setError(err.message);
+        showNotification({
+          type: 'error',
+          title: 'Encryption Failed',
+          message: err.message,
+          duration: 5000
+        });
+      }
     } finally {
       setProcessing(false);
     }
@@ -182,38 +274,52 @@ const SecurityTools = () => {
     setProcessing(true);
     setError(null);
     setDownloadUrl(null);
+    setFileSaved(false);
+    setSecurityId(null);
 
     const formData = new FormData();
     formData.append("files", files[0]);
     const decryptionPassword = password || generatedPassword;
 
     try {
-      const response = await fetch(`${API_URL}/api/security/decrypt`, {
+      const response = await authFetch(`${API_URL}/api/tools/security/decrypt`, {
         method: "POST",
         headers: { Password: decryptionPassword },
         body: formData,
       });
 
-      if (!response.ok) {
-        const errorResult = await response.json();
-        throw new Error(
-          errorResult.error || `Decryption failed: ${response.statusText}`
-        );
-      }
+      await handleFileResponse(response, "Decryption");
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       setDownloadUrl(url);
       setSuccess("File decrypted successfully!");
+      
+      showNotification({
+        type: 'success',
+        title: 'File Decrypted',
+        message: 'Your file has been decrypted successfully!',
+        duration: 5000
+      });
+
     } catch (err) {
       console.error("Decryption failed:", err);
-      setError(err.message);
+      // Don't show duplicate notifications for limit exceeded
+      if (!err.message.includes('Usage Limit Reached') && !err.message.includes('limit_exceeded')) {
+        setError(err.message);
+        showNotification({
+          type: 'error',
+          title: 'Decryption Failed',
+          message: err.message,
+          duration: 5000
+        });
+      }
     } finally {
       setProcessing(false);
     }
   };
 
-  // 2FApdfworkstection Functions
+  // 2FA Protection Functions
   const protectPDFWith2FA = async () => {
     if (!files.length) {
       setError("Please select a PDF file to protect");
@@ -226,30 +332,50 @@ const SecurityTools = () => {
 
     setProcessing(true);
     setError(null);
+    setFileSaved(false);
+    setSecurityId(null);
 
     const formData = new FormData();
     formData.append("files", files[0]);
     formData.append("identifier", identifier);
 
     try {
-      const response = await fetch(`${API_URL}/api/security/protect-pdf-2fa`, {
+      const response = await authFetch(`${API_URL}/api/tools/security/protect-pdf-2fa`, {
         method: "POST",
         body: formData,
       });
 
-      const result = await response.json();
-      if (!response.ok)
-        throw new Error(result.error || "Failed to protect PDF with 2FA");
-
+      const result = await handleFileResponse(response, "2FA Protection");
+      
       setQrCodeUrl(result.qrCode);
       setSecretKey(result.secret);
       setProtectedFileId(result.fileId);
+      setSecurityId(result.securityId);
+      setFileSaved(!!result.securityId);
+      
       setSuccess(
         "PDF protected with 2FA successfully! Scan the QR code with your authenticator app."
       );
+      
+      showNotification({
+        type: 'success',
+        title: 'PDF Protected with 2FA',
+        message: 'Your PDF is now protected with two-factor authentication!',
+        duration: 5000
+      });
+
     } catch (err) {
-      console.error("2FApdfworkstection failed:", err);
-      setError(err.message);
+      console.error("2FA Protection failed:", err);
+      // Don't show duplicate notifications for limit exceeded
+      if (!err.message.includes('Usage Limit Reached') && !err.message.includes('limit_exceeded')) {
+        setError(err.message);
+        showNotification({
+          type: 'error',
+          title: '2FA Protection Failed',
+          message: err.message,
+          duration: 5000
+        });
+      }
     } finally {
       setProcessing(false);
     }
@@ -267,9 +393,12 @@ const SecurityTools = () => {
 
     setProcessing(true);
     setError(null);
+    setDownloadUrl(null);
+    setFileSaved(false);
+    setSecurityId(null);
 
     try {
-      const response = await fetch(`${API_URL}/api/security/access-pdf-2fa`, {
+      const response = await authFetch(`${API_URL}/api/tools/security/access-pdf-2fa`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -278,18 +407,32 @@ const SecurityTools = () => {
         }),
       });
 
-      if (!response.ok) {
-        const errorResult = await response.json();
-        throw new Error(errorResult.error || "Failed to access protected PDF");
-      }
+      await handleFileResponse(response, "2FA PDF access");
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       setDownloadUrl(url);
       setSuccess("2FA verification successful! PDF accessed.");
+      
+      showNotification({
+        type: 'success',
+        title: '2FA Verification Successful',
+        message: 'PDF accessed successfully with 2FA!',
+        duration: 5000
+      });
+
     } catch (err) {
       console.error("2FA PDF access failed:", err);
-      setError(err.message);
+      // Don't show duplicate notifications for limit exceeded
+      if (!err.message.includes('Usage Limit Reached') && !err.message.includes('limit_exceeded')) {
+        setError(err.message);
+        showNotification({
+          type: 'error',
+          title: '2FA Access Failed',
+          message: err.message,
+          duration: 5000
+        });
+      }
     } finally {
       setProcessing(false);
     }
@@ -299,7 +442,7 @@ const SecurityTools = () => {
     setProcessing(true);
     setError(null);
     try {
-      const response = await fetch(`${API_URL}/api/security/list-2fa-files`);
+      const response = await authFetch(`${API_URL}/api/tools/security/list-2fa-files`);
       const result = await response.json();
       if (!response.ok)
         throw new Error(result.error || "Failed to list protected files");
@@ -317,7 +460,7 @@ const SecurityTools = () => {
       return;
     setProcessing(true);
     try {
-      const response = await fetch(`${API_URL}/api/security/remove-2fa-file`, {
+      const response = await authFetch(`${API_URL}/api/tools/security/remove-2fa-file`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fileId }),
@@ -355,6 +498,8 @@ const SecurityTools = () => {
 
     setProcessing(true);
     setError(null);
+    setFileSaved(false);
+    setSecurityId(null);
 
     const formData = new FormData();
     formData.append("files", files[0]);
@@ -362,20 +507,38 @@ const SecurityTools = () => {
     formData.append("permissions", JSON.stringify(permissions));
 
     try {
-      const response = await fetch(`${API_URL}/api/security/share-file`, {
+      const response = await authFetch(`${API_URL}/api/tools/security/share-file`, {
         method: "POST",
         body: formData,
       });
 
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Failed to share file");
+      const result = await handleFileResponse(response, "File Sharing");
 
       setSharedFileId(result.fileId);
       setAccessList(result.accessList || []);
+      setSecurityId(result.securityId);
+      setFileSaved(!!result.securityId);
       setSuccess(`File shared with ${userEmail} successfully!`);
+      
+      showNotification({
+        type: 'success',
+        title: 'File Shared',
+        message: `File successfully shared with ${userEmail}!`,
+        duration: 5000
+      });
+
     } catch (err) {
       console.error("File sharing failed:", err);
-      setError(err.message);
+      // Don't show duplicate notifications for limit exceeded
+      if (!err.message.includes('Usage Limit Reached') && !err.message.includes('limit_exceeded')) {
+        setError(err.message);
+        showNotification({
+          type: 'error',
+          title: 'File Sharing Failed',
+          message: err.message,
+          duration: 5000
+        });
+      }
     } finally {
       setProcessing(false);
     }
@@ -389,9 +552,11 @@ const SecurityTools = () => {
 
     setProcessing(true);
     setError(null);
+    setFileSaved(false);
+    setSecurityId(null);
 
     try {
-      const response = await fetch(`${API_URL}/api/security/add-user-access`, {
+      const response = await authFetch(`${API_URL}/api/tools/security/add-user-access`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -401,20 +566,36 @@ const SecurityTools = () => {
         }),
       });
 
-      const result = await response.json();
-      if (!response.ok)
-        throw new Error(result.error || "Failed to add user access");
+      const result = await handleFileResponse(response, "Add User Access");
 
       setAccessList(result.accessList || []);
+      setSecurityId(result.securityId);
+      setFileSaved(!!result.securityId);
       setSuccess(`Access granted to ${userEmail} successfully!`);
+      
+      showNotification({
+        type: 'success',
+        title: 'Access Granted',
+        message: `Access successfully granted to ${userEmail}!`,
+        duration: 5000
+      });
+
     } catch (err) {
       setError(err.message);
+      // Don't show duplicate notifications for limit exceeded
+      if (!err.message.includes('Usage Limit Reached') && !err.message.includes('limit_exceeded')) {
+        showNotification({
+          type: 'error',
+          title: 'Access Grant Failed',
+          message: err.message,
+          duration: 5000
+        });
+      }
     } finally {
       setProcessing(false);
     }
   };
 
-  // FIXED: Access Shared File Function
   const accessSharedFile = async () => {
     if (!sharedFileId || !accessUserEmail) {
       setError("Please enter file ID and your email");
@@ -424,10 +605,12 @@ const SecurityTools = () => {
     setProcessing(true);
     setError(null);
     setDownloadUrl(null);
+    setFileSaved(false);
+    setSecurityId(null);
 
     try {
-      const response = await fetch(
-        `${API_URL}/api/security/access-shared-file`,
+      const response = await authFetch(
+        `${API_URL}/api/tools/security/access-shared-file`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -438,10 +621,7 @@ const SecurityTools = () => {
         }
       );
 
-      if (!response.ok) {
-        const errorResult = await response.json();
-        throw new Error(errorResult.error || "Failed to access shared file");
-      }
+      await handleFileResponse(response, "Access shared file");
 
       // Get the original filename from headers
       const originalFilename =
@@ -457,9 +637,26 @@ const SecurityTools = () => {
       setSuccess(
         `File "${originalFilename}" accessed successfully! Ready to download.`
       );
+      
+      showNotification({
+        type: 'success',
+        title: 'File Accessed',
+        message: `Successfully accessed shared file "${originalFilename}"!`,
+        duration: 5000
+      });
+
     } catch (err) {
       console.error("Access shared file failed:", err);
-      setError(err.message);
+      // Don't show duplicate notifications for limit exceeded
+      if (!err.message.includes('Usage Limit Reached') && !err.message.includes('limit_exceeded')) {
+        setError(err.message);
+        showNotification({
+          type: 'error',
+          title: 'File Access Failed',
+          message: err.message,
+          duration: 5000
+        });
+      }
     } finally {
       setProcessing(false);
     }
@@ -473,8 +670,8 @@ const SecurityTools = () => {
     setProcessing(true);
     setError(null);
     try {
-      const response = await fetch(
-        `${API_URL}/api/security/file-access-list?fileId=${sharedFileId}`
+      const response = await authFetch(
+        `${API_URL}/api/tools/security/file-access-list?fileId=${sharedFileId}`
       );
       const result = await response.json();
       if (!response.ok)
@@ -492,7 +689,7 @@ const SecurityTools = () => {
     setProcessing(true);
     setError(null);
     try {
-      const response = await fetch(`${API_URL}/api/security/list-shared-files`);
+      const response = await authFetch(`${API_URL}/api/tools/security/list-shared-files`);
       const result = await response.json();
       if (!response.ok)
         throw new Error(result.error || "Failed to list shared files");
@@ -516,7 +713,6 @@ const SecurityTools = () => {
     return "downloaded_file";
   };
 
-  // FIXED: Get shared file download name
   const getSharedFileDownloadName = () => {
     if (sharedFiles.length > 0 && sharedFileId) {
       const file = sharedFiles.find((f) => f.fileId === sharedFileId);
@@ -545,6 +741,18 @@ const SecurityTools = () => {
             </p>
           </div>
         </div>
+
+        {/* File Saved Indicator */}
+        {fileSaved && (
+          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+            <div className="flex items-center text-green-800">
+              <Save className="h-4 w-4 mr-2" />
+              <span className="text-sm font-medium">
+                File saved to your security history {securityId && `(ID: ${securityId})`}
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Encryption Tool */}
         {selectedTool.id === "encryption" && (
@@ -579,25 +787,6 @@ const SecurityTools = () => {
             )}
 
             <div className="mt-6 space-y-4">
-              {/* <div className="flex items-center p-3 bg-gray-50 rounded-lg">
-                <input
-                  type="checkbox"
-                  id="random-password"
-                  checked={useRandomPassword}
-                  onChange={(e) => {
-                    setUseRandomPassword(e.target.checked);
-                    if (e.target.checked) setPassword("");
-                  }}
-                  className="mr-3 w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
-                />
-                <label
-                  htmlFor="random-password"
-                  className="text-sm font-medium text-gray-700"
-                >
-                  Use randomly generated password
-                </label>
-              </div> */}
-
               {!useRandomPassword && (
                 <div className="p-3 bg-gray-50 rounded-lg">
                   <label className="block text-sm font-semibold mb-2 text-gray-700">
@@ -706,7 +895,7 @@ const SecurityTools = () => {
           </div>
         )}
 
-        {/* 2FApdfworkstection Tool */}
+        {/* 2FA Protection Tool */}
         {selectedTool.id === "auth" && (
           <div className="mt-8 space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -905,7 +1094,7 @@ const SecurityTools = () => {
                   <div className="p-4 border border-green-200 rounded-xl bg-green-50">
                     <h3 className="text-lg font-semibold mb-3 text-green-800 flex items-center">
                       <ShieldCheck className="h-5 w-5 mr-2" />
-                      Newpdfworkstected Successfully!
+                      Protected Successfully!
                     </h3>
                     <div className="flex flex-col items-center">
                       <img
