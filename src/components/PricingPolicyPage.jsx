@@ -3,11 +3,12 @@ import { motion } from "framer-motion";
 import Metatags from "../SEO/metatags";
 
 const metaPropsData = {
-  title: "Pricing Policy Free PDF Tools Subscription Plans PDF Works",
+  title:
+    "PDF Works Tools Pricing - Online PDF Editor & Converter Subscription Plans",
   description:
-    "PDF Works pricing policy subscription plans billing renewal refund details Free PDF tools online PDF editor converter compressor payment methods",
+    "Explore PDF Works pricing policy and subscription plans. Get details about our online PDF editor, converter, compressor billing, renewal and refund policies for all users.",
   keyword:
-    "free pdf tools pricing policy, pdf works subscription plans, billing renewal refund, online pdf editor payment methods",
+    "pdf tools pricing, free pdf editor plans, pdf converter subscription, online pdf tools cost, pdf works pricing policy, document editor plans",
   image:
     "https://res.cloudinary.com/dcfjt8shw/image/upload/v1761288318/wn8m8g8skdpl6iz2rwoa.svg",
   url: "https://pdfworks.in/pricing-policy",

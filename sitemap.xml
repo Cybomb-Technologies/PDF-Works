@@ -8,9 +8,53 @@
 
 
 <url>
-  <loc>https://pdfworks.in/</loc>
-  <lastmod>2025-11-19T06:57:13+00:00</lastmod>
+<loc>https://pdfworks.in/</loc>
+<lastmod>2025-11-11T06:00:00+00:00</lastmod>
+<priority>0.1</priority>
 </url>
-
-
+<url>
+<loc>https://pdfworks.in/about</loc>
+<lastmod>2025-11-11T06:00:00+00:00</lastmod>
+<priority>0.1</priority>
+</url>
+<url>
+<loc>https://pdfworks.in/blog</loc>
+<lastmod>2025-11-11T06:00:00+00:00</lastmod>
+<priority>0.1</priority>
+</url>
+<url>
+<loc>https://pdfworks.in/press</loc>
+<lastmod>2025-11-11T06:00:00+00:00</lastmod>
+<priority>0.1</priority>
+</url>
+<url>
+<loc>https://pdfworks.in/security</loc>
+<lastmod>2025-11-11T06:00:00+00:00</lastmod>
+<priority>0.5</priority>
+</url>
+<url>
+<loc>https://pdfworks.in/faq</loc>
+<lastmod>2025-11-11T06:00:00+00:00</lastmod>
+<priority>0.5</priority>
+</url>
+<url>
+<loc>https://pdfworks.in/tools</loc>
+<lastmod>2025-11-11T06:00:00+00:00</lastmod>
+<priority>0.6</priority>
+</url>
+<url>
+<loc>https://pdfworks.in/files</loc>
+<lastmod>2025-11-11T06:00:00+00:00</lastmod>
+<priority>0.6</priority>
+</url>
+<url>
+<loc>https://pdfworks.in/privacy</loc>
+<lastmod>2025-11-11T06:00:00+00:00</lastmod>
+<priority>0.6</priority>
+</url>
+<url>
+<loc>https://pdfworks.in/pricing-policy</loc></loc>
+<lastmod>2025-11-11T06:00:00+00:00</lastmod>
+<priority>0.6</priority>
+</url>
 </urlset>

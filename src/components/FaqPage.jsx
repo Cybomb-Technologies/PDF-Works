@@ -44,9 +44,10 @@ const FaqPage = () => {
   ];
 
   const metaPropsData = {
-    title: "FAQ - Free PDF Tools Questions & Answers | PDF Works",
+    title: "FAQ - PDF Works Tools Questions & Answers",
+
     description:
-      "Get answers to common questions about our free PDF tools. Learn about security, file formats, e-signatures, OCR, and mobile usage. Free PDF editor FAQ.",
+      "Find answers to all your questions about our free PDF Works tools. Learn about security, file formats, e-signatures, features, and mobile usage in our comprehensive PDF editor FAQ.",
     keyword:
       "free pdf tools faq, pdf works questions, pdf editor faq, free pdf converter questions, online pdf tools help, pdf works support, free pdf editor faq",
     image:
