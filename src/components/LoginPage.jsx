@@ -525,11 +525,11 @@ const LoginPage = () => {
   };
 
   const metaPropsData = {
-    title: "Login Free PDF Tools Account PDF Works",
+    title: "Login to PDF Works - Access Your Free & Premium Account",
     description:
-      "Login to your PDF Works account access free PDF tools online PDF editor converter compressor Sign in manage your PDF files documents",
+      "Sign in to your PDF Works account to access free PDF editing tools. Use our online PDF editor, converter, and compressor to manage and process your documents securely.",
     keyword:
-      "free pdf tools login, pdf works account sign in, online pdf editor account, free pdf converter login, pdf tools user account",
+      "pdf works login, free pdf tools account, online pdf editor sign in, pdf converter login, secure document management",
     image:
       "https://res.cloudinary.com/dcfjt8shw/image/upload/v1761288318/wn8m8g8skdpl6iz2rwoa.svg",
     url: "https://pdfworks.in/login",

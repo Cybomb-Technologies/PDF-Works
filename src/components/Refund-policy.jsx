@@ -3,11 +3,11 @@ import { motion } from "framer-motion";
 import Metatags from "../SEO/metatags";
 
 const metaPropsData = {
-  title: "Refund Policy Free PDF Tools Subscription PDF Works",
+  title: "Refund Policy - PDF Tools Subscription Payments | PDF Works",
   description:
-    "PDF Works refund policy subscription payments eligibility Free PDF tools online PDF editor converter compressor refund process terms",
+    "PDF Works refund policy outlines subscription payments, eligibility criteria, and refund processes for our free online PDF editor, converter, and compressor tools.",
   keyword:
-    "free pdf tools refund policy, pdf works subscription refund, payment terms online pdf editor, refund process money back policy",
+    "pdf tools refund policy, pdf works subscription refund, payment terms online pdf editor, refund process, money back policy",
   image:
     "https://res.cloudinary.com/dcfjt8shw/image/upload/v1761288318/wn8m8g8skdpl6iz2rwoa.svg",
   url: "https://pdfworks.in/refund-policy",
