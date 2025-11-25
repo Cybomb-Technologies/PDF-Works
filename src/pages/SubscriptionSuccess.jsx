@@ -56,7 +56,7 @@ const SubscriptionSuccess = () => {
           }
           toast({
             title: "Success!",
-            description: "Your subscription has been activated successfully",
+            description: "Your subscription has been activated successfully and your usage progress has been preserved.",
           });
         } else {
           throw new Error(data.message || "Payment verification failed");
@@ -143,8 +143,7 @@ const SubscriptionSuccess = () => {
           </h1>
 
           <p className="text-gray-600 mb-6">
-            Your subscription has been activated successfully. You now have
-            access to all premium features.
+            Your subscription has been activated successfully. You now have access to all premium features, and your current usage progress has been preserved.
           </p>
 
           <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">

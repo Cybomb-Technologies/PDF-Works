@@ -7,6 +7,7 @@ const cors = require("cors");
 const path = require("path");
 const multer = require("multer");
 const fs = require("fs");
+const { runCleanupTask } = require("./utils/cleanup");
 
 // ROUTES
 const userRoutes = require("./routes/userRoutes");
@@ -23,6 +24,9 @@ const EditRoutes = require("./routes/tools-routes/Edit/Edit-Route");
 const optimizeRoutes = require('./routes/tools-routes/Optimize/Optimize-Route');
 const fileRoutes = require("./routes/fileRoutes");
 const blogRoutes = require("./routes/blogRoutes");
+const dashboardRoutes = require("./routes/dashboard/dashboard-routes");
+const activitiesRoutes = require("./routes/activities/activities-routes");
+const adminDashboardRoutes = require('./routes/adminDashboardRoutes');
 
 const app = express();
 
@@ -117,12 +121,16 @@ app.use("/api/files", fileRoutes);
 app.use("/api/advanced", AdvancedRoutes);
 app.use("/api/tools/pdf-editor", EditRoutes);
 app.use("/api/blogs", blogRoutes);
+app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/activities", activitiesRoutes);
+app.use('/api/admin/dashboard', adminDashboardRoutes);
 
 // TOOLS ROUTES (from file 2)
 app.use('/api/tools/advanced', AdvancedRoutes);
 app.use('/api/tools/organize', OrganizeRoutes);
 app.use('/api/tools/optimize', optimizeRoutes);
 app.use("/api/tools/security", SecurityRoutes);
+
 
 // Serve static files
 app.use("/api/tools/pdf-editor/downloads", express.static(path.join(__dirname, "uploads/edited")));
@@ -285,7 +293,7 @@ app.use((req, res) => {
 // MONGODB
 mongoose
   .connect("mongodb://sudesh.t%40cybomb.com:Cybomb%401234@147.93.111.96:27017/pdf-works?authSource=admin")
-  // .connect("mongodb://localhost:27017/pdf-tools")
+  //.connect("mongodb://localhost:27017/pdf-tools")
   .then(() => console.log("MongoDB connected successfully"))
   .catch((err) => {
     console.error("MongoDB connection error:", err);
@@ -319,4 +327,7 @@ app.listen(PORT, () => {
   console.log(`  Security Test: http://localhost:${PORT}/api/tools/security/test`);
   console.log("");
   console.log("✅ All tools are now available!");
-});
+}); 
+
+setInterval(runCleanupTask, 10 * 60 * 1000); // every 10 min
+console.log("⏳ Auto cleanup system enabled (1 hour expiration)");

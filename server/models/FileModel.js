@@ -1,3 +1,4 @@
+// models/FileModel.js
 const mongoose = require("mongoose");
 
 const fileSchema = new mongoose.Schema({
@@ -10,7 +11,7 @@ const fileSchema = new mongoose.Schema({
     required: true,
   },
   path: {
-    type: String,
+    type: String, 
     required: true,
   },
   size: {
@@ -28,12 +29,43 @@ const fileSchema = new mongoose.Schema({
   },
   category: {
     type: String,
-    enum: ["converted", "uploaded", "processed"],
+    enum: [
+      "converted", 
+      "organized", 
+      "optimized", 
+      "edited", 
+      "secured",
+      "advanced",
+      "uploaded"
+    ],
     default: "converted",
   },
   toolUsed: {
     type: String,
+    enum: [
+      // Convert tools
+      "pdf-to-image", "image-to-pdf", "word-to-pdf", "excel-to-pdf", "ppt-to-pdf",
+      // Organize tools
+      "merge", "split", "rotate",
+      // Optimize tools
+      "image-optimization", "code-minification", "cache-cleaning",
+      // Edit tools
+      "pdf-edit", "image-crop", "file-rename", "e-signature",
+      // Security tools
+      "encryption", "decryption", "2fa-protection", "file-sharing",
+      // Advanced tools
+      "automation", "api-connect", "analytics"
+    ],
     default: "convert",
+  },
+  toolCategory: {
+    type: String,
+    enum: ["convert", "organize", "optimize", "edit", "security", "advanced"],
+    required: true
+  },
+  metadata: {
+    type: Object,
+    default: {}
   },
   uploadedAt: {
     type: Date,
