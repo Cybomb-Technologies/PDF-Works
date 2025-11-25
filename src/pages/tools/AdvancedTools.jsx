@@ -102,6 +102,8 @@ const AdvancedTools = () => {
         requestBody = {}; // Analytics doesn't need body
       }
 
+      console.log('🔍 [FRONTEND DEBUG] Calling advanced tool:', tool.id);
+      
       // ✅ FIXED: Use unified route like OrganizeTools
       const response = await authFetch(`${API_URL}/api/advanced/${tool.id}`, {
         method: "POST",
@@ -110,10 +112,17 @@ const AdvancedTools = () => {
 
       const result = await response.json();
       
+      console.log('🔍 [FRONTEND DEBUG] Response received:', {
+        success: result.success,
+        type: result.type,
+        message: result.message
+      });
+      
       // Handle backend errors with detailed messages
       if (!response.ok || !result.success) {
         // Check for limit exceeded error
         if (result.type === 'limit_exceeded') {
+          console.log('🚫 [FRONTEND DEBUG] Limit exceeded detected');
           showNotification({
             type: 'error',
             title: result.title || 'Usage Limit Reached',
@@ -132,6 +141,7 @@ const AdvancedTools = () => {
           return;
         } else {
           // Show other detailed errors
+          console.log('❌ [FRONTEND DEBUG] Other error detected');
           showNotification({
             type: 'error',
             title: result.title || 'Operation Failed',
@@ -154,7 +164,7 @@ const AdvancedTools = () => {
       });
 
     } catch (err) {
-      console.error("Tool execution error:", err);
+      console.error("❌ [FRONTEND DEBUG] Tool execution error:", err);
       
       // Don't show duplicate notifications for limit exceeded
       if (!err.message.includes('Usage Limit Reached') && !err.message.includes('limit_exceeded')) {

@@ -92,18 +92,19 @@ const getAdvancedHistory = async (req, res) => {
   }
 };
 
-// ✅ FIXED: Unified handler for all advanced tools
+// ✅ FIXED: Unified handler for all advanced tools with COMPREHENSIVE DEBUGGING
 exports.handleAdvancedTool = async (req, res) => {
   try {
     const { tool } = req.params;
     const { url, method = "GET", body, headers, tasks } = req.body;
     const userId = req.user?.id;
 
-    console.log('🔍 Advanced tool request received:', {
+    console.log('\n🔍 [ADVANCED DEBUG] ===== START REQUEST =====');
+    console.log('🔍 [ADVANCED DEBUG] Request received:', {
       tool: tool,
-      body: req.body,
-      user: req.user,
-      userId: userId
+      userId: userId,
+      hasUser: !!req.user,
+      userData: req.user
     });
 
     // -------------------------------------------------------
@@ -111,17 +112,38 @@ exports.handleAdvancedTool = async (req, res) => {
     // -------------------------------------------------------
     if (userId) {
       try {
-        console.log('🔍 Checking advanced tools limits for user:', userId);
+        console.log('🔍 [ADVANCED DEBUG] Starting limit check for user:', userId);
+        console.log('🔍 [ADVANCED DEBUG] Feature being checked: "advanced-tools"');
+        
         const limitCheck = await checkLimits(userId, "advanced-tools");
-        console.log('🔍 Advanced tools limit check result:', {
+        
+        console.log('🔍 [ADVANCED DEBUG] Limit check result:', {
           allowed: limitCheck.allowed,
           reason: limitCheck.reason,
           currentUsage: limitCheck.usage?.advancedTools,
-          limit: limitCheck.plan?.advancedToolsLimit
+          limit: limitCheck.plan?.advancedToolsLimit,
+          planName: limitCheck.plan?.name,
+          userPlan: limitCheck.user?.planName
         });
+
+        // Log the entire limitCheck object to see everything
+        console.log('🔍 [ADVANCED DEBUG] Full limitCheck object:', JSON.stringify({
+          allowed: limitCheck.allowed,
+          reason: limitCheck.reason,
+          usage: limitCheck.usage,
+          plan: limitCheck.plan ? {
+            name: limitCheck.plan.name,
+            advancedToolsLimit: limitCheck.plan.advancedToolsLimit,
+            planId: limitCheck.plan.planId
+          } : null,
+          user: limitCheck.user ? {
+            planName: limitCheck.user.planName,
+            usage: limitCheck.user.usage
+          } : null
+        }, null, 2));
         
         if (!limitCheck.allowed) {
-          console.log('🚫 Advanced tools limit exceeded for user:', userId);
+          console.log('🚫 [ADVANCED DEBUG] Limit exceeded - returning error to frontend');
           return res.status(200).json({
             success: false,
             type: "limit_exceeded",
@@ -133,9 +155,9 @@ exports.handleAdvancedTool = async (req, res) => {
             upgradeRequired: true
           });
         }
-        console.log('✅ Advanced tools limits OK for user:', userId);
+        console.log('✅ [ADVANCED DEBUG] Limits OK - proceeding with operation');
       } catch (limitErr) {
-        console.error('❌ Advanced tools limit check error:', limitErr);
+        console.error('❌ [ADVANCED DEBUG] Limit check error:', limitErr);
         return res.status(200).json({
           success: false,
           type: "limit_exceeded",
@@ -145,7 +167,7 @@ exports.handleAdvancedTool = async (req, res) => {
         });
       }
     } else {
-      console.log('🔍 No user ID - skipping advanced tools limit check');
+      console.log('🔍 [ADVANCED DEBUG] No user ID - skipping limit check');
     }
 
     let result;
@@ -295,6 +317,7 @@ exports.handleAdvancedTool = async (req, res) => {
     let advancedRecord = null;
     if (userId) {
       try {
+        console.log('🔍 [ADVANCED DEBUG] Saving to Advanced model for user:', userId);
         advancedRecord = await saveToAdvancedModel(
           operationType,
           userId,
@@ -303,12 +326,19 @@ exports.handleAdvancedTool = async (req, res) => {
         );
 
         // ✅ INCREMENT USAGE FOR ADVANCED TOOLS - FIXED
-        console.log('🔍 Incrementing advanced tools usage for user:', userId);
-        await incrementUsage(userId, "advanced-tools");
-        console.log('✅ Advanced tools usage incremented for user:', userId);
+        console.log('🔍 [ADVANCED DEBUG] Before incrementUsage - user:', userId, 'feature: "advanced-tools"');
+        
+        const incrementResult = await incrementUsage(userId, "advanced-tools");
+        
+        console.log('🔍 [ADVANCED DEBUG] After incrementUsage - result:', {
+          userId: userId,
+          newAdvancedToolsUsage: incrementResult?.usage?.advancedTools,
+          incrementSuccess: !!incrementResult,
+          fullUsageObject: incrementResult?.usage
+        });
 
       } catch (saveError) {
-        console.error("❌ Failed to save to Advanced model:", saveError);
+        console.error("❌ [ADVANCED DEBUG] Failed to save/increment:", saveError);
       }
     }
 
@@ -319,17 +349,18 @@ exports.handleAdvancedTool = async (req, res) => {
       advancedId: advancedRecord?._id
     };
 
-    console.log('✅ Advanced tool operation completed:', { 
+    console.log('✅ [ADVANCED DEBUG] Advanced tool operation completed:', { 
       tool, 
       userId, 
       advancedId: advancedRecord?._id,
       currentUsage: userId ? 'incremented' : 'not tracked'
     });
+    console.log('🔍 [ADVANCED DEBUG] ===== END REQUEST =====\n');
 
     res.json(responseData);
 
   } catch (err) {
-    console.error('❌ Advanced tool error:', err);
+    console.error('❌ [ADVANCED DEBUG] Advanced tool error:', err);
     
     // Save failed attempt if user is authenticated
     const userId = req.user?.id;
@@ -353,7 +384,7 @@ exports.handleAdvancedTool = async (req, res) => {
           }
         );
       } catch (saveError) {
-        console.error("❌ Failed to save failed operation to Advanced model:", saveError);
+        console.error("❌ [ADVANCED DEBUG] Failed to save failed operation to Advanced model:", saveError);
       }
     }
 

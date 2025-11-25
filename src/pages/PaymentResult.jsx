@@ -48,7 +48,7 @@ const PaymentResult = () => {
 
       if (data.success) {
         setStatus("success");
-        setMessage("Payment completed successfully!");
+        setMessage("Payment completed successfully! Your plan has been upgraded and your current usage has been preserved.");
 
         // Update user context with new plan
         if (updateUser) {

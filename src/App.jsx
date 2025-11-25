@@ -36,6 +36,7 @@ import AuthSuccess from "@/components/AuthSuccess";
 
 // 👤 User Dashboard
 import UserDashboard from "@/components/Dashboard";
+import Activities from './pages/Activities'; // ✅ Make sure this import exists
 
 // 🛠️ Admin Pages
 import AdminLoginPage from "@/components/AdminLoginPage";
@@ -49,11 +50,14 @@ import PressReleaseAdmin from "./pages/admin/PressReleaseAdmin";
 import CreatePressRelease from './pages/admin/CreatePressRelease';
 import EditPressRelease from './pages/admin/EditPressRelease';
 import PricingManagement from "./pages/admin/PricingManagement";
+import UserRecentFiles from './pages/admin/userRecentFiles'; // ✅ Import added
+import PaymentManagement from "./pages/admin/PaymentManagement";
 
 // 🔐 Auth & Route Guards
 import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AdminProtectedRoute from "@/components/AdminProtectedRoute";
+
 
 // ✨ NEW: Notification System
 import { NotificationProvider } from "@/contexts/NotificationContext";
@@ -239,6 +243,27 @@ function AppContent() {
               </AdminProtectedRoute>
             }
           />
+          <Route
+  path="/admin/payments"
+  element={
+    <AdminProtectedRoute>
+      <AdminLayout>
+        <PaymentManagement />
+      </AdminLayout>
+    </AdminProtectedRoute>
+  }
+/>
+          {/* ✅ USER RECENT FILES ROUTE - ADD THIS */}
+          <Route
+            path="/admin/user-recent-files"
+            element={
+              <AdminProtectedRoute>
+                <AdminLayout>
+                  <UserRecentFiles />
+                </AdminLayout>
+              </AdminProtectedRoute>
+            }
+          />
 
           {/* ================= PUBLIC & USER ROUTES ================= */}
           <Route
@@ -303,6 +328,17 @@ function AppContent() {
                         </ProtectedRoute>
                       }
                     />
+                    
+                    {/* ✅ ADD THE ACTIVITIES ROUTE HERE */}
+                    <Route
+                      path="/activities"
+                      element={
+                        <ProtectedRoute>
+                          <Activities />
+                        </ProtectedRoute>
+                      }
+                    />
+
                     <Route path="/auth/success" element={<AuthSuccess />} />
 
                     {/* Not Found */}
@@ -316,7 +352,6 @@ function AppContent() {
           />
         </Routes>
       </AnimatePresence>
-
 
       <Toaster />
     </div>
