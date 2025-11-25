@@ -49,11 +49,11 @@ const ContactPage = () => {
   };
 
   const metaPropsData = {
-    title: "Contact PDF Works | Free PDF Tools Support & Inquiries",
+    title: "Contact PDF Works - Support & Customer Service",
     description:
-      "Get in touch with PDF Works team for free PDF tools support sales inquiries and feedback Contact us via email phone or visit our Chennai office for free PDF editor assistance",
+      "Get in touch with PDF Works for free PDF tools support, sales inquiries, and feedback. Contact us via email, phone, or visit our Chennai office for PDF editor and converter assistance.",
     keyword:
-      "contact pdf works, free pdf tools support, pdf works contact email, pdf works phone number, free pdf editor support, pdf tools customer service, pdf works chennai office, free pdf converter help, contact free pdf tools team",
+      "contact pdf works, free pdf tools support, pdf works contact email, pdf tools customer service, free pdf editor support",
     image:
       "https://res.cloudinary.com/dcfjt8shw/image/upload/v1761288318/wn8m8g8skdpl6iz2rwoa.svg",
     url: "https://pdfworks.in/contact",

@@ -3,11 +3,11 @@ import { motion } from "framer-motion";
 import Metatags from "../SEO/metatags";
 
 const metaPropsData = {
-  title: "Privacy Policy Free PDF Tools Data Protection PDF Works",
+  title: "Privacy Policy - Our PDF Works Tools Data Protection & Security",
   description:
-    "PDF Works privacy policy data protection file security user information Free PDF tools online PDF editor converter compressor privacy commitment",
+    "Read PDF Works privacy policy detailing our data protection measures, file security protocols, and user information handling for our free online PDF editor, converter, and compressor tools.",
   keyword:
-    "free pdf tools privacy policy, pdf works data protection, file security online pdf editor, privacy user information security",
+    "free pdf tools privacy policy, pdf works data protection, file security online pdf editor, privacy user information security, secure document processing",
   image:
     "https://res.cloudinary.com/dcfjt8shw/image/upload/v1761288318/wn8m8g8skdpl6iz2rwoa.svg",
   url: "https://pdfworks.in/privacy",

@@ -3,11 +3,11 @@ import { motion } from "framer-motion";
 import Metatags from "../SEO/metatags";
 
 const metaPropsData = {
-  title: "Cookies Policy | PDF Works - Free PDF Tools Privacy",
+  title: "Cookies Policy - PDF Works Privacy & Data Policy",
   description:
-    "PDF Works cookies policy explains how we use cookies to improve your free PDF tools experience Learn about account login and preference cookies for our free PDF editor and converter",
+    "PDF Works cookies policy explains how we use cookies to enhance your free PDF tools experience. Learn about authentication, preferences, and analytics cookies for our PDF editor and converter.",
   keyword:
-    "pdf works cookies policy, free pdf tools cookies, privacy policy pdf works, cookie usage free pdf editor, website cookies policy, free pdf converter cookies, data privacy pdf works",
+    "pdf works cookies policy, free pdf tools cookies, privacy policy pdf works, cookie usage free pdf editor, website cookies policy",
   image:
     "https://res.cloudinary.com/dcfjt8shw/image/upload/v1761288318/wn8m8g8skdpl6iz2rwoa.svg",
   url: "https://pdfworks.in/cookies",

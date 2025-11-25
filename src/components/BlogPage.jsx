@@ -187,11 +187,12 @@ const BlogPage = () => {
     );
   }
   const metaPropsData = {
-    title: "PDF Works Blog Free PDF Tools Tutorials and Guides",
+    title:
+      "PDF Works Blog - Free PDF Tools Guides, Tutorials & Conversion Tips",
     description:
-      "Explore our blog for free PDF tools tutorials conversion tips and document management strategies Learn how to use PDF Works completely free PDF editor converter and organizer tools",
+      "Explore the PDF Works blog for free PDF tools guides, document management tutorials, and PDF conversion tips. Read our articles to master our free PDF editor and organizer tools.",
     keyword:
-      "free pdf tools blog, pdf works blog, free pdf editor tutorials, pdf conversion tips, document management guides, free online pdf tools, pdf works articles, pdf tips and tricks, free pdf tools guides",
+      "pdf works blog, free pdf tools guides, document management guides, pdf works articles, free pdf tools blog, pdf conversion tips",
     image:
       "https://res.cloudinary.com/dcfjt8shw/image/upload/v1761288318/wn8m8g8skdpl6iz2rwoa.svg",
     url: "https://pdfworks.in/blog",

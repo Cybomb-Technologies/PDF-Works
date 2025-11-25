@@ -32,9 +32,9 @@ const SecurityPage = () => {
   ];
 
   const metaPropsData = {
-    title: "Security Free PDF Tools Data Protection Encryption PDF Works",
+    title: "PDF Security & Data Protection - Free PDF Works Tools Encryption",
     description:
-      "PDF Works security features data protection file encryption automatic deletion Free PDF tools online PDF editor converter compressor privacy security",
+      "Learn about PDF Works security features including enterprise-grade data protection, file encryption, and automatic deletion. Our free online PDF editor, converter, and compressor ensure complete privacy and secure document processing.",
     keyword:
       "free pdf tools security, pdf works data protection, file encryption automatic deletion, online pdf editor privacy security, secure pdf processing",
     image:

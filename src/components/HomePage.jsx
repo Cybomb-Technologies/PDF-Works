@@ -14,11 +14,12 @@ import MobileAppSection from "./Homepage/MobileAppSection";
 import Metatags from "../SEO/metatags";
 
 const metaPropsData = {
-  title: "PDF Works - Free Online PDF Editor & Tools | 100% Free PDF Solutions",
+  title:
+    "Free Online PDF Editor - Convert Word to PDF, Merge & Compress PDFs for Free",
   description:
-    "Completely free online PDF editor, converter, and management tools. Edit, merge, compress, convert PDFs 100% free - no costs, no watermarks, no registration required. Unlimited free PDF tools for everyone.",
+    "Use our free online PDF editor to convert Word to PDF, merge files, and compress PDFs online. Best PDF converter with free tools for all your document needs - no watermarks.",
   keyword:
-    "free pdf editor, free pdf converter, free pdf tools, online pdf editor free, free pdf merger, free pdf compressor, free pdf to word, free word to pdf, free pdf editor online, free pdf software, no watermark pdf editor, free document editor, free pdf editor 2025, completely free pdf tools, unlimited free pdf, free pdf editor no sign up, free online pdf tools, pdf works free",
+    "free pdf editor, best pdf converter, convert word to pdf, free online pdf editor, free pdf merger, compress pdf online, convert pdf to word online for free",
   image:
     "https://res.cloudinary.com/dcfjt8shw/image/upload/v1761288318/wn8m8g8skdpl6iz2rwoa.svg",
   url: "https://pdfworks.in",

@@ -292,7 +292,8 @@ app.use((req, res) => {
 
 // MONGODB
 mongoose
-  .connect("mongodb://localhost:27017/pdf-tools")
+  .connect("mongodb://sudesh.t%40cybomb.com:Cybomb%401234@147.93.111.96:27017/pdf-works?authSource=admin")
+  // .connect("mongodb://localhost:27017/pdf-tools")
   .then(() => console.log("MongoDB connected successfully"))
   .catch((err) => {
     console.error("MongoDB connection error:", err);
@@ -307,7 +308,7 @@ process.on("SIGINT", async () => {
 });
 
 // START SERVER
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📚 CORS enabled for origins: ${[

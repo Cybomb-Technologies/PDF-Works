@@ -215,11 +215,11 @@ const SignUpForm = () => {
   };
 
   const metaPropsData = {
-    title: "Sign Up Free PDF Tools Account PDF Works",
+    title: "Sign Up with PDF Works - Create Your Free Account",
     description:
-      "Create your PDF Works account access free PDF tools online PDF editor converter compressor Sign up manage your PDF files documents",
+      "Create your PDF Works account to access free PDF editing tools. Register to use our online PDF editor, converter, and compressor for secure document management.",
     keyword:
-      "free pdf tools sign up, pdf works account create account, online pdf editor register, free pdf converter account, pdf tools user registration",
+      "pdf works sign up, free pdf tools account, online pdf editor register, pdf converter account, document management registration",
     image:
       "https://res.cloudinary.com/dcfjt8shw/image/upload/v1761288318/wn8m8g8skdpl6iz2rwoa.svg",
     url: "https://pdfworks.in/signup",
