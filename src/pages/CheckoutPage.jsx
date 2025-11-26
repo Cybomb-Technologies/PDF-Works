@@ -35,15 +35,15 @@ const CheckoutPage = () => {
 
   const fetchPlanDetails = async () => {
     try {
-      console.log("Fetching plan details for planId:", planId);
+      // console.log("Fetching plan details for planId:", planId);
 
       const res = await fetch(`${API_URL}/api/pricing/${planId}`);
       const data = await res.json();
 
-      console.log("Plan API response:", data);
+      // console.log("Plan API response:", data);
 
       if (data.success) {
-        console.log("Plan data received:", data.plan);
+        // console.log("Plan data received:", data.plan);
         setPlan(data.plan);
       } else {
         toast({
@@ -112,11 +112,11 @@ const CheckoutPage = () => {
 
     setLoading(true);
     try {
-      console.log("Sending payment request with:", {
-        planId: selectedPlanId,
-        billingCycle,
-        currency,
-      });
+      // console.log("Sending payment request with:", {
+      //   planId: selectedPlanId,
+      //   billingCycle,
+      //   currency,
+      // });
 
       const response = await fetch(`${API_URL}/api/payments/create`, {
         method: "POST",
@@ -132,7 +132,7 @@ const CheckoutPage = () => {
       });
 
       const data = await response.json();
-      console.log("Payment API response:", data);
+      // console.log("Payment API response:", data);
 
       if (!response.ok) {
         throw new Error(
@@ -142,7 +142,7 @@ const CheckoutPage = () => {
 
       if (data.success) {
         // Redirect to Cashfree payment page
-        console.log("Redirecting to payment link:", data.paymentLink);
+        // console.log("Redirecting to payment link:", data.paymentLink);
         window.location.href = data.paymentLink;
       } else {
         throw new Error(data.message || "Failed to create payment order");

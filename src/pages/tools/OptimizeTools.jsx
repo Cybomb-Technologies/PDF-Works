@@ -1,6 +1,14 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { Gauge, Trash2, Code2, Copy, Check, Download, AlertTriangle } from "lucide-react";
+import {
+  Gauge,
+  Trash2,
+  Code2,
+  Copy,
+  Check,
+  Download,
+  AlertTriangle,
+} from "lucide-react";
 import { useNotification } from "@/contexts/NotificationContext";
 import Metatags from "../../SEO/metatags";
 
@@ -33,7 +41,7 @@ const tools = [
 
 // Get auth token from localStorage
 const getAuthToken = () => {
-  return localStorage.getItem('token');
+  return localStorage.getItem("token");
 };
 
 // Enhanced fetch with auth
@@ -41,7 +49,7 @@ const authFetch = async (url, options = {}) => {
   const token = getAuthToken();
   const headers = {
     ...options.headers,
-    ...(token && { 'Authorization': `Bearer ${token}` }),
+    ...(token && { Authorization: `Bearer ${token}` }),
   };
 
   return fetch(url, { ...options, headers });
@@ -55,7 +63,7 @@ const ImageOptimizerModal = ({ isOpen, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [fileSaved, setFileSaved] = useState(false);
   const [optimizeId, setOptimizeId] = useState(null);
-  
+
   const { showNotification } = useNotification();
 
   const handleImageOptimize = async () => {
@@ -63,7 +71,7 @@ const ImageOptimizerModal = ({ isOpen, onClose }) => {
     setLoading(true);
     setFileSaved(false);
     setOptimizeId(null);
-    
+
     try {
       const formData = new FormData();
       formData.append("files", file);
@@ -71,44 +79,52 @@ const ImageOptimizerModal = ({ isOpen, onClose }) => {
       formData.append("maxWidth", "1920");
       formData.append("maxHeight", "1080");
 
-      const response = await authFetch(`${API_URL}/api/tools/optimize/optimize-image`, {
-        method: "POST",
-        body: formData,
-      });
+      const response = await authFetch(
+        `${API_URL}/api/tools/optimize/optimize-image`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
 
       const result = await response.json();
-      
+
       // Handle backend errors with detailed messages
       if (!response.ok || !result.success) {
         // Check for limit exceeded error
-        if (result.type === 'limit_exceeded') {
+        if (result.type === "limit_exceeded") {
           showNotification({
-            type: 'error',
-            title: result.title || 'Usage Limit Reached',
-            message: result.message || result.reason || 'Optimize tools limit reached',
+            type: "error",
+            title: result.title || "Usage Limit Reached",
+            message:
+              result.message || result.reason || "Optimize tools limit reached",
             duration: 8000,
             currentUsage: result.currentUsage,
             limit: result.limit,
             upgradeRequired: result.upgradeRequired,
-            action: result.upgradeRequired ? {
-              label: 'Upgrade Plan',
-              onClick: () => window.location.href = '/billing',
-              external: true
-            } : undefined
+            action: result.upgradeRequired
+              ? {
+                  label: "Upgrade Plan",
+                  onClick: () => (window.location.href = "/billing"),
+                  external: true,
+                }
+              : undefined,
           });
-          
+
           return;
         } else {
           // Show other detailed errors
           showNotification({
-            type: 'error',
-            title: result.title || 'Operation Failed',
-            message: result.message || result.error || 'Something went wrong',
-            duration: 5000
+            type: "error",
+            title: result.title || "Operation Failed",
+            message: result.message || result.error || "Something went wrong",
+            duration: 5000,
           });
         }
-        
-        throw new Error(result.message || `HTTP error! status: ${response.status}`);
+
+        throw new Error(
+          result.message || `HTTP error! status: ${response.status}`
+        );
       }
 
       // Convert base64 back to blob
@@ -120,7 +136,7 @@ const ImageOptimizerModal = ({ isOpen, onClose }) => {
       const byteArray = new Uint8Array(byteNumbers);
       const blob = new Blob([byteArray], { type: result.mimeType });
       const url = window.URL.createObjectURL(blob);
-      
+
       setCompressedBlob(url);
 
       // Set stats from the response
@@ -140,23 +156,25 @@ const ImageOptimizerModal = ({ isOpen, onClose }) => {
 
       // Show success notification
       showNotification({
-        type: 'success',
-        title: 'Image Optimized',
+        type: "success",
+        title: "Image Optimized",
         message: `Successfully reduced image size by ${stats.reductionPercent}%`,
-        duration: 5000
+        duration: 5000,
       });
 
-      console.log('Optimization successful:', stats);
-
+      // console.log('Optimization successful:', stats);
     } catch (error) {
       console.error("❌ Image optimization failed:", error);
       // Don't show duplicate notifications for limit exceeded
-      if (!error.message.includes('Usage Limit Reached') && !error.message.includes('limit_exceeded')) {
+      if (
+        !error.message.includes("Usage Limit Reached") &&
+        !error.message.includes("limit_exceeded")
+      ) {
         showNotification({
-          type: 'error',
-          title: 'Optimization Failed',
+          type: "error",
+          title: "Optimization Failed",
           message: error.message,
-          duration: 5000
+          duration: 5000,
         });
       }
     } finally {
@@ -209,7 +227,8 @@ const ImageOptimizerModal = ({ isOpen, onClose }) => {
           {fileSaved && (
             <div className="p-3 bg-green-900 border border-green-700 rounded-lg">
               <p className="text-green-400 text-sm font-medium">
-                ✅ File saved to optimize history {optimizeId && `(ID: ${optimizeId})`}
+                ✅ File saved to optimize history{" "}
+                {optimizeId && `(ID: ${optimizeId})`}
               </p>
             </div>
           )}
@@ -226,7 +245,7 @@ const ImageOptimizerModal = ({ isOpen, onClose }) => {
                 setStats(null);
                 setFileSaved(false);
                 setOptimizeId(null);
-                console.log('File selected:', selectedFile.name, 'Size:', (selectedFile.size / 1024).toFixed(2) + 'KB');
+                // console.log('File selected:', selectedFile.name, 'Size:', (selectedFile.size / 1024).toFixed(2) + 'KB');
               }
             }}
             className="w-full text-sm text-gray-300 border border-gray-600 rounded-lg px-3 py-2 cursor-pointer bg-gray-800"
@@ -298,64 +317,72 @@ const CodeMinifierModal = ({ isOpen, onClose }) => {
   const [copied, setCopied] = useState(false);
   const [operationSaved, setOperationSaved] = useState(false);
   const [optimizeId, setOptimizeId] = useState(null);
-  
+
   const { showNotification } = useNotification();
 
   const handleMinify = async () => {
     if (!code.trim()) return;
-    
+
     setLoading(true);
     setOperationSaved(false);
     setOptimizeId(null);
-    
+
     try {
-      const response = await authFetch(`${API_URL}/api/tools/optimize/minify-code`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          code: code,
-          type: type
-        }),
-      });
+      const response = await authFetch(
+        `${API_URL}/api/tools/optimize/minify-code`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            code: code,
+            type: type,
+          }),
+        }
+      );
 
       const result = await response.json();
-      
+
       // Handle backend errors with detailed messages
       if (!response.ok || !result.success) {
         // Check for limit exceeded error
-        if (result.type === 'limit_exceeded') {
+        if (result.type === "limit_exceeded") {
           showNotification({
-            type: 'error',
-            title: result.title || 'Usage Limit Reached',
-            message: result.message || result.reason || 'Optimize tools limit reached',
+            type: "error",
+            title: result.title || "Usage Limit Reached",
+            message:
+              result.message || result.reason || "Optimize tools limit reached",
             duration: 8000,
             currentUsage: result.currentUsage,
             limit: result.limit,
             upgradeRequired: result.upgradeRequired,
-            action: result.upgradeRequired ? {
-              label: 'Upgrade Plan',
-              onClick: () => window.location.href = '/billing',
-              external: true
-            } : undefined
+            action: result.upgradeRequired
+              ? {
+                  label: "Upgrade Plan",
+                  onClick: () => (window.location.href = "/billing"),
+                  external: true,
+                }
+              : undefined,
           });
-          
+
           return;
         } else {
           // Show other detailed errors
           showNotification({
-            type: 'error',
-            title: result.title || 'Operation Failed',
-            message: result.message || result.error || 'Something went wrong',
-            duration: 5000
+            type: "error",
+            title: result.title || "Operation Failed",
+            message: result.message || result.error || "Something went wrong",
+            duration: 5000,
           });
         }
-        
-        throw new Error(result.message || `HTTP error! status: ${response.status}`);
+
+        throw new Error(
+          result.message || `HTTP error! status: ${response.status}`
+        );
       }
 
       setMinifiedResult(result.minifiedCode);
       setStats(result.stats);
-      
+
       if (result.optimizeId) {
         setOperationSaved(true);
         setOptimizeId(result.optimizeId);
@@ -363,21 +390,23 @@ const CodeMinifierModal = ({ isOpen, onClose }) => {
 
       // Show success notification
       showNotification({
-        type: 'success',
-        title: 'Code Minified',
+        type: "success",
+        title: "Code Minified",
         message: `Successfully reduced code by ${result.stats.reductionPercent}%`,
-        duration: 5000
+        duration: 5000,
       });
-
     } catch (error) {
       console.error("❌ Code minification failed:", error);
       // Don't show duplicate notifications for limit exceeded
-      if (!error.message.includes('Usage Limit Reached') && !error.message.includes('limit_exceeded')) {
+      if (
+        !error.message.includes("Usage Limit Reached") &&
+        !error.message.includes("limit_exceeded")
+      ) {
         showNotification({
-          type: 'error',
-          title: 'Minification Failed',
+          type: "error",
+          title: "Minification Failed",
           message: error.message,
-          duration: 5000
+          duration: 5000,
         });
       }
     } finally {
@@ -427,7 +456,8 @@ const CodeMinifierModal = ({ isOpen, onClose }) => {
         {operationSaved && (
           <div className="mb-4 p-3 bg-purple-900 border border-purple-700 rounded-lg">
             <p className="text-purple-400 text-sm font-medium">
-              ✅ Operation saved to optimize history {optimizeId && `(ID: ${optimizeId})`}
+              ✅ Operation saved to optimize history{" "}
+              {optimizeId && `(ID: ${optimizeId})`}
             </p>
           </div>
         )}
@@ -534,70 +564,80 @@ const CodeMinifierModal = ({ isOpen, onClose }) => {
 // Cache Cleaner function (updated to use backend with usage limits)
 const handleCacheClean = async (showNotification) => {
   try {
-    const response = await authFetch(`${API_URL}/api/tools/optimize/clean-cache`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-    });
+    const response = await authFetch(
+      `${API_URL}/api/tools/optimize/clean-cache`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      }
+    );
 
     const result = await response.json();
-    
+
     // Handle backend errors with detailed messages
     if (!response.ok || !result.success) {
       // Check for limit exceeded error
-      if (result.type === 'limit_exceeded') {
+      if (result.type === "limit_exceeded") {
         showNotification({
-          type: 'error',
-          title: result.title || 'Usage Limit Reached',
-          message: result.message || result.reason || 'Optimize tools limit reached',
+          type: "error",
+          title: result.title || "Usage Limit Reached",
+          message:
+            result.message || result.reason || "Optimize tools limit reached",
           duration: 8000,
           currentUsage: result.currentUsage,
           limit: result.limit,
           upgradeRequired: result.upgradeRequired,
-          action: result.upgradeRequired ? {
-            label: 'Upgrade Plan',
-            onClick: () => window.location.href = '/billing',
-            external: true
-          } : undefined
+          action: result.upgradeRequired
+            ? {
+                label: "Upgrade Plan",
+                onClick: () => (window.location.href = "/billing"),
+                external: true,
+              }
+            : undefined,
         });
-        
+
         return;
       } else {
         // Show other detailed errors
         showNotification({
-          type: 'error',
-          title: result.title || 'Operation Failed',
-          message: result.message || result.error || 'Something went wrong',
-          duration: 5000
+          type: "error",
+          title: result.title || "Operation Failed",
+          message: result.message || result.error || "Something went wrong",
+          duration: 5000,
         });
       }
-      
-      throw new Error(result.message || `HTTP error! status: ${response.status}`);
+
+      throw new Error(
+        result.message || `HTTP error! status: ${response.status}`
+      );
     }
 
     // Clear local storage and reload
     localStorage.clear();
     sessionStorage.clear();
-    
+
     showNotification({
-      type: 'success',
-      title: 'Cache Cleaned',
-      message: 'Cache cleared successfully! Page will reload.',
-      duration: 3000
+      type: "success",
+      title: "Cache Cleaned",
+      message: "Cache cleared successfully! Page will reload.",
+      duration: 3000,
     });
-    
+
     setTimeout(() => {
       window.location.reload();
     }, 2000);
-    
   } catch (error) {
     console.error("❌ Cache cleaning failed:", error);
     // Don't show duplicate notifications for limit exceeded
-    if (!error.message.includes('Usage Limit Reached') && !error.message.includes('limit_exceeded')) {
+    if (
+      !error.message.includes("Usage Limit Reached") &&
+      !error.message.includes("limit_exceeded")
+    ) {
       showNotification({
-        type: 'error',
-        title: 'Cache Cleaning Failed',
+        type: "error",
+        title: "Cache Cleaning Failed",
         message: error.message,
-        duration: 5000
+        duration: 5000,
       });
     }
   }
@@ -607,7 +647,7 @@ const handleCacheClean = async (showNotification) => {
 const OptimizeTools = () => {
   const [codeMinifierOpen, setCodeMinifierOpen] = useState(false);
   const [imageModalOpen, setImageModalOpen] = useState(false);
-  
+
   const { showNotification } = useNotification();
 
   const handleToolClick = (tool) => {

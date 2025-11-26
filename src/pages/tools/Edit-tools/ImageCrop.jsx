@@ -44,16 +44,22 @@ const ImageCrop = () => {
   };
 
   // Save to Edit model function with proper error handling
-  const saveToEditModel = async (fileBlob, filename, editType, originalName, metadata = {}) => {
+  const saveToEditModel = async (
+    fileBlob,
+    filename,
+    editType,
+    originalName,
+    metadata = {}
+  ) => {
     try {
       const token = getToken();
       if (!token) {
         if (showNotification) {
           showNotification({
-            type: 'error',
-            title: 'Authentication Required',
-            message: 'Please log in to save files',
-            duration: 5000
+            type: "error",
+            title: "Authentication Required",
+            message: "Please log in to save files",
+            duration: 5000,
           });
         }
         return { success: false, error: "Please log in to save files" };
@@ -62,42 +68,50 @@ const ImageCrop = () => {
       const formData = new FormData();
       formData.append("file", fileBlob, filename);
       formData.append("originalName", originalName);
-      
+
       if (metadata) {
-        Object.keys(metadata).forEach(key => {
-          formData.append(key, typeof metadata[key] === 'object' ? JSON.stringify(metadata[key]) : metadata[key]);
+        Object.keys(metadata).forEach((key) => {
+          formData.append(
+            key,
+            typeof metadata[key] === "object"
+              ? JSON.stringify(metadata[key])
+              : metadata[key]
+          );
         });
       }
 
-      const response = await fetch(`${API_URL}/api/tools/pdf-editor/save-image-crop`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      });
+      const response = await fetch(
+        `${API_URL}/api/tools/pdf-editor/save-image-crop`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        }
+      );
 
       // First parse the response
       let result;
       try {
         result = await response.json();
       } catch (parseError) {
-        console.error('Failed to parse response:', parseError);
-        throw new Error('Invalid server response');
+        console.error("Failed to parse response:", parseError);
+        throw new Error("Invalid server response");
       }
 
-      console.log('Save image crop response:', result);
+      // console.log('Save image crop response:', result);
 
       // Handle limit exceeded response
-      if (result.type === 'limit_exceeded') {
+      if (result.type === "limit_exceeded") {
         return {
           success: false,
-          type: 'limit_exceeded',
+          type: "limit_exceeded",
           title: result.title,
           message: result.message || result.reason,
           currentUsage: result.currentUsage,
           limit: result.limit,
-          upgradeRequired: result.upgradeRequired
+          upgradeRequired: result.upgradeRequired,
         };
       }
 
@@ -106,7 +120,6 @@ const ImageCrop = () => {
       }
 
       return result;
-
     } catch (error) {
       console.error("Save to Edit model error:", error);
       return { success: false, error: error.message };
@@ -191,10 +204,10 @@ const ImageCrop = () => {
         setError("Please upload a valid image file");
         if (showNotification) {
           showNotification({
-            type: 'error',
-            title: 'Invalid File Type',
-            message: 'Please upload a valid image file',
-            duration: 5000
+            type: "error",
+            title: "Invalid File Type",
+            message: "Please upload a valid image file",
+            duration: 5000,
           });
         }
         return;
@@ -215,13 +228,13 @@ const ImageCrop = () => {
           setSelectionComplete(false);
           setCrop({ x: 0, y: 0, width: 0, height: 0 });
           setFileSaved(false);
-          
+
           if (showNotification) {
             showNotification({
-              type: 'success',
-              title: 'Image Selected',
+              type: "success",
+              title: "Image Selected",
               message: `${file.name} ready for cropping`,
-              duration: 3000
+              duration: 3000,
             });
           }
         };
@@ -348,20 +361,20 @@ const ImageCrop = () => {
       setSelectionComplete(true);
       if (showNotification) {
         showNotification({
-          type: 'success',
-          title: 'Selection Complete',
+          type: "success",
+          title: "Selection Complete",
           message: 'Crop area selected. Click "Crop Image" to process.',
-          duration: 3000
+          duration: 3000,
         });
       }
     } else {
       setError("Please select a larger area (minimum 10x10 pixels)");
       if (showNotification) {
         showNotification({
-          type: 'warning',
-          title: 'Selection Too Small',
-          message: 'Please select a larger area (minimum 10x10 pixels)',
-          duration: 4000
+          type: "warning",
+          title: "Selection Too Small",
+          message: "Please select a larger area (minimum 10x10 pixels)",
+          duration: 4000,
         });
       }
       setHasSelectedCrop(false);
@@ -374,10 +387,10 @@ const ImageCrop = () => {
       setError("Please upload an image first");
       if (showNotification) {
         showNotification({
-          type: 'error',
-          title: 'No Image',
-          message: 'Please upload an image first',
-          duration: 5000
+          type: "error",
+          title: "No Image",
+          message: "Please upload an image first",
+          duration: 5000,
         });
       }
       return;
@@ -389,10 +402,10 @@ const ImageCrop = () => {
       );
       if (showNotification) {
         showNotification({
-          type: 'error',
-          title: 'No Selection',
-          message: 'Please select a crop area first',
-          duration: 5000
+          type: "error",
+          title: "No Selection",
+          message: "Please select a crop area first",
+          duration: 5000,
         });
       }
       return;
@@ -403,11 +416,11 @@ const ImageCrop = () => {
 
     if (showNotification) {
       showNotification({
-        type: 'info',
-        title: 'Processing Image',
-        message: 'Cropping your image...',
+        type: "info",
+        title: "Processing Image",
+        message: "Cropping your image...",
         duration: 0,
-        autoClose: false
+        autoClose: false,
       });
     }
 
@@ -446,38 +459,40 @@ const ImageCrop = () => {
         const filename = `cropped-image-${timestamp}.png`;
 
         const token = getToken();
-        
+
         if (token) {
           // Save to Edit model (preferred method from code 2)
-          console.log('Saving image crop to Edit model...');
+          // console.log("Saving image crop to Edit model...");
           const saveResult = await saveToEditModel(
-            blob, 
-            filename, 
+            blob,
+            filename,
             "image-crop",
             uploadedFile.name,
             { cropDimensions: crop }
           );
 
-          console.log('Save result:', saveResult);
+          // console.log("Save result:", saveResult);
 
           // Handle limit exceeded error from backend
-          if (!saveResult.success && saveResult.type === 'limit_exceeded') {
+          if (!saveResult.success && saveResult.type === "limit_exceeded") {
             setError(saveResult.message || "Edit tools limit reached");
-            
+
             if (showNotification) {
               showNotification({
-                type: 'error',
-                title: saveResult.title || 'Usage Limit Reached',
+                type: "error",
+                title: saveResult.title || "Usage Limit Reached",
                 message: saveResult.message || saveResult.reason,
                 duration: 8000,
                 currentUsage: saveResult.currentUsage,
                 limit: saveResult.limit,
                 upgradeRequired: saveResult.upgradeRequired,
-                action: saveResult.upgradeRequired ? {
-                  label: 'Upgrade Plan',
-                  onClick: () => window.open('/pricing', '_blank'),
-                  external: true
-                } : null
+                action: saveResult.upgradeRequired
+                  ? {
+                      label: "Upgrade Plan",
+                      onClick: () => window.open("/pricing", "_blank"),
+                      external: true,
+                    }
+                  : null,
               });
             }
 
@@ -489,14 +504,15 @@ const ImageCrop = () => {
 
           if (saveResult.success) {
             setFileSaved(true);
-            console.log("Image crop saved successfully to Edit model");
-            
+            // console.log("Image crop saved successfully to Edit model");
+
             if (showNotification) {
               showNotification({
-                type: 'success',
-                title: 'Image Cropped Successfully! 🎉',
-                message: 'Your image has been cropped and saved to your edit history!',
-                duration: 5000
+                type: "success",
+                title: "Image Cropped Successfully! 🎉",
+                message:
+                  "Your image has been cropped and saved to your edit history!",
+                duration: 5000,
               });
             }
           } else {
@@ -508,24 +524,23 @@ const ImageCrop = () => {
           // Guest user - just process without saving
           if (showNotification) {
             showNotification({
-              type: 'success',
-              title: 'Image Cropped Successfully! 🎉',
-              message: 'Your image has been cropped!',
-              duration: 5000
+              type: "success",
+              title: "Image Cropped Successfully! 🎉",
+              message: "Your image has been cropped!",
+              duration: 5000,
             });
           }
         }
-
       } catch (err) {
         console.error("Error cropping image:", err);
         setError("Error cropping image: " + err.message);
-        
+
         if (showNotification) {
           showNotification({
-            type: 'error',
-            title: 'Processing Error',
-            message: 'Error cropping image: ' + err.message,
-            duration: 5000
+            type: "error",
+            title: "Processing Error",
+            message: "Error cropping image: " + err.message,
+            duration: 5000,
           });
         }
       } finally {
@@ -538,10 +553,10 @@ const ImageCrop = () => {
       setIsProcessing(false);
       if (showNotification) {
         showNotification({
-          type: 'error',
-          title: 'Image Error',
-          message: 'Error loading image for processing',
-          duration: 5000
+          type: "error",
+          title: "Image Error",
+          message: "Error loading image for processing",
+          duration: 5000,
         });
       }
     };
@@ -555,7 +570,7 @@ const ImageCrop = () => {
       const saveResult = await saveToMyFiles(blob, filename, "image-crop");
       if (saveResult.success) {
         setFileSaved(true);
-        console.log("Image saved to My Files as fallback");
+        // console.log("Image saved to My Files as fallback");
       } else {
         console.warn("Failed to save to My Files:", saveResult.error);
       }
@@ -579,13 +594,13 @@ const ImageCrop = () => {
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
-    
+
     if (showNotification) {
       showNotification({
-        type: 'info',
-        title: 'Reset',
-        message: 'Ready to crop another image',
-        duration: 3000
+        type: "info",
+        title: "Reset",
+        message: "Ready to crop another image",
+        duration: 3000,
       });
     }
   };
@@ -629,13 +644,13 @@ const ImageCrop = () => {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    
+
     if (showNotification) {
       showNotification({
-        type: 'success',
-        title: 'Download Started',
-        message: 'Downloading cropped image',
-        duration: 3000
+        type: "success",
+        title: "Download Started",
+        message: "Downloading cropped image",
+        duration: 3000,
       });
     }
   };

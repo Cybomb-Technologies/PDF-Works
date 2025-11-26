@@ -30,7 +30,7 @@ const SubscriptionSidebar = ({ user, planLimits, stats, navigate, getUsagePercen
             plan.planId === user?.plan
           ) || data.plans.find(plan => plan.planId === "free");
           
-          console.log('✅ Fetched actual plan data:', userPlan);
+          // console.log('✅ Fetched actual plan data:', userPlan);
           setActualPlanData(userPlan);
           return userPlan;
         }

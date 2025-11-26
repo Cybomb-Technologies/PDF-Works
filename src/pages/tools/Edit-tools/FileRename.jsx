@@ -9,7 +9,7 @@ import {
   Eye,
   EyeOff,
   RotateCcw,
-  Archive
+  Archive,
 } from "lucide-react";
 import Metatags from "../../../SEO/metatags";
 import { useNotification } from "@/contexts/NotificationContext";
@@ -47,13 +47,13 @@ const FileRename = () => {
     }));
     setFiles((prev) => [...prev, ...fileObjects]);
     setError("");
-    
+
     if (showNotification) {
       showNotification({
-        type: 'success',
-        title: 'Files Selected',
+        type: "success",
+        title: "Files Selected",
         message: `${newFiles.length} file(s) ready for renaming`,
-        duration: 3000
+        duration: 3000,
       });
     }
   };
@@ -62,10 +62,10 @@ const FileRename = () => {
     setFiles((prev) => prev.filter((_, i) => i !== index));
     if (showNotification) {
       showNotification({
-        type: 'info',
-        title: 'File Removed',
-        message: 'File removed from selection',
-        duration: 2000
+        type: "info",
+        title: "File Removed",
+        message: "File removed from selection",
+        duration: 2000,
       });
     }
   };
@@ -88,10 +88,10 @@ const FileRename = () => {
       setError("Please upload files first");
       if (showNotification) {
         showNotification({
-          type: 'error',
-          title: 'No Files',
-          message: 'Please upload files first',
-          duration: 4000
+          type: "error",
+          title: "No Files",
+          message: "Please upload files first",
+          duration: 4000,
         });
       }
       return;
@@ -101,10 +101,10 @@ const FileRename = () => {
       setError("Please enter a naming pattern");
       if (showNotification) {
         showNotification({
-          type: 'error',
-          title: 'Pattern Required',
-          message: 'Please enter a naming pattern',
-          duration: 4000
+          type: "error",
+          title: "Pattern Required",
+          message: "Please enter a naming pattern",
+          duration: 4000,
         });
       }
       return;
@@ -119,13 +119,13 @@ const FileRename = () => {
     setRenamedFiles(updatedFiles);
     setShowPreview(true);
     setError("");
-    
+
     if (showNotification) {
       showNotification({
-        type: 'success',
-        title: 'Preview Generated',
-        message: 'Check the preview before renaming',
-        duration: 4000
+        type: "success",
+        title: "Preview Generated",
+        message: "Check the preview before renaming",
+        duration: 4000,
       });
     }
   };
@@ -135,10 +135,10 @@ const FileRename = () => {
       setError("Please upload files first");
       if (showNotification) {
         showNotification({
-          type: 'error',
-          title: 'No Files',
-          message: 'Please upload files first',
-          duration: 4000
+          type: "error",
+          title: "No Files",
+          message: "Please upload files first",
+          duration: 4000,
         });
       }
       return;
@@ -149,17 +149,17 @@ const FileRename = () => {
 
     if (showNotification) {
       showNotification({
-        type: 'info',
-        title: 'Processing Files',
-        message: 'Renaming your files...',
+        type: "info",
+        title: "Processing Files",
+        message: "Renaming your files...",
         duration: 0,
-        autoClose: false
+        autoClose: false,
       });
     }
 
     try {
       const token = getToken();
-      
+
       if (token) {
         // Backend processing with batch save
         await processWithBackend(token);
@@ -167,16 +167,15 @@ const FileRename = () => {
         // Client-side only processing
         processClientSideOnly();
       }
-
     } catch (error) {
       console.error("Error:", error);
       setError("Failed to rename files: " + error.message);
       if (showNotification) {
         showNotification({
-          type: 'error',
-          title: 'Processing Error',
-          message: 'Failed to rename files: ' + error.message,
-          duration: 5000
+          type: "error",
+          title: "Processing Error",
+          message: "Failed to rename files: " + error.message,
+          duration: 5000,
         });
       }
     } finally {
@@ -190,12 +189,12 @@ const FileRename = () => {
     const filesData = files.map((fileObj, index) => ({
       originalName: fileObj.originalName,
       newName: generateNewFilename(fileObj.originalName, index, pattern),
-      pattern: pattern
+      pattern: pattern,
     }));
 
     // Convert all files to blobs and create FormData
     const formData = new FormData();
-    
+
     // Add each file
     for (let i = 0; i < files.length; i++) {
       const fileObj = files[i];
@@ -203,32 +202,37 @@ const FileRename = () => {
       const blob = await response.blob();
       formData.append("files", blob, fileObj.originalName);
     }
-    
+
     // Add files data as JSON
     formData.append("filesData", JSON.stringify(filesData));
-    formData.append("batchName", batchName || `File Rename ${new Date().toLocaleDateString()}`);
+    formData.append(
+      "batchName",
+      batchName || `File Rename ${new Date().toLocaleDateString()}`
+    );
 
     // Save to Edit model as batch
     const saveResult = await saveToEditModelBatch(formData, token);
 
     // Handle limit exceeded error
-    if (!saveResult.success && saveResult.type === 'limit_exceeded') {
+    if (!saveResult.success && saveResult.type === "limit_exceeded") {
       setError(saveResult.message || "Edit tools limit reached");
-      
+
       if (showNotification) {
         showNotification({
-          type: 'error',
-          title: saveResult.title || 'Usage Limit Reached',
+          type: "error",
+          title: saveResult.title || "Usage Limit Reached",
           message: saveResult.message || saveResult.reason,
           duration: 8000,
           currentUsage: saveResult.currentUsage,
           limit: saveResult.limit,
           upgradeRequired: saveResult.upgradeRequired,
-          action: saveResult.upgradeRequired ? {
-            label: 'Upgrade Plan',
-            onClick: () => window.open('/pricing', '_blank'),
-            external: true
-          } : null
+          action: saveResult.upgradeRequired
+            ? {
+                label: "Upgrade Plan",
+                onClick: () => window.open("/pricing", "_blank"),
+                external: true,
+              }
+            : null,
         });
       }
       return;
@@ -237,13 +241,13 @@ const FileRename = () => {
     if (saveResult.success) {
       setFileSaved(true);
       setBatchId(saveResult.batchId);
-      
-      console.log('✅ [FRONTEND] Batch saved successfully:', {
-        batchId: saveResult.batchId,
-        totalFiles: files.length,
-        savedRecords: saveResult.savedRecords
-      });
-      
+
+      // console.log("✅ [FRONTEND] Batch saved successfully:", {
+      //   batchId: saveResult.batchId,
+      //   totalFiles: files.length,
+      //   savedRecords: saveResult.savedRecords,
+      // });
+
       const processedFiles = files.map((fileObj, index) => ({
         ...fileObj,
         newName: generateNewFilename(fileObj.originalName, index, pattern),
@@ -251,23 +255,23 @@ const FileRename = () => {
 
       setFiles(processedFiles);
       setRenamedFiles(processedFiles);
-      
+
       if (showNotification) {
         showNotification({
-          type: 'success',
-          title: 'Files Renamed Successfully! 🎉',
+          type: "success",
+          title: "Files Renamed Successfully! 🎉",
           message: `${files.length} file(s) renamed and saved as batch`,
-          duration: 5000
+          duration: 5000,
         });
       }
     } else {
       setError("Failed to save files: " + saveResult.error);
       if (showNotification) {
         showNotification({
-          type: 'error',
-          title: 'Rename Failed',
-          message: 'Failed to rename files: ' + saveResult.error,
-          duration: 5000
+          type: "error",
+          title: "Rename Failed",
+          message: "Failed to rename files: " + saveResult.error,
+          duration: 5000,
         });
       }
     }
@@ -282,13 +286,13 @@ const FileRename = () => {
 
     setFiles(processedFiles);
     setRenamedFiles(processedFiles);
-    
+
     if (showNotification) {
       showNotification({
-        type: 'success',
-        title: 'Files Renamed Successfully! 🎉',
+        type: "success",
+        title: "Files Renamed Successfully! 🎉",
         message: `${files.length} file(s) renamed (client-side only)`,
-        duration: 5000
+        duration: 5000,
       });
     }
   };
@@ -296,17 +300,22 @@ const FileRename = () => {
   // Save multiple files as batch to Edit model
   const saveToEditModelBatch = async (formData, token) => {
     try {
-      const response = await fetch(`${API_URL}/api/tools/pdf-editor/save-file-rename`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      });
+      const response = await fetch(
+        `${API_URL}/api/tools/pdf-editor/save-file-rename`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        }
+      );
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Failed to save to Edit model: ${response.status} - ${errorText}`);
+        throw new Error(
+          `Failed to save to Edit model: ${response.status} - ${errorText}`
+        );
       }
 
       const result = await response.json();
@@ -320,17 +329,17 @@ const FileRename = () => {
   // Download entire batch as ZIP (only for logged-in users)
   const downloadBatch = async () => {
     try {
-      console.log('🔍 [FRONTEND] Starting batch download:', batchId);
-      
+      // console.log("🔍 [FRONTEND] Starting batch download:", batchId);
+
       const token = getToken();
       if (!token) {
         setError("Please log in to download files as ZIP");
         if (showNotification) {
           showNotification({
-            type: 'error',
-            title: 'Authentication Required',
-            message: 'Please log in to download files as ZIP',
-            duration: 5000
+            type: "error",
+            title: "Authentication Required",
+            message: "Please log in to download files as ZIP",
+            duration: 5000,
           });
         }
         return;
@@ -338,32 +347,35 @@ const FileRename = () => {
 
       if (showNotification) {
         showNotification({
-          type: 'info',
-          title: 'Preparing Download',
-          message: 'Creating ZIP archive...',
+          type: "info",
+          title: "Preparing Download",
+          message: "Creating ZIP archive...",
           duration: 0,
-          autoClose: false
+          autoClose: false,
         });
       }
 
-      const response = await fetch(`${API_URL}/api/tools/pdf-editor/download-batch/${batchId}`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await fetch(
+        `${API_URL}/api/tools/pdf-editor/download-batch/${batchId}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('❌ [FRONTEND] Batch download failed:', errorData);
-        throw new Error(errorData.error || 'Failed to download batch');
+        console.error("❌ [FRONTEND] Batch download failed:", errorData);
+        throw new Error(errorData.error || "Failed to download batch");
       }
 
       const blob = await response.blob();
-      
+
       // Create download link
       const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = url;
       link.download = `file-batch-${batchId}.zip`;
       document.body.appendChild(link);
@@ -371,26 +383,25 @@ const FileRename = () => {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
-      console.log("✅ [FRONTEND] Batch download completed successfully");
+      // console.log("✅ [FRONTEND] Batch download completed successfully");
 
       if (showNotification) {
         showNotification({
-          type: 'success',
-          title: 'Download Started',
-          message: 'ZIP archive download started',
-          duration: 3000
+          type: "success",
+          title: "Download Started",
+          message: "ZIP archive download started",
+          duration: 3000,
         });
       }
-
     } catch (error) {
-      console.error('❌ [FRONTEND] Download batch error:', error);
-      setError('Failed to download batch: ' + error.message);
+      console.error("❌ [FRONTEND] Download batch error:", error);
+      setError("Failed to download batch: " + error.message);
       if (showNotification) {
         showNotification({
-          type: 'error',
-          title: 'Download Failed',
-          message: 'Failed to download batch: ' + error.message,
-          duration: 5000
+          type: "error",
+          title: "Download Failed",
+          message: "Failed to download batch: " + error.message,
+          duration: 5000,
         });
       }
     }
@@ -404,13 +415,13 @@ const FileRename = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    
+
     if (showNotification) {
       showNotification({
-        type: 'success',
-        title: 'Download Started',
+        type: "success",
+        title: "Download Started",
         message: `Downloading ${fileObj.newName}`,
-        duration: 3000
+        duration: 3000,
       });
     }
   };
@@ -443,13 +454,13 @@ const FileRename = () => {
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
-    
+
     if (showNotification) {
       showNotification({
-        type: 'info',
-        title: 'Reset',
-        message: 'Ready to rename another batch',
-        duration: 3000
+        type: "info",
+        title: "Reset",
+        message: "Ready to rename another batch",
+        duration: 3000,
       });
     }
   };
@@ -500,8 +511,8 @@ const FileRename = () => {
           <div>
             <h2 className="text-xl font-bold">File Rename</h2>
             <p className="text-sm text-muted-foreground">
-              {isLoggedIn 
-                ? "Batch rename your files - Files are saved as a single batch" 
+              {isLoggedIn
+                ? "Batch rename your files - Files are saved as a single batch"
                 : "Batch rename your files - No server needed"}
             </p>
           </div>
@@ -509,13 +520,16 @@ const FileRename = () => {
 
         {renamedFiles.length > 0 ? (
           <div className="text-center mt-8">
-            <h3 className="text-lg font-bold mb-4">Your files are renamed! 🎉</h3>
+            <h3 className="text-lg font-bold mb-4">
+              Your files are renamed! 🎉
+            </h3>
 
             {/* File Saved Status */}
             {fileSaved && isLoggedIn && (
               <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
                 <p className="text-green-700 text-sm font-medium">
-                  ✅ Files automatically saved as <strong>Batch</strong> to Edit History
+                  ✅ Files automatically saved as <strong>Batch</strong> to Edit
+                  History
                 </p>
                 <p className="text-green-600 text-xs mt-1">
                   Batch ID: {batchId} • {files.length} files
@@ -632,7 +646,8 @@ const FileRename = () => {
                   placeholder="e.g., Project Documents, Vacation Photos, etc."
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Give a name to this batch for easier identification in your history
+                  Give a name to this batch for easier identification in your
+                  history
                 </p>
               </div>
             )}
@@ -647,8 +662,8 @@ const FileRename = () => {
                 Click to upload or drag and drop
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                {isLoggedIn 
-                  ? "Multiple files supported • Files will be saved as a batch" 
+                {isLoggedIn
+                  ? "Multiple files supported • Files will be saved as a batch"
                   : "Multiple files supported • Client-side processing"}
               </p>
               <input
@@ -741,8 +756,8 @@ const FileRename = () => {
                   </code>
                 </div>
                 <p className="text-green-600 font-medium">
-                  {isLoggedIn 
-                    ? "✓ Files will be saved as a single batch in your history" 
+                  {isLoggedIn
+                    ? "✓ Files will be saved as a single batch in your history"
                     : "✓ All processing happens in your browser"}
                 </p>
               </div>

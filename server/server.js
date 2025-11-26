@@ -21,12 +21,12 @@ const AdvancedRoutes = require("./routes/tools-routes/Advanced/Advanced-Route");
 const OrganizeRoutes = require("./routes/tools-routes/Organize/Organize-Route");
 const SecurityRoutes = require("./routes/tools-routes/Security/Security-Routes");
 const EditRoutes = require("./routes/tools-routes/Edit/Edit-Route");
-const optimizeRoutes = require('./routes/tools-routes/Optimize/Optimize-Route');
+const optimizeRoutes = require("./routes/tools-routes/Optimize/Optimize-Route");
 const fileRoutes = require("./routes/fileRoutes");
 const blogRoutes = require("./routes/blogRoutes");
 const dashboardRoutes = require("./routes/dashboard/dashboard-routes");
 const activitiesRoutes = require("./routes/activities/activities-routes");
-const adminDashboardRoutes = require('./routes/adminDashboardRoutes');
+const adminDashboardRoutes = require("./routes/adminDashboardRoutes");
 
 const app = express();
 
@@ -123,18 +123,23 @@ app.use("/api/tools/pdf-editor", EditRoutes);
 app.use("/api/blogs", blogRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/activities", activitiesRoutes);
-app.use('/api/admin/dashboard', adminDashboardRoutes);
+app.use("/api/admin/dashboard", adminDashboardRoutes);
 
 // TOOLS ROUTES (from file 2)
-app.use('/api/tools/advanced', AdvancedRoutes);
-app.use('/api/tools/organize', OrganizeRoutes);
-app.use('/api/tools/optimize', optimizeRoutes);
+app.use("/api/tools/advanced", AdvancedRoutes);
+app.use("/api/tools/organize", OrganizeRoutes);
+app.use("/api/tools/optimize", optimizeRoutes);
 app.use("/api/tools/security", SecurityRoutes);
 
-
 // Serve static files
-app.use("/api/tools/pdf-editor/downloads", express.static(path.join(__dirname, "uploads/edited")));
-app.use("/api/tools/security/downloads", express.static(path.join(__dirname, "uploads/security")));
+app.use(
+  "/api/tools/pdf-editor/downloads",
+  express.static(path.join(__dirname, "uploads/edited"))
+);
+app.use(
+  "/api/tools/security/downloads",
+  express.static(path.join(__dirname, "uploads/security"))
+);
 
 // For File Rename - UPDATED to use correct path (from file 2)
 app.use(
@@ -172,7 +177,8 @@ app.get("/api/health", (req, res) => {
     message: "PDF Works Server is running!",
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || "development",
-    database: mongoose.connection.readyState === 1 ? "connected" : "disconnected"
+    database:
+      mongoose.connection.readyState === 1 ? "connected" : "disconnected",
   });
 });
 
@@ -184,34 +190,34 @@ app.get("/api/tools", (req, res) => {
       {
         name: "Organize Tools",
         path: "/api/tools/organize",
-        description: "PDF organization and management tools"
+        description: "PDF organization and management tools",
       },
       {
         name: "Security Tools",
         path: "/api/tools/security",
-        description: "File encryption, 2FA protection, and access control"
+        description: "File encryption, 2FA protection, and access control",
       },
       {
         name: "PDF Editor Tools",
         path: "/api/tools/pdf-editor",
-        description: "PDF editing and manipulation tools"
+        description: "PDF editing and manipulation tools",
       },
       {
         name: "Advanced Tools",
         path: "/api/advanced",
-        description: "Advanced PDF processing tools"
+        description: "Advanced PDF processing tools",
       },
       {
         name: "Convert Tools",
         path: "/api/convert",
-        description: "File conversion tools"
+        description: "File conversion tools",
       },
       {
         name: "Optimize Tools",
         path: "/api/tools/optimize",
-        description: "PDF optimization tools"
-      }
-    ]
+        description: "PDF optimization tools",
+      },
+    ],
   });
 });
 
@@ -236,21 +242,24 @@ app.use((error, req, res, next) => {
 
   res.status(500).json({
     error: "Internal server error",
-    details: process.env.NODE_ENV === "development" ? error.message : "Something went wrong",
+    details:
+      process.env.NODE_ENV === "development"
+        ? error.message
+        : "Something went wrong",
   });
 });
 
 // 404 - IMPROVED with all routes
 app.use((req, res) => {
   console.log(`404 - Route not found: ${req.method} ${req.originalUrl}`);
-  res.status(404).json({ 
+  res.status(404).json({
     error: "Route not found",
     path: req.originalUrl,
     method: req.method,
     availableRoutes: [
       // Security Routes
       "POST   /api/tools/security/encrypt",
-      "POST   /api/tools/security/decrypt", 
+      "POST   /api/tools/security/decrypt",
       "POST   /api/tools/security/protect-pdf-2fa",
       "POST   /api/tools/security/access-pdf-2fa",
       "GET    /api/tools/security/list-2fa-files",
@@ -267,7 +276,7 @@ app.use((req, res) => {
       "POST   /api/tools/pdf-editor/upload",
       "GET    /api/tools/pdf-editor/structure/:sessionId",
       "POST   /api/tools/pdf-editor/update-text",
-      "POST   /api/tools/pdf-editor/get-edits", 
+      "POST   /api/tools/pdf-editor/get-edits",
       "POST   /api/tools/pdf-editor/export",
       "POST   /api/tools/pdf-editor/apply-edits",
       "GET    /api/tools/pdf-editor/download/:sessionId",
@@ -285,14 +294,14 @@ app.use((req, res) => {
       // Test & Health Routes
       "GET    /api/test-cors",
       "GET    /api/health",
-      "GET    /api/tools"
-    ]
+      "GET    /api/tools",
+    ],
   });
 });
 
 // MONGODB
 mongoose
-  .connect("mongodb://sudesh.t%40cybomb.com:Cybomb%401234@147.93.111.96:27017/pdf-works?authSource=admin")
+  .connect("mongodb://localhost:27017/pdf-tools")
   //.connect("mongodb://localhost:27017/pdf-tools")
   .then(() => console.log("MongoDB connected successfully"))
   .catch((err) => {
@@ -311,23 +320,27 @@ process.on("SIGINT", async () => {
 const PORT = process.env.PORT;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📚 CORS enabled for origins: ${[
-    "http://localhost:3001",
-    "http://localhost:5173",
-    "http://localhost:3000",
-    "https://pdfworks.in",
-    "https://www.pdfworks.in",
-    "https://cybombadmin.cybomb.com",
-  ].join(", ")}`);
+  console.log(
+    `📚 CORS enabled for origins: ${[
+      "http://localhost:3001",
+      "http://localhost:5173",
+      "http://localhost:3000",
+      "https://pdfworks.in",
+      "https://www.pdfworks.in",
+      "https://cybombadmin.cybomb.com",
+    ].join(", ")}`
+  );
   console.log("");
   console.log("🔗 Test URLs:");
   console.log(`  Health Check: http://localhost:${PORT}/api/health`);
   console.log(`  CORS Test: http://localhost:${PORT}/api/test-cors`);
   console.log(`  Tools List: http://localhost:${PORT}/api/tools`);
-  console.log(`  Security Test: http://localhost:${PORT}/api/tools/security/test`);
+  console.log(
+    `  Security Test: http://localhost:${PORT}/api/tools/security/test`
+  );
   console.log("");
   console.log("✅ All tools are now available!");
-}); 
+});
 
 setInterval(runCleanupTask, 10 * 60 * 1000); // every 10 min
 console.log("⏳ Auto cleanup system enabled (1 hour expiration)");

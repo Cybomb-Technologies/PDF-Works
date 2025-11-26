@@ -2,13 +2,13 @@ const jwt = require("jsonwebtoken");
 
 const verifyToken = (req, res, next) => {
   const authHeader = req.headers["authorization"];
-  
+
   // Check if authorization header exists and has Bearer token
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({ 
-      success: false, 
+    return res.status(401).json({
+      success: false,
       error: "No token provided",
-      message: "User not authenticated. Please login again."
+      message: "User not authenticated. Please login again.",
     });
   }
 
@@ -18,31 +18,31 @@ const verifyToken = (req, res, next) => {
     // Verify the token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.user = decoded;
-    
-    console.log('User authenticated via token:', {
+
+    console.log("User authenticated via token:", {
       id: decoded.id,
       email: decoded.email,
-      role: decoded.role
+      role: decoded.role,
     });
-    
+
     next();
   } catch (err) {
-    console.error('Token verification failed:', err.message);
-    return res.status(401).json({ 
-      success: false, 
+    console.error("Token verification failed:", err.message);
+    return res.status(401).json({
+      success: false,
       error: "Invalid token",
-      message: "User not authenticated. Please login again."
+      message: "User not authenticated. Please login again.",
     });
   }
 };
 
 const verifyAdmin = (req, res, next) => {
   const authHeader = req.headers["authorization"];
-  
+
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({ 
-      success: false, 
-      error: "No token provided" 
+    return res.status(401).json({
+      success: false,
+      error: "No token provided",
     });
   }
 
@@ -51,19 +51,19 @@ const verifyAdmin = (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.user = decoded;
-    
+
     // Check if user has admin role
     if (req.user.role !== "admin") {
-      return res.status(403).json({ 
-        success: false, 
-        error: "Admin access only" 
+      return res.status(403).json({
+        success: false,
+        error: "Admin access only",
       });
     }
     next();
   } catch (err) {
-    return res.status(401).json({ 
-      success: false, 
-      error: "Invalid token" 
+    return res.status(401).json({
+      success: false,
+      error: "Invalid token",
     });
   }
 };
@@ -71,7 +71,7 @@ const verifyAdmin = (req, res, next) => {
 // For routes that don't require authentication but should still extract user if token exists
 const optionalAuth = (req, res, next) => {
   const authHeader = req.headers["authorization"];
-  
+
   if (authHeader && authHeader.startsWith("Bearer ")) {
     const token = authHeader.split(" ")[1];
     try {
@@ -84,4 +84,9 @@ const optionalAuth = (req, res, next) => {
   next();
 };
 
-module.exports = { verifyToken, verifyAdmin, protect: verifyToken, optionalAuth };
+module.exports = {
+  verifyToken,
+  verifyAdmin,
+  protect: verifyToken,
+  optionalAuth,
+};

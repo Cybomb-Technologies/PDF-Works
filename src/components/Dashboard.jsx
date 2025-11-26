@@ -37,9 +37,12 @@ const Dashboard = () => {
 
   const metaPropsData = {
     title: "Dashboard | PDF Works - Free Online PDF Editor & Tools",
-    description: "Manage your free PDF workspace with our online PDF editor. Convert, compress, merge, sign PDFs for free. Track your usage and access all free PDF tools in one dashboard.",
-    keyword: "free pdf editor, online pdf tools, pdf converter free, compress pdf free, digital signature pdf, free pdf dashboard, pdf workspace, free pdf manager, online pdf editor free, pdf tools dashboard",
-    image: "https://res.cloudinary.com/dcfjt8shw/image/upload/v1761288318/wn8m8g8skdpl6iz2rwoa.svg",
+    description:
+      "Manage your free PDF workspace with our online PDF editor. Convert, compress, merge, sign PDFs for free. Track your usage and access all free PDF tools in one dashboard.",
+    keyword:
+      "free pdf editor, online pdf tools, pdf converter free, compress pdf free, digital signature pdf, free pdf dashboard, pdf workspace, free pdf manager, online pdf editor free, pdf tools dashboard",
+    image:
+      "https://res.cloudinary.com/dcfjt8shw/image/upload/v1761288318/wn8m8g8skdpl6iz2rwoa.svg",
     url: "https://pdfworks.in/dashboard",
   };
 
@@ -52,22 +55,22 @@ const Dashboard = () => {
     try {
       const token = getToken();
       const response = await fetch(`${API_URL}/api/pricing/`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.plan) {
-          console.log('✅ Fetched actual plan limits:', data.plan);
+          // console.log('✅ Fetched actual plan limits:', data.plan);
           return data.plan;
         }
       }
-      
+
       // Fallback to hardcoded if API fails
-      console.warn('⚠️ Using fallback plan limits');
+      console.warn("⚠️ Using fallback plan limits");
       return getHardcodedPlanLimits(user?.planName?.toLowerCase() || "free");
     } catch (error) {
-      console.error('❌ Error fetching plan limits:', error);
+      console.error("❌ Error fetching plan limits:", error);
       return getHardcodedPlanLimits(user?.planName?.toLowerCase() || "free");
     }
   };
@@ -197,7 +200,6 @@ const Dashboard = () => {
       setBillingInfo(billingData);
       setRecentActivities(activities.slice(0, 5));
       setToolUsage(toolUsageData);
-
     } catch (error) {
       console.error("Error fetching user data:", error);
     } finally {
@@ -208,14 +210,11 @@ const Dashboard = () => {
   const fetchBillingHistory = async () => {
     try {
       const token = getToken();
-      const response = await fetch(
-        `${API_URL}/api/payments/history`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const response = await fetch(`${API_URL}/api/payments/history`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       if (response.ok) {
         const data = await response.json();
@@ -233,28 +232,34 @@ const Dashboard = () => {
   const fetchToolUsage = async () => {
     try {
       const token = getToken();
-      
+
       // Fetch usage data from all tool categories
-      const [editHistory, organizeHistory, securityHistory, optimizeHistory, advancedHistory] = await Promise.all([
+      const [
+        editHistory,
+        organizeHistory,
+        securityHistory,
+        optimizeHistory,
+        advancedHistory,
+      ] = await Promise.all([
         fetch(`${API_URL}/api/tools/edit/history`, {
-          headers: { Authorization: `Bearer ${token}` }
-        }).then(res => res.ok ? res.json() : { edits: [] }),
-        
+          headers: { Authorization: `Bearer ${token}` },
+        }).then((res) => (res.ok ? res.json() : { edits: [] })),
+
         fetch(`${API_URL}/api/tools/organize/history`, {
-          headers: { Authorization: `Bearer ${token}` }
-        }).then(res => res.ok ? res.json() : { organizes: [] }),
-        
+          headers: { Authorization: `Bearer ${token}` },
+        }).then((res) => (res.ok ? res.json() : { organizes: [] })),
+
         fetch(`${API_URL}/api/tools/security/history`, {
-          headers: { Authorization: `Bearer ${token}` }
-        }).then(res => res.ok ? res.json() : { securityOps: [] }),
-        
+          headers: { Authorization: `Bearer ${token}` },
+        }).then((res) => (res.ok ? res.json() : { securityOps: [] })),
+
         fetch(`${API_URL}/api/tools/optimize/history`, {
-          headers: { Authorization: `Bearer ${token}` }
-        }).then(res => res.ok ? res.json() : { optimizeOps: [] }),
-        
+          headers: { Authorization: `Bearer ${token}` },
+        }).then((res) => (res.ok ? res.json() : { optimizeOps: [] })),
+
         fetch(`${API_URL}/api/tools/advanced/history`, {
-          headers: { Authorization: `Bearer ${token}` }
-        }).then(res => res.ok ? res.json() : { advancedOps: [] })
+          headers: { Authorization: `Bearer ${token}` },
+        }).then((res) => (res.ok ? res.json() : { advancedOps: [] })),
       ]);
 
       return {
@@ -284,7 +289,7 @@ const Dashboard = () => {
   // Force refresh function
   const forceRefreshDashboard = async () => {
     setLoading(true);
-    console.log('🔄 Force refreshing dashboard data...');
+    // console.log("🔄 Force refreshing dashboard data...");
     await fetchUserData();
   };
 
@@ -297,7 +302,9 @@ const Dashboard = () => {
   }
 
   // Use actual plan limits or fallback
-  const actualPlanLimits = planLimits || getHardcodedPlanLimits(user?.planName?.toLowerCase() || "free");
+  const actualPlanLimits =
+    planLimits ||
+    getHardcodedPlanLimits(user?.planName?.toLowerCase() || "free");
 
   return (
     <>
@@ -305,25 +312,35 @@ const Dashboard = () => {
       <div className="space-y-6">
         {/* Refresh Button */}
         <div className="flex justify-end">
-          <button 
+          <button
             onClick={forceRefreshDashboard}
             className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+              />
             </svg>
             Refresh Limits
           </button>
         </div>
 
-        <WelcomeSection 
-          user={user} 
-          navigate={navigate} 
+        <WelcomeSection
+          user={user}
+          navigate={navigate}
           billingInfo={billingInfo}
           formatDate={formatDate}
           formatCurrency={formatCurrency}
         />
-        
+
         <ToolUsageOverview
           stats={stats}
           planLimits={actualPlanLimits}
@@ -333,13 +350,13 @@ const Dashboard = () => {
         />
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          <RecentActivity 
+          <RecentActivity
             recentActivities={recentActivities}
             fetchUserData={fetchUserData}
             formatDate={formatDate}
           />
-          
-          <SubscriptionSidebar 
+
+          <SubscriptionSidebar
             user={user}
             planLimits={actualPlanLimits}
             stats={stats}

@@ -11,11 +11,16 @@ const {
   exportUsers,
   downloadUserTemplate,
   importUsers,
-  getUserLimits, // NEW: Import the getUserLimits function
+  getUserLimits,
+  updateUserProfile, // NEW: Import the updateUserProfile function
   // Google Auth imports
   getGoogleAuthURL,
   googleAuthCallback,
   googleAuth,
+  // OTP Verification imports
+  sendVerificationOTP,
+  verifyOTP,
+  resendOTP,
 } = require("../controllers/userController");
 const { verifyToken, verifyAdmin } = require("../middleware/authMiddleware");
 const multer = require("multer");
@@ -59,6 +64,11 @@ const upload = multer({
 router.post("/register", registerUser);
 router.post("/login", loginUser);
 
+// OTP Verification routes
+router.post("/send-otp", sendVerificationOTP);
+router.post("/verify-otp", verifyOTP);
+router.post("/resend-otp", resendOTP);
+
 // Google OAuth routes
 router.get("/google/url", getGoogleAuthURL);
 router.get("/google/callback", googleAuthCallback);
@@ -72,6 +82,9 @@ router.post("/reset-password", resetPassword);
 router.get("/me", verifyToken, getCurrentUser);
 router.post("/plan/free", verifyToken, updateToFreePlan);
 
+// NEW: Profile update route
+router.put("/profile", verifyToken, updateUserProfile);
+
 // NEW: User limits route
 router.get("/limits", verifyToken, getUserLimits);
 
@@ -80,5 +93,5 @@ router.get("/users", verifyAdmin, getAllUsers);
 router.get("/users/export", verifyAdmin, exportUsers);
 router.get("/users/template", verifyAdmin, downloadUserTemplate);
 router.post("/users/import", verifyAdmin, upload.single("file"), importUsers);
- 
+
 module.exports = router;

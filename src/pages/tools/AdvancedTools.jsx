@@ -32,16 +32,16 @@ const tools = [
 
 // Get auth token from localStorage
 const getAuthToken = () => {
-  return localStorage.getItem('token');
+  return localStorage.getItem("token");
 };
 
 // Enhanced fetch with auth (same as your other tools)
 const authFetch = async (url, options = {}) => {
   const token = getAuthToken();
   const headers = {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
     ...options.headers,
-    ...(token && { 'Authorization': `Bearer ${token}` }),
+    ...(token && { Authorization: `Bearer ${token}` }),
   };
 
   return fetch(url, { ...options, headers });
@@ -55,14 +55,14 @@ const AdvancedTools = () => {
   const [method, setMethod] = useState("GET");
   const [body, setBody] = useState("");
   const [headers, setHeaders] = useState("");
-  
+
   const { showNotification } = useNotification();
 
   const handleToolClick = async (tool) => {
     setLoading(true);
     setError("");
     setResult(null);
-    
+
     try {
       let requestBody = {};
 
@@ -72,10 +72,10 @@ const AdvancedTools = () => {
         if (!apiUrl.trim()) {
           throw new Error("Please enter an API URL");
         }
-        
+
         let parsedBody = null;
         let parsedHeaders = null;
-        
+
         if (body.trim()) {
           try {
             parsedBody = JSON.parse(body);
@@ -83,7 +83,7 @@ const AdvancedTools = () => {
             throw new Error("Invalid JSON in body");
           }
         }
-        
+
         if (headers.trim()) {
           try {
             parsedHeaders = JSON.parse(headers);
@@ -102,8 +102,8 @@ const AdvancedTools = () => {
         requestBody = {}; // Analytics doesn't need body
       }
 
-      console.log('🔍 [FRONTEND DEBUG] Calling advanced tool:', tool.id);
-      
+      // console.log('🔍 [FRONTEND DEBUG] Calling advanced tool:', tool.id);
+
       // ✅ FIXED: Use unified route like OrganizeTools
       const response = await authFetch(`${API_URL}/api/advanced/${tool.id}`, {
         method: "POST",
@@ -111,69 +111,76 @@ const AdvancedTools = () => {
       });
 
       const result = await response.json();
-      
-      console.log('🔍 [FRONTEND DEBUG] Response received:', {
-        success: result.success,
-        type: result.type,
-        message: result.message
-      });
-      
+
+      // console.log('🔍 [FRONTEND DEBUG] Response received:', {
+      //   success: result.success,
+      //   type: result.type,
+      //   message: result.message
+      // });
+
       // Handle backend errors with detailed messages
       if (!response.ok || !result.success) {
         // Check for limit exceeded error
-        if (result.type === 'limit_exceeded') {
-          console.log('🚫 [FRONTEND DEBUG] Limit exceeded detected');
+        if (result.type === "limit_exceeded") {
+          // console.log('🚫 [FRONTEND DEBUG] Limit exceeded detected');
           showNotification({
-            type: 'error',
-            title: result.title || 'Usage Limit Reached',
-            message: result.message || result.reason || 'Advanced tools limit reached',
+            type: "error",
+            title: result.title || "Usage Limit Reached",
+            message:
+              result.message || result.reason || "Advanced tools limit reached",
             duration: 8000,
             currentUsage: result.currentUsage,
             limit: result.limit,
             upgradeRequired: result.upgradeRequired,
-            action: result.upgradeRequired ? {
-              label: 'Upgrade Plan',
-              onClick: () => window.location.href = '/billing',
-              external: true
-            } : undefined
+            action: result.upgradeRequired
+              ? {
+                  label: "Upgrade Plan",
+                  onClick: () => (window.location.href = "/billing"),
+                  external: true,
+                }
+              : undefined,
           });
-          
+
           return;
         } else {
           // Show other detailed errors
-          console.log('❌ [FRONTEND DEBUG] Other error detected');
+          // console.log('❌ [FRONTEND DEBUG] Other error detected');
           showNotification({
-            type: 'error',
-            title: result.title || 'Operation Failed',
-            message: result.message || result.error || 'Something went wrong',
-            duration: 5000
+            type: "error",
+            title: result.title || "Operation Failed",
+            message: result.message || result.error || "Something went wrong",
+            duration: 5000,
           });
         }
-        
-        throw new Error(result.message || `HTTP error! status: ${response.status}`);
+
+        throw new Error(
+          result.message || `HTTP error! status: ${response.status}`
+        );
       }
-      
+
       setResult(result);
 
       // Show success notification
       showNotification({
-        type: 'success',
+        type: "success",
         title: `${tool.name} Completed`,
-        message: result.message || 'Operation completed successfully',
-        duration: 5000
+        message: result.message || "Operation completed successfully",
+        duration: 5000,
       });
-
     } catch (err) {
       console.error("❌ [FRONTEND DEBUG] Tool execution error:", err);
-      
+
       // Don't show duplicate notifications for limit exceeded
-      if (!err.message.includes('Usage Limit Reached') && !err.message.includes('limit_exceeded')) {
+      if (
+        !err.message.includes("Usage Limit Reached") &&
+        !err.message.includes("limit_exceeded")
+      ) {
         setError(err.message);
         showNotification({
-          type: 'error',
-          title: 'Operation Failed',
+          type: "error",
+          title: "Operation Failed",
           message: err.message,
-          duration: 5000
+          duration: 5000,
         });
       }
     } finally {
@@ -211,7 +218,8 @@ const AdvancedTools = () => {
             <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
               <p className="text-yellow-800 flex items-center gap-2">
                 <AlertTriangle className="h-4 w-4" />
-                Some features require authentication. Please log in for full access.
+                Some features require authentication. Please log in for full
+                access.
               </p>
             </div>
           )}
@@ -330,13 +338,13 @@ const AdvancedTools = () => {
                 Processing your request...
               </div>
             )}
-            
+
             {error && (
               <div className="p-3 bg-red-50 border border-red-200 text-red-600 rounded-md font-medium">
                 ❌ {error}
               </div>
             )}
-            
+
             {result && (
               <div className="w-full">
                 <h4 className="text-green-600 font-semibold mb-2">

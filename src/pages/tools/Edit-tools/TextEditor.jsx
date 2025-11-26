@@ -150,16 +150,22 @@ const PDFEditor = () => {
   };
 
   // Save to Edit model function with proper error handling
-  const saveToEditModel = async (fileBlob, filename, editType, originalName, metadata = {}) => {
+  const saveToEditModel = async (
+    fileBlob,
+    filename,
+    editType,
+    originalName,
+    metadata = {}
+  ) => {
     try {
       const token = getToken();
       if (!token) {
         if (showNotification) {
           showNotification({
-            type: 'error',
-            title: 'Authentication Required',
-            message: 'Please log in to save files',
-            duration: 5000
+            type: "error",
+            title: "Authentication Required",
+            message: "Please log in to save files",
+            duration: 5000,
           });
         }
         return { success: false, error: "Please log in to save files" };
@@ -168,10 +174,15 @@ const PDFEditor = () => {
       const formData = new FormData();
       formData.append("file", fileBlob, filename);
       formData.append("originalName", originalName);
-      
+
       if (metadata) {
-        Object.keys(metadata).forEach(key => {
-          formData.append(key, typeof metadata[key] === 'object' ? JSON.stringify(metadata[key]) : metadata[key]);
+        Object.keys(metadata).forEach((key) => {
+          formData.append(
+            key,
+            typeof metadata[key] === "object"
+              ? JSON.stringify(metadata[key])
+              : metadata[key]
+          );
         });
       }
 
@@ -190,35 +201,38 @@ const PDFEditor = () => {
           return { success: false, error: "Invalid edit type" };
       }
 
-      const response = await fetch(`${API_URL}/api/tools/pdf-editor${endpoint}`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      });
+      const response = await fetch(
+        `${API_URL}/api/tools/pdf-editor${endpoint}`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        }
+      );
 
       // First parse the response
       let result;
       try {
         result = await response.json();
       } catch (parseError) {
-        console.error('Failed to parse response:', parseError);
-        throw new Error('Invalid server response');
+        console.error("Failed to parse response:", parseError);
+        throw new Error("Invalid server response");
       }
 
-      console.log('Save image crop response:', result);
+      // console.log('Save image crop response:', result);
 
       // Handle limit exceeded response
-      if (result.type === 'limit_exceeded') {
+      if (result.type === "limit_exceeded") {
         return {
           success: false,
-          type: 'limit_exceeded',
+          type: "limit_exceeded",
           title: result.title,
           message: result.message || result.reason,
           currentUsage: result.currentUsage,
           limit: result.limit,
-          upgradeRequired: result.upgradeRequired
+          upgradeRequired: result.upgradeRequired,
         };
       }
 
@@ -227,7 +241,6 @@ const PDFEditor = () => {
       }
 
       return result;
-
     } catch (error) {
       console.error("Save to Edit model error:", error);
       return { success: false, error: error.message };
@@ -313,10 +326,10 @@ const PDFEditor = () => {
     if (file.type !== "application/pdf") {
       if (showNotification) {
         showNotification({
-          type: 'error',
-          title: 'Invalid File Type',
-          message: 'Please select a PDF file.',
-          duration: 5000
+          type: "error",
+          title: "Invalid File Type",
+          message: "Please select a PDF file.",
+          duration: 5000,
         });
       }
       return;
@@ -328,11 +341,11 @@ const PDFEditor = () => {
 
     if (showNotification) {
       showNotification({
-        type: 'info',
-        title: 'Uploading PDF',
-        message: 'Processing your PDF file...',
+        type: "info",
+        title: "Uploading PDF",
+        message: "Processing your PDF file...",
         duration: 0,
-        autoClose: false
+        autoClose: false,
       });
     }
 
@@ -352,11 +365,11 @@ const PDFEditor = () => {
 
       // Get token for authentication
       const token = getToken();
-      
+
       // Prepare headers with authorization if token exists
       const headers = {};
       if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
+        headers["Authorization"] = `Bearer ${token}`;
       }
 
       const response = await fetch(`${API_URL}/api/tools/pdf-editor/upload`, {
@@ -372,29 +385,31 @@ const PDFEditor = () => {
       try {
         responseData = await response.json();
       } catch (parseError) {
-        console.error('Failed to parse response as JSON:', parseError);
-        throw new Error('Invalid server response');
+        console.error("Failed to parse response as JSON:", parseError);
+        throw new Error("Invalid server response");
       }
 
-      console.log('Upload response:', responseData);
+      // console.log("Upload response:", responseData);
 
       // Handle different response types
-      if (responseData.type === 'limit_exceeded') {
+      if (responseData.type === "limit_exceeded") {
         // This is a limit exceeded response
         if (showNotification) {
           showNotification({
-            type: 'error',
-            title: responseData.title || 'Usage Limit Reached',
+            type: "error",
+            title: responseData.title || "Usage Limit Reached",
             message: responseData.message || responseData.reason,
             duration: 8000,
             currentUsage: responseData.currentUsage,
             limit: responseData.limit,
             upgradeRequired: responseData.upgradeRequired,
-            action: responseData.upgradeRequired ? {
-              label: 'Upgrade Plan',
-              onClick: () => window.open('/pricing', '_blank'),
-              external: true
-            } : null
+            action: responseData.upgradeRequired
+              ? {
+                  label: "Upgrade Plan",
+                  onClick: () => window.open("/pricing", "_blank"),
+                  external: true,
+                }
+              : null,
           });
         }
         return;
@@ -405,17 +420,19 @@ const PDFEditor = () => {
         if (response.status === 401) {
           if (showNotification) {
             showNotification({
-              type: 'error',
-              title: 'Authentication Required',
-              message: 'Please log in to use PDF Editor features',
-              duration: 5000
+              type: "error",
+              title: "Authentication Required",
+              message: "Please log in to use PDF Editor features",
+              duration: 5000,
             });
           }
           return;
         }
-        
+
         // Handle other errors
-        throw new Error(responseData.error || `Upload failed: ${response.status}`);
+        throw new Error(
+          responseData.error || `Upload failed: ${response.status}`
+        );
       }
 
       // Success case
@@ -432,13 +449,13 @@ const PDFEditor = () => {
         setTimeout(() => {
           setStatus("editor");
           renderCurrentPage();
-          
+
           if (showNotification) {
             showNotification({
-              type: 'success',
-              title: 'PDF Ready for Editing! 🎉',
-              message: 'Your PDF has been processed and is ready for editing',
-              duration: 5000
+              type: "success",
+              title: "PDF Ready for Editing! 🎉",
+              message: "Your PDF has been processed and is ready for editing",
+              duration: 5000,
             });
           }
         }, 500);
@@ -447,19 +464,22 @@ const PDFEditor = () => {
       }
     } catch (err) {
       console.error("Upload error:", err);
-      
+
       // Only show notification if it's not a limit exceeded error (already handled above)
-      if (!err.message.includes('Usage Limit Reached') && !err.message.includes('limit_exceeded')) {
+      if (
+        !err.message.includes("Usage Limit Reached") &&
+        !err.message.includes("limit_exceeded")
+      ) {
         if (showNotification) {
           showNotification({
-            type: 'error',
-            title: 'Upload Failed',
+            type: "error",
+            title: "Upload Failed",
             message: "Error processing PDF: " + err.message,
-            duration: 5000
+            duration: 5000,
           });
         }
       }
-      
+
       setStatus("upload");
     } finally {
       setIsProcessing(false);
@@ -474,9 +494,9 @@ const PDFEditor = () => {
       const headers = {
         "Content-Type": "application/json",
       };
-      
+
       if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
+        headers["Authorization"] = `Bearer ${token}`;
       }
 
       const response = await fetch(
@@ -524,13 +544,13 @@ const PDFEditor = () => {
       setUserElements(previousState.userElements);
       setHistoryIndex((prev) => prev - 1);
       renderCurrentPage();
-      
+
       if (showNotification) {
         showNotification({
-          type: 'info',
-          title: 'Undo',
-          message: 'Previous action undone',
-          duration: 2000
+          type: "info",
+          title: "Undo",
+          message: "Previous action undone",
+          duration: 2000,
         });
       }
     }
@@ -544,13 +564,13 @@ const PDFEditor = () => {
       setUserElements(nextState.userElements);
       setHistoryIndex((prev) => prev + 1);
       renderCurrentPage();
-      
+
       if (showNotification) {
         showNotification({
-          type: 'info',
-          title: 'Redo',
-          message: 'Action redone',
-          duration: 2000
+          type: "info",
+          title: "Redo",
+          message: "Action redone",
+          duration: 2000,
         });
       }
     }
@@ -764,13 +784,13 @@ const PDFEditor = () => {
 
     // Save the changes
     handleTextEdit(selectedElement.id, getTextEditData(element));
-    
+
     if (showNotification) {
       showNotification({
-        type: 'success',
-        title: 'Format Applied',
-        message: 'Text formatting updated',
-        duration: 2000
+        type: "success",
+        title: "Format Applied",
+        message: "Text formatting updated",
+        duration: 2000,
       });
     }
   };
@@ -1205,13 +1225,13 @@ const PDFEditor = () => {
     setTimeout(() => {
       renderCurrentPage();
     }, 0);
-    
+
     if (showNotification) {
       showNotification({
-        type: 'success',
-        title: 'Element Added',
+        type: "success",
+        title: "Element Added",
         message: `${type} added to page ${currentPage}`,
-        duration: 2000
+        duration: 2000,
       });
     }
   };
@@ -1231,9 +1251,9 @@ const PDFEditor = () => {
       const headers = {
         "Content-Type": "application/json",
       };
-      
+
       if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
+        headers["Authorization"] = `Bearer ${token}`;
       }
 
       const response = await fetch(
@@ -1287,19 +1307,19 @@ const PDFEditor = () => {
       highlightSearchResult(results[0].element);
       if (showNotification) {
         showNotification({
-          type: 'success',
-          title: 'Search Results',
+          type: "success",
+          title: "Search Results",
           message: `Found ${results.length} matches`,
-          duration: 3000
+          duration: 3000,
         });
       }
     } else {
       if (showNotification) {
         showNotification({
-          type: 'warning',
-          title: 'No Results',
-          message: 'No matches found for your search',
-          duration: 3000
+          type: "warning",
+          title: "No Results",
+          message: "No matches found for your search",
+          duration: 3000,
         });
       }
     }
@@ -1325,13 +1345,13 @@ const PDFEditor = () => {
 
     // Move to next result
     handleNextResult();
-    
+
     if (showNotification) {
       showNotification({
-        type: 'success',
-        title: 'Text Replaced',
-        message: 'Text replaced successfully',
-        duration: 2000
+        type: "success",
+        title: "Text Replaced",
+        message: "Text replaced successfully",
+        duration: 2000,
       });
     }
   };
@@ -1355,13 +1375,13 @@ const PDFEditor = () => {
 
     setSearchResults([]);
     setCurrentSearchIndex(-1);
-    
+
     if (showNotification) {
       showNotification({
-        type: 'success',
-        title: 'All Replaced',
-        message: 'All occurrences replaced successfully',
-        duration: 3000
+        type: "success",
+        title: "All Replaced",
+        message: "All occurrences replaced successfully",
+        duration: 3000,
       });
     }
   };
@@ -1418,13 +1438,13 @@ const PDFEditor = () => {
     setTimeout(() => {
       renderCurrentPage();
     }, 0);
-    
+
     if (showNotification) {
       showNotification({
-        type: 'success',
-        title: 'Element Duplicated',
-        message: 'Element duplicated successfully',
-        duration: 2000
+        type: "success",
+        title: "Element Duplicated",
+        message: "Element duplicated successfully",
+        duration: 2000,
       });
     }
   };
@@ -1484,7 +1504,7 @@ const PDFEditor = () => {
         height: pageStructure.height,
       };
 
-      console.log(`Captured page ${pageNum} with canvas DOM`);
+      // console.log(`Captured page ${pageNum} with canvas DOM`);
     }
 
     setCurrentPage(originalPage);
@@ -1758,7 +1778,7 @@ const PDFEditor = () => {
         resolve();
       };
       img.onerror = () => {
-        console.log("Image failed to load");
+        // console.log("Image failed to load");
         resolve();
       };
       img.src = element.src;
@@ -1777,7 +1797,7 @@ const PDFEditor = () => {
           resolve();
         };
         img.onerror = () => {
-          console.log("Element background image failed to load");
+          // console.log("Element background image failed to load");
           resolve();
         };
 
@@ -1800,20 +1820,20 @@ const PDFEditor = () => {
 
       if (showNotification) {
         showNotification({
-          type: 'info',
-          title: 'Exporting PDF',
-          message: 'Processing your edited PDF...',
+          type: "info",
+          title: "Exporting PDF",
+          message: "Processing your edited PDF...",
           duration: 0,
-          autoClose: false
+          autoClose: false,
         });
       }
 
-      console.log("Starting canvas-only export...");
+      // console.log("Starting canvas-only export...");
 
       // Capture all pages as canvas data
       const canvasData = await captureAllPagesAsCanvas();
 
-      console.log("Canvas data captured, sending to server...");
+      // console.log("Canvas data captured, sending to server...");
 
       // Export with canvas data only (no original PDF merging)
       const response = await fetch(`${API_URL}/api/tools/pdf-editor/export`, {
@@ -1835,11 +1855,11 @@ const PDFEditor = () => {
       }
 
       const blob = await response.blob();
-      
+
       // Save to Edit model
       const saveResult = await saveToEditModel(
-        blob, 
-        `edited-document-${sessionId}.pdf`, 
+        blob,
+        `edited-document-${sessionId}.pdf`,
         "pdf-edit",
         "original-document.pdf",
         { sessionId, totalPages }
@@ -1849,13 +1869,13 @@ const PDFEditor = () => {
         setFileSaved(true);
         if (showNotification) {
           showNotification({
-            type: 'success',
-            title: 'PDF Exported Successfully! 🎉',
-            message: 'PDF exported and saved to your edit history!',
-            duration: 5000
+            type: "success",
+            title: "PDF Exported Successfully! 🎉",
+            message: "PDF exported and saved to your edit history!",
+            duration: 5000,
           });
         }
-      } else if (saveResult.type === 'limit_exceeded') {
+      } else if (saveResult.type === "limit_exceeded") {
         // Limit error already handled in saveToEditModel
         return;
       } else {
@@ -1865,24 +1885,26 @@ const PDFEditor = () => {
           `edited-document-${sessionId}.pdf`,
           "PDF Editor"
         );
-        
+
         if (myFilesResult.success) {
           setFileSaved(true);
           if (showNotification) {
             showNotification({
-              type: 'success',
-              title: 'PDF Exported Successfully! 🎉',
-              message: 'PDF exported and saved to My Files!',
-              duration: 5000
+              type: "success",
+              title: "PDF Exported Successfully! 🎉",
+              message: "PDF exported and saved to My Files!",
+              duration: 5000,
             });
           }
         } else {
           if (showNotification) {
             showNotification({
-              type: 'warning',
-              title: 'Export Completed',
-              message: 'PDF exported but failed to save to history: ' + myFilesResult.error,
-              duration: 5000
+              type: "warning",
+              title: "Export Completed",
+              message:
+                "PDF exported but failed to save to history: " +
+                myFilesResult.error,
+              duration: 5000,
             });
           }
         }
@@ -1897,15 +1919,14 @@ const PDFEditor = () => {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-
     } catch (error) {
       console.error("Export error:", error);
       if (showNotification) {
         showNotification({
-          type: 'error',
-          title: 'Export Failed',
+          type: "error",
+          title: "Export Failed",
           message: "Error exporting PDF: " + error.message,
-          duration: 5000
+          duration: 5000,
         });
       }
     } finally {
@@ -1920,11 +1941,11 @@ const PDFEditor = () => {
 
       if (showNotification) {
         showNotification({
-          type: 'info',
-          title: 'Saving Edits',
-          message: 'Applying your changes...',
+          type: "info",
+          title: "Saving Edits",
+          message: "Applying your changes...",
           duration: 0,
-          autoClose: false
+          autoClose: false,
         });
       }
 
@@ -1953,9 +1974,9 @@ const PDFEditor = () => {
       const headers = {
         "Content-Type": "application/json",
       };
-      
+
       if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
+        headers["Authorization"] = `Bearer ${token}`;
       }
 
       const response = await fetch(
@@ -1982,16 +2003,16 @@ const PDFEditor = () => {
       if (result.success) {
         if (showNotification) {
           showNotification({
-            type: 'success',
-            title: 'Edits Saved! ✅',
-            message: 'All edits applied and saved successfully!',
-            duration: 3000
+            type: "success",
+            title: "Edits Saved! ✅",
+            message: "All edits applied and saved successfully!",
+            duration: 3000,
           });
         }
-        console.log("Edits saved:", {
-          textEdits: Object.keys(currentEdits).length,
-          userElements: Object.keys(userElements).length,
-        });
+        // console.log("Edits saved:", {
+        //   textEdits: Object.keys(currentEdits).length,
+        //   userElements: Object.keys(userElements).length,
+        // });
       } else {
         throw new Error(result.error || "Failed to apply edits");
       }
@@ -1999,10 +2020,10 @@ const PDFEditor = () => {
       console.error("Apply edits error:", error);
       if (showNotification) {
         showNotification({
-          type: 'error',
-          title: 'Save Failed',
+          type: "error",
+          title: "Save Failed",
           message: "Error applying edits: " + error.message,
-          duration: 5000
+          duration: 5000,
         });
       }
     } finally {
@@ -2057,13 +2078,13 @@ const PDFEditor = () => {
     const ctx = canvas.getContext("2d");
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     setSignaturePaths([]);
-    
+
     if (showNotification) {
       showNotification({
-        type: 'info',
-        title: 'Signature Cleared',
-        message: 'Signature drawing area cleared',
-        duration: 2000
+        type: "info",
+        title: "Signature Cleared",
+        message: "Signature drawing area cleared",
+        duration: 2000,
       });
     }
   };
@@ -2081,13 +2102,13 @@ const PDFEditor = () => {
     setShowSignaturePopup(false);
     clearSignature();
     saveToHistory();
-    
+
     if (showNotification) {
       showNotification({
-        type: 'success',
-        title: 'Signature Added',
-        message: 'Signature added to document',
-        duration: 3000
+        type: "success",
+        title: "Signature Added",
+        message: "Signature added to document",
+        duration: 3000,
       });
     }
   };
@@ -2097,10 +2118,10 @@ const PDFEditor = () => {
     if (!signature.trim()) {
       if (showNotification) {
         showNotification({
-          type: 'error',
-          title: 'Signature Required',
-          message: 'Please enter your signature',
-          duration: 3000
+          type: "error",
+          title: "Signature Required",
+          message: "Please enter your signature",
+          duration: 3000,
         });
       }
       return;
@@ -2115,13 +2136,13 @@ const PDFEditor = () => {
     });
     setSignature("");
     saveToHistory();
-    
+
     if (showNotification) {
       showNotification({
-        type: 'success',
-        title: 'Text Signature Added',
-        message: 'Text signature added to document',
-        duration: 3000
+        type: "success",
+        title: "Text Signature Added",
+        message: "Text signature added to document",
+        duration: 3000,
       });
     }
   };
@@ -2139,13 +2160,13 @@ const PDFEditor = () => {
         height: 150,
       });
       saveToHistory();
-      
+
       if (showNotification) {
         showNotification({
-          type: 'success',
-          title: 'Image Added',
-          message: 'Image added to document',
-          duration: 3000
+          type: "success",
+          title: "Image Added",
+          message: "Image added to document",
+          duration: 3000,
         });
       }
     };
@@ -2244,13 +2265,13 @@ const PDFEditor = () => {
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
-    
+
     if (showNotification) {
       showNotification({
-        type: 'info',
-        title: 'Editor Reset',
-        message: 'Ready to upload a new PDF',
-        duration: 3000
+        type: "info",
+        title: "Editor Reset",
+        message: "Ready to upload a new PDF",
+        duration: 3000,
       });
     }
   };
@@ -2513,8 +2534,8 @@ const PDFEditor = () => {
         {fileSaved && (
           <div className="fixed bottom-4 right-4 p-4 bg-green-50 border border-green-200 rounded-lg shadow-lg z-50">
             <p className="text-green-700 text-sm font-medium">
-              ✅ File automatically saved to{' '}
-              <strong>{isLoggedIn ? 'Edit History' : 'My Files'}</strong>
+              ✅ File automatically saved to{" "}
+              <strong>{isLoggedIn ? "Edit History" : "My Files"}</strong>
             </p>
           </div>
         )}
@@ -2700,7 +2721,9 @@ const PDFEditor = () => {
                     </button>
                     <button
                       onClick={() =>
-                        applyTextFormatting({ underline: !textFormat.underline })
+                        applyTextFormatting({
+                          underline: !textFormat.underline,
+                        })
                       }
                       className={`p-2 rounded ${
                         textFormat.underline
@@ -2939,7 +2962,8 @@ const PDFEditor = () => {
                       style={{
                         background: "white",
                         boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
-                        cursor: activeTool !== "select" ? "crosshair" : "default",
+                        cursor:
+                          activeTool !== "select" ? "crosshair" : "default",
                       }}
                       onClick={handleCanvasClick}
                     />
@@ -2956,7 +2980,9 @@ const PDFEditor = () => {
 
                 {/* Right Sidebar - Colors and Properties */}
                 <div className="w-80 bg-white border-l border-gray-200 p-4">
-                  <h3 className="font-semibold text-gray-700 mb-4">Properties</h3>
+                  <h3 className="font-semibold text-gray-700 mb-4">
+                    Properties
+                  </h3>
 
                   {/* Active Tool Info */}
                   <div className="mb-4 p-3 bg-blue-50 rounded-lg">

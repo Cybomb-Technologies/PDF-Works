@@ -1,4 +1,4 @@
-// controllers/userController.js (FIXED GOOGLE AUTH)
+// controllers/userController.js (OTP REQUIRED FOR EVERY LOGIN)
 const User = require("../models/UserModel");
 const PricingPlan = require("../models/Pricing"); // ADD THIS IMPORT
 const bcrypt = require("bcryptjs");
@@ -29,6 +29,181 @@ const transporter = nodemailer.createTransport({
     pass: process.env.SMTP_PASS,
   },
 });
+
+// Send OTP Email
+const sendOTPEmail = async (email, name, otp) => {
+  const mailOptions = {
+    from: process.env.SMTP_USER,
+    to: email,
+    subject: "Email Verification OTP - PDF Works",
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
+        <h2 style="text-align: center; color: #333;">Email Verification</h2>
+        <p>Hi ${name},</p>
+        <p>Thank you for using PDF Works! Please use the following OTP to verify your login. This OTP is valid for 10 minutes.</p>
+        <p style="text-align: center; font-size: 24px; font-weight: bold; color: #fff; background-color: #8A2BE2; padding: 15px; border-radius: 8px; letter-spacing: 2px;">${otp}</p>
+        <p>If you did not request this verification, please ignore this email.</p>
+        <p style="margin-top: 30px; font-size: 12px; color: #666;">This is an automated message, please do not reply to this email.</p>
+      </div>
+    `,
+  };
+
+  return transporter.sendMail(mailOptions);
+};
+
+// SEND OTP FOR VERIFICATION
+const sendVerificationOTP = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: "Email is required",
+      });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: "User not found",
+      });
+    }
+
+    // Generate OTP and set expiry (10 minutes)
+    const otp = generateOTP();
+    const tokenExpiry = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+    user.emailVerificationToken = otp;
+    user.emailVerificationExpires = tokenExpiry;
+    await user.save();
+
+    // Send OTP email
+    await sendOTPEmail(user.email, user.name, otp);
+
+    res.json({
+      success: true,
+      message: "OTP sent to your email for verification",
+    });
+  } catch (error) {
+    console.error("Send OTP error:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to send OTP",
+    });
+  }
+};
+
+// VERIFY OTP AND COMPLETE LOGIN/REGISTRATION
+const verifyOTP = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      return res.status(400).json({
+        success: false,
+        error: "Email and OTP are required",
+      });
+    }
+
+    const user = await User.findOne({
+      email,
+      emailVerificationToken: otp,
+      emailVerificationExpires: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid or expired OTP",
+      });
+    }
+
+    // Mark email as verified and clear OTP fields
+    user.isEmailVerified = true;
+    user.emailVerificationToken = undefined;
+    user.emailVerificationExpires = undefined;
+    await user.save();
+
+    // Generate JWT token for immediate login
+    const token = jwt.sign(
+      { id: user._id, email: user.email, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "1d" }
+    );
+
+    res.json({
+      success: true,
+      message: "Email verified successfully",
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        plan: user.plan,
+        planName: user.planName,
+        billingCycle: user.billingCycle,
+        subscriptionStatus: user.subscriptionStatus,
+        planExpiry: user.planExpiry,
+        usage: user.usage,
+        autoRenewal: user.autoRenewal,
+        isEmailVerified: user.isEmailVerified,
+      },
+    });
+  } catch (error) {
+    console.error("Verify OTP error:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to verify OTP",
+    });
+  }
+};
+
+// RESEND OTP
+const resendOTP = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: "Email is required",
+      });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: "User not found",
+      });
+    }
+
+    // Generate new OTP and set expiry (10 minutes)
+    const otp = generateOTP();
+    const tokenExpiry = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+    user.emailVerificationToken = otp;
+    user.emailVerificationExpires = tokenExpiry;
+    await user.save();
+
+    // Send new OTP email
+    await sendOTPEmail(user.email, user.name, otp);
+
+    res.json({
+      success: true,
+      message: "New OTP sent to your email",
+    });
+  } catch (error) {
+    console.error("Resend OTP error:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to resend OTP",
+    });
+  }
+};
 
 // GOOGLE AUTH: Generate Google OAuth URL
 const getGoogleAuthURL = (req, res) => {
@@ -104,6 +279,7 @@ const googleAuthCallback = async (req, res) => {
         planName: "Free",
         subscriptionStatus: "active",
         billingCycle: "monthly",
+        isEmailVerified: false, // OTP required even for Google users
         usage: {
           conversions: 0,
           compressions: 0,
@@ -125,15 +301,21 @@ const googleAuthCallback = async (req, res) => {
       await user.save();
     }
 
-    // Generate JWT token
-    const token = jwt.sign(
-      { id: user._id, email: user.email, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: "1d" }
-    );
+    // Send OTP for Google auth users too
+    const otp = generateOTP();
+    const tokenExpiry = Date.now() + 10 * 60 * 1000; // 10 minutes
 
-    // Redirect to frontend with token
-    const redirectUrl = `${process.env.FRONTEND_URL}/auth/success?token=${token}&userId=${user._id}`;
+    user.emailVerificationToken = otp;
+    user.emailVerificationExpires = tokenExpiry;
+    await user.save();
+
+    // Send OTP email
+    await sendOTPEmail(user.email, user.name, otp);
+
+    // Redirect to frontend with verification required
+    const redirectUrl = `${
+      process.env.FRONTEND_URL
+    }/login?email=${encodeURIComponent(email)}&requiresVerification=true`;
     res.redirect(redirectUrl);
   } catch (error) {
     console.error("Google auth callback error:", error);
@@ -187,6 +369,7 @@ const googleAuth = async (req, res) => {
         planName: "Free",
         subscriptionStatus: "active",
         billingCycle: "monthly",
+        isEmailVerified: false, // OTP required even for Google users
         usage: {
           conversions: 0,
           compressions: 0,
@@ -208,30 +391,22 @@ const googleAuth = async (req, res) => {
       await user.save();
     }
 
-    // Generate JWT token
-    const token = jwt.sign(
-      { id: user._id, email: user.email, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: "1d" }
-    );
+    // Send OTP for Google auth users too
+    const otp = generateOTP();
+    const tokenExpiry = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+    user.emailVerificationToken = otp;
+    user.emailVerificationExpires = tokenExpiry;
+    await user.save();
+
+    // Send OTP email
+    await sendOTPEmail(user.email, user.name, otp);
 
     res.json({
-      success: true,
-      message: "Google authentication successful",
-      token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        plan: user.plan,
-        planName: user.planName,
-        billingCycle: user.billingCycle,
-        subscriptionStatus: user.subscriptionStatus,
-        planExpiry: user.planExpiry,
-        usage: user.usage,
-        autoRenewal: user.autoRenewal,
-      },
+      success: false,
+      requiresVerification: true,
+      message: "OTP sent to your email for verification",
+      email: user.email,
     });
   } catch (error) {
     console.error("Google auth error:", error);
@@ -242,7 +417,7 @@ const googleAuth = async (req, res) => {
   }
 };
 
-// REGISTER USER
+// REGISTER USER (WITH OTP SEND)
 const registerUser = async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -255,10 +430,18 @@ const registerUser = async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Generate OTP for email verification
+    const otp = generateOTP();
+    const tokenExpiry = Date.now() + 10 * 60 * 1000; // 10 minutes
+
     const newUser = new User({
       name,
       email,
       password: hashedPassword,
+      emailVerificationToken: otp,
+      emailVerificationExpires: tokenExpiry,
+      isEmailVerified: false,
       // Default subscription values
       planName: "Free",
       subscriptionStatus: "active",
@@ -283,9 +466,13 @@ const registerUser = async (req, res) => {
     });
     await newUser.save();
 
+    // Send OTP email
+    await sendOTPEmail(email, name, otp);
+
     res.status(201).json({
       success: true,
-      message: "User registered successfully",
+      message:
+        "User registered successfully. Please check your email for verification OTP.",
       user: {
         id: newUser._id,
         name: newUser.name,
@@ -294,14 +481,17 @@ const registerUser = async (req, res) => {
         plan: newUser.plan,
         planName: newUser.planName,
         subscriptionStatus: newUser.subscriptionStatus,
+        isEmailVerified: newUser.isEmailVerified,
       },
+      requiresVerification: true,
     });
   } catch (error) {
+    console.error("Register user error:", error);
     res.status(500).json({ success: false, error: "Server error" });
   }
 };
 
-// LOGIN USER
+// LOGIN USER (WITH OTP REQUIRED FOR EVERY LOGIN)
 const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -318,31 +508,25 @@ const loginUser = async (req, res) => {
         .json({ success: false, error: "Invalid credentials" });
     }
 
-    const token = jwt.sign(
-      { id: user._id, email: user.email, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: "1d" }
-    );
+    // ALWAYS send OTP for login (regardless of verification status)
+    const otp = generateOTP();
+    const tokenExpiry = Date.now() + 10 * 60 * 1000; // 10 minutes
 
-    res.status(200).json({
-      success: true,
-      message: "Login successful",
-      token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        plan: user.plan,
-        planName: user.planName,
-        billingCycle: user.billingCycle,
-        subscriptionStatus: user.subscriptionStatus,
-        planExpiry: user.planExpiry,
-        usage: user.usage,
-        autoRenewal: user.autoRenewal,
-      },
+    user.emailVerificationToken = otp;
+    user.emailVerificationExpires = tokenExpiry;
+    await user.save();
+
+    // Send OTP email
+    await sendOTPEmail(user.email, user.name, otp);
+
+    return res.status(403).json({
+      success: false,
+      error: "OTP verification required",
+      requiresVerification: true,
+      message: "Please enter the OTP sent to your email to login.",
     });
   } catch (error) {
+    console.error("Login error:", error);
     res.status(500).json({ success: false, error: "Server error" });
   }
 };
@@ -458,6 +642,7 @@ const getCurrentUser = async (req, res) => {
         planExpiry: user.planExpiry,
         usage: user.usage,
         autoRenewal: user.autoRenewal,
+        isEmailVerified: user.isEmailVerified,
       },
     });
   } catch (error) {
@@ -465,6 +650,61 @@ const getCurrentUser = async (req, res) => {
     res.status(500).json({
       success: false,
       error: "Server error",
+    });
+  }
+};
+
+// UPDATE USER PROFILE
+const updateUserProfile = async (req, res) => {
+  try {
+    const { name } = req.body;
+    const userId = req.user.id;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: "Name is required",
+      });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      {
+        name: name.trim(),
+      },
+      { new: true }
+    ).select("-password");
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: "User not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Profile updated successfully",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        plan: user.plan,
+        planName: user.planName,
+        billingCycle: user.billingCycle,
+        subscriptionStatus: user.subscriptionStatus,
+        planExpiry: user.planExpiry,
+        usage: user.usage,
+        autoRenewal: user.autoRenewal,
+        isEmailVerified: user.isEmailVerified,
+      },
+    });
+  } catch (error) {
+    console.error("Update profile error:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to update profile",
     });
   }
 };
@@ -551,6 +791,7 @@ const exportUsers = async (req, res) => {
       { header: "Plan", key: "planName", width: 15 },
       { header: "Subscription Status", key: "subscriptionStatus", width: 20 },
       { header: "Billing Cycle", key: "billingCycle", width: 15 },
+      { header: "Email Verified", key: "isEmailVerified", width: 15 },
       { header: "Joined Date", key: "createdAt", width: 20 },
       { header: "User ID", key: "userId", width: 30 },
     ];
@@ -572,6 +813,7 @@ const exportUsers = async (req, res) => {
         planName: user.planName,
         subscriptionStatus: user.subscriptionStatus,
         billingCycle: user.billingCycle,
+        isEmailVerified: user.isEmailVerified ? "Yes" : "No",
         createdAt: user.createdAt.toLocaleDateString("en-US", {
           year: "numeric",
           month: "short",
@@ -879,6 +1121,7 @@ const processUsers = async (users) => {
         planName: planName,
         subscriptionStatus: "active",
         billingCycle: "monthly",
+        isEmailVerified: false, // OTP required for imported users too
         usage: {
           conversions: 0,
           compressions: 0,
@@ -1079,8 +1322,13 @@ module.exports = {
   downloadUserTemplate,
   importUsers,
   getUserLimits,
+  updateUserProfile,
   // Google Auth exports
   getGoogleAuthURL,
   googleAuthCallback,
   googleAuth,
-}; 
+  // OTP Verification exports
+  sendVerificationOTP,
+  verifyOTP,
+  resendOTP,
+};

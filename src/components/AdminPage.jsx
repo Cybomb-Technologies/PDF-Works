@@ -1,12 +1,34 @@
 // src/components/AdminPage/AdminPage.jsx
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { 
-  Users, FileText, DollarSign, Activity, RefreshCw, Mail, 
-  Calendar, Eye, Filter, TrendingUp, TrendingDown, 
-  PieChart, BarChart3, UserCheck, Download, Shield,
-  Zap, Settings, Database, Clock, ArrowRight, X,
-  MapPin, Phone, CreditCard, User, File
+import {
+  Users,
+  FileText,
+  DollarSign,
+  Activity,
+  RefreshCw,
+  Mail,
+  Calendar,
+  Eye,
+  Filter,
+  TrendingUp,
+  TrendingDown,
+  PieChart,
+  BarChart3,
+  UserCheck,
+  Download,
+  Shield,
+  Zap,
+  Settings,
+  Database,
+  Clock,
+  ArrowRight,
+  X,
+  MapPin,
+  Phone,
+  CreditCard,
+  User,
+  File,
 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -22,7 +44,7 @@ const AdminPage = () => {
     activeUsers: 0,
     filesByCategory: {},
     totalRevenue: 0,
-    previousMonthRevenue: 0
+    previousMonthRevenue: 0,
   });
 
   const [users, setUsers] = useState([]);
@@ -54,24 +76,31 @@ const AdminPage = () => {
       const token = getAdminToken();
       if (!token) return;
 
-      console.log("🔍 Fetching admin dashboard data...");
+      // console.log("🔍 Fetching admin dashboard data...");
 
-      const [statsRes, usersRes, filesRes, paymentStatsRes] = await Promise.all([
-        fetch(`${API_URL}/api/admin/dashboard/stats`, {
-          headers: { "Authorization": `Bearer ${token}` },
-        }),
-        fetch(`${API_URL}/api/admin/dashboard/users`, {
-          headers: { "Authorization": `Bearer ${token}` },
-        }),
-        fetch(`${API_URL}/api/admin/dashboard/files?limit=8`, {
-          headers: { "Authorization": `Bearer ${token}` },
-        }),
-        fetch(`${API_URL}/api/admin/dashboard/payment-stats`, {
-          headers: { "Authorization": `Bearer ${token}` },
-        })
-      ]);
+      const [statsRes, usersRes, filesRes, paymentStatsRes] = await Promise.all(
+        [
+          fetch(`${API_URL}/api/admin/dashboard/stats`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          fetch(`${API_URL}/api/admin/dashboard/users`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          fetch(`${API_URL}/api/admin/dashboard/files?limit=8`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          fetch(`${API_URL}/api/admin/dashboard/payment-stats`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+        ]
+      );
 
-      if (statsRes.status === 401 || usersRes.status === 401 || filesRes.status === 401 || paymentStatsRes.status === 401) {
+      if (
+        statsRes.status === 401 ||
+        usersRes.status === 401 ||
+        filesRes.status === 401 ||
+        paymentStatsRes.status === 401
+      ) {
         localStorage.removeItem("pdfpro_admin_token");
         navigate("/admin/login");
         return;
@@ -81,22 +110,28 @@ const AdminPage = () => {
         throw new Error("Failed to fetch dashboard data");
       }
 
-      const [statsData, usersData, filesData, paymentStatsData] = await Promise.all([
-        statsRes.json(),
-        usersRes.json(),
-        filesRes.json(),
-        paymentStatsRes.json()
-      ]);
+      const [statsData, usersData, filesData, paymentStatsData] =
+        await Promise.all([
+          statsRes.json(),
+          usersRes.json(),
+          filesRes.json(),
+          paymentStatsRes.json(),
+        ]);
 
-      console.log("📊 Admin dashboard data:", { statsData, usersData, filesData, paymentStatsData });
+      // console.log("📊 Admin dashboard data:", { statsData, usersData, filesData, paymentStatsData });
 
-      if (!statsData.success || !usersData.success || !filesData.success || !paymentStatsData.success) {
+      if (
+        !statsData.success ||
+        !usersData.success ||
+        !filesData.success ||
+        !paymentStatsData.success
+      ) {
         throw new Error("Invalid data received from server");
       }
 
       // Process statistics
       const usersByPlan = statsData.stats.usersByPlan || {};
-      
+
       // Create dynamic plan distribution
       const dynamicPlanDistribution = Object.entries(usersByPlan)
         .filter(([planName]) => planName && planName !== "undefined")
@@ -105,13 +140,13 @@ const AdminPage = () => {
           value: count,
           color: getPlanColor(planName),
           gradient: getPlanGradient(planName),
-          icon: getPlanIcon(planName)
+          icon: getPlanIcon(planName),
         }))
         .sort((a, b) => b.value - a.value);
 
       // Use payment stats for revenue data
       const paymentStats = paymentStatsData.stats || {};
-      
+
       setStats({
         totalUsers: statsData.stats.totalUsers || 0,
         totalFiles: statsData.stats.totalFiles || 0,
@@ -120,13 +155,12 @@ const AdminPage = () => {
         totalRevenue: paymentStats.totalRevenue || 0,
         previousMonthRevenue: paymentStats.previousMonthRevenue || 0,
         activeUsers: statsData.stats.activeUsers || 0,
-        filesByCategory: statsData.stats.filesByTool || {}
+        filesByCategory: statsData.stats.filesByTool || {},
       });
 
       setUsers(usersData.users || []);
       setRecentFiles(filesData.files || []);
       setPlanDistribution(dynamicPlanDistribution);
-
     } catch (error) {
       console.error("❌ Error fetching dashboard data:", error);
       toast({
@@ -142,51 +176,51 @@ const AdminPage = () => {
   // Helper functions for plan styling
   const getPlanColor = (planName) => {
     const planColors = {
-      "Free": "text-gray-600 bg-gray-100",
-      "Pro": "text-purple-600 bg-purple-100",
-      "Professional": "text-purple-600 bg-purple-100",
-      "Business": "text-blue-600 bg-blue-100",
-      "Enterprise": "text-blue-600 bg-blue-100",
-      "Starter": "text-green-600 bg-green-100",
-      "Premium": "text-orange-600 bg-orange-100"
+      Free: "text-gray-600 bg-gray-100",
+      Pro: "text-purple-600 bg-purple-100",
+      Professional: "text-purple-600 bg-purple-100",
+      Business: "text-blue-600 bg-blue-100",
+      Enterprise: "text-blue-600 bg-blue-100",
+      Starter: "text-green-600 bg-green-100",
+      Premium: "text-orange-600 bg-orange-100",
     };
     return planColors[planName] || "text-gray-600 bg-gray-100";
   };
 
   const getPlanGradient = (planName) => {
     const gradients = {
-      "Free": "from-gray-400 to-gray-600",
-      "Pro": "from-purple-400 to-purple-600",
-      "Professional": "from-purple-500 to-purple-700",
-      "Business": "from-blue-500 to-blue-700",
-      "Enterprise": "from-blue-600 to-blue-800",
-      "Starter": "from-green-500 to-green-700",
-      "Premium": "from-orange-500 to-orange-700"
+      Free: "from-gray-400 to-gray-600",
+      Pro: "from-purple-400 to-purple-600",
+      Professional: "from-purple-500 to-purple-700",
+      Business: "from-blue-500 to-blue-700",
+      Enterprise: "from-blue-600 to-blue-800",
+      Starter: "from-green-500 to-green-700",
+      Premium: "from-orange-500 to-orange-700",
     };
     return gradients[planName] || "from-gray-400 to-gray-600";
   };
 
   const getPlanIcon = (planName) => {
     const icons = {
-      "Free": Users,
-      "Pro": Zap,
-      "Professional": Zap,
-      "Business": Shield,
-      "Enterprise": Shield,
-      "Starter": Activity,
-      "Premium": Settings
+      Free: Users,
+      Pro: Zap,
+      Professional: Zap,
+      Business: Shield,
+      Enterprise: Shield,
+      Starter: Activity,
+      Premium: Settings,
     };
     return icons[planName] || Users;
   };
 
   const getCategoryIcon = (category) => {
     const icons = {
-      "convert": Download,
-      "organize": Settings,
-      "optimize": Zap,
-      "edit": FileText,
-      "security": Shield,
-      "advanced": Database
+      convert: Download,
+      organize: Settings,
+      optimize: Zap,
+      edit: FileText,
+      security: Shield,
+      advanced: Database,
     };
     return icons[category] || FileText;
   };
@@ -210,49 +244,53 @@ const AdminPage = () => {
   };
 
   const formatFileSize = (bytes) => {
-    if (!bytes || bytes === 0) return '0 Bytes';
+    if (!bytes || bytes === 0) return "0 Bytes";
     const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const sizes = ["Bytes", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
   const formatDate = (dateString) => {
-    if (!dateString) return 'Unknown date';
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+    if (!dateString) return "Unknown date";
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
   const formatDateShort = (dateString) => {
-    if (!dateString) return 'Unknown date';
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
+    if (!dateString) return "Unknown date";
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
     });
   };
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(amount);
   };
 
   // Filter files by category
-  const filteredFiles = selectedCategory === "all" 
-    ? recentFiles 
-    : recentFiles.filter(file => file.toolCategory === selectedCategory);
+  const filteredFiles =
+    selectedCategory === "all"
+      ? recentFiles
+      : recentFiles.filter((file) => file.toolCategory === selectedCategory);
 
   // Get unique categories for filter
-  const categories = ["all", ...new Set(recentFiles.map(file => file.toolCategory).filter(Boolean))];
+  const categories = [
+    "all",
+    ...new Set(recentFiles.map((file) => file.toolCategory).filter(Boolean)),
+  ];
 
   const statCards = [
     {
@@ -260,14 +298,14 @@ const AdminPage = () => {
       value: stats.totalUsers,
       icon: Users,
       color: "from-blue-500 to-cyan-500",
-      description: "Registered users"
+      description: "Registered users",
     },
     {
       label: "Total Files",
       value: stats.totalFiles.toLocaleString(),
       icon: FileText,
       color: "from-purple-500 to-pink-500",
-      description: "Across all tools"
+      description: "Across all tools",
     },
     {
       label: "Monthly Revenue",
@@ -281,27 +319,32 @@ const AdminPage = () => {
           ) : (
             <TrendingDown className="h-3 w-3 text-red-500" />
           )}
-          <span className={stats.revenueGrowth >= 0 ? "text-green-500" : "text-red-500"}>
-            {stats.revenueGrowth >= 0 ? '+' : ''}{stats.revenueGrowth.toFixed(1)}%
+          <span
+            className={
+              stats.revenueGrowth >= 0 ? "text-green-500" : "text-red-500"
+            }
+          >
+            {stats.revenueGrowth >= 0 ? "+" : ""}
+            {stats.revenueGrowth.toFixed(1)}%
           </span>
           <span className="text-gray-500 ml-1">from last month</span>
         </div>
-      )
+      ),
     },
     {
       label: "Active Users",
       value: stats.activeUsers,
       icon: Activity,
       color: "from-orange-500 to-red-500",
-      description: "Users with activity"
+      description: "Users with activity",
     },
     {
       label: "Total Revenue",
       value: formatCurrency(stats.totalRevenue),
       icon: DollarSign,
       color: "from-indigo-500 to-purple-500",
-      description: "All time revenue"
-    }
+      description: "All time revenue",
+    },
   ];
 
   // User Details Modal Component
@@ -334,10 +377,12 @@ const AdminPage = () => {
             {/* User Profile */}
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center text-white font-semibold text-2xl">
-                {selectedUser.name?.charAt(0).toUpperCase() || 'U'}
+                {selectedUser.name?.charAt(0).toUpperCase() || "U"}
               </div>
               <div>
-                <h3 className="text-xl font-bold text-gray-900">{selectedUser.name}</h3>
+                <h3 className="text-xl font-bold text-gray-900">
+                  {selectedUser.name}
+                </h3>
                 <p className="text-gray-600 flex items-center gap-2">
                   <Mail className="h-4 w-4" />
                   {selectedUser.email}
@@ -363,17 +408,19 @@ const AdminPage = () => {
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Role:</span>
                     <span className="font-medium text-gray-900 capitalize">
-                      {selectedUser.role || 'user'}
+                      {selectedUser.role || "user"}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Subscription Status:</span>
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                      selectedUser.subscriptionStatus === 'active' 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {selectedUser.subscriptionStatus || 'active'}
+                    <span
+                      className={`px-2 py-1 rounded text-xs font-medium ${
+                        selectedUser.subscriptionStatus === "active"
+                          ? "bg-green-100 text-green-800"
+                          : "bg-gray-100 text-gray-800"
+                      }`}
+                    >
+                      {selectedUser.subscriptionStatus || "active"}
                     </span>
                   </div>
                 </div>
@@ -388,7 +435,11 @@ const AdminPage = () => {
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Current Plan:</span>
-                    <span className={`px-3 py-1 rounded-full text-sm font-semibold ${getPlanColor(selectedUser.plan)}`}>
+                    <span
+                      className={`px-3 py-1 rounded-full text-sm font-semibold ${getPlanColor(
+                        selectedUser.plan
+                      )}`}
+                    >
                       {selectedUser.plan}
                     </span>
                   </div>
@@ -400,7 +451,9 @@ const AdminPage = () => {
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Files Count:</span>
-                    <span className="font-medium text-gray-900">{selectedUser.files}</span>
+                    <span className="font-medium text-gray-900">
+                      {selectedUser.files}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -421,13 +474,22 @@ const AdminPage = () => {
                     </span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
+                    <div
                       className="h-2 rounded-full bg-gradient-to-r from-green-500 to-emerald-500"
-                      style={{ width: `${Math.min((selectedUser.storageUsed / (1024 * 1024 * 1024)) * 100, 100)}%` }}
+                      style={{
+                        width: `${Math.min(
+                          (selectedUser.storageUsed / (1024 * 1024 * 1024)) *
+                            100,
+                          100
+                        )}%`,
+                      }}
                     ></div>
                   </div>
                   <div className="text-xs text-gray-500 text-center">
-                    {Math.round((selectedUser.storageUsed / (1024 * 1024 * 1024)) * 100)}% of 1GB used
+                    {Math.round(
+                      (selectedUser.storageUsed / (1024 * 1024 * 1024)) * 100
+                    )}
+                    % of 1GB used
                   </div>
                 </div>
               </div>
@@ -452,15 +514,20 @@ const AdminPage = () => {
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Status:</span>
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                      selectedUser.lastActive && new Date(selectedUser.lastActive) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {selectedUser.lastActive && new Date(selectedUser.lastActive) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-                        ? 'Active'
-                        : 'Inactive'
-                      }
+                    <span
+                      className={`px-2 py-1 rounded text-xs font-medium ${
+                        selectedUser.lastActive &&
+                        new Date(selectedUser.lastActive) >
+                          new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+                          ? "bg-green-100 text-green-800"
+                          : "bg-gray-100 text-gray-800"
+                      }`}
+                    >
+                      {selectedUser.lastActive &&
+                      new Date(selectedUser.lastActive) >
+                        new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+                        ? "Active"
+                        : "Inactive"}
                     </span>
                   </div>
                 </div>
@@ -499,7 +566,9 @@ const AdminPage = () => {
           animate={{ opacity: 1, y: 0 }}
           className="space-y-2"
         >
-          <h1 className="text-4xl font-bold gradient-text">Admin Dashboard 👑</h1>
+          <h1 className="text-4xl font-bold gradient-text">
+            Admin Dashboard 👑
+          </h1>
           <p className="text-gray-600">Loading dashboard data...</p>
         </motion.div>
         <div className="flex justify-center items-center min-h-64">
@@ -519,7 +588,9 @@ const AdminPage = () => {
       >
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-4xl font-bold gradient-text">Admin Dashboard 👑</h1>
+            <h1 className="text-4xl font-bold gradient-text">
+              Admin Dashboard 👑
+            </h1>
             <p className="text-gray-600">
               Manage users, files, and monitor platform activity
             </p>
@@ -553,12 +624,16 @@ const AdminPage = () => {
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-600 mb-2">{stat.label}</p>
+                  <p className="text-sm font-medium text-gray-600 mb-2">
+                    {stat.label}
+                  </p>
                   <h3 className="text-2xl font-bold text-gray-900 mb-2">
                     {stat.value}
                   </h3>
                   <div className="text-xs text-gray-500">
-                    {typeof stat.description === 'string' ? stat.description : stat.description}
+                    {typeof stat.description === "string"
+                      ? stat.description
+                      : stat.description}
                   </div>
                 </div>
                 <div
@@ -584,15 +659,20 @@ const AdminPage = () => {
             <PieChart className="h-5 w-5 text-blue-600" />
             Plan Distribution
           </h2>
-          <span className="text-sm text-gray-500">{stats.totalUsers} Total Users</span>
+          <span className="text-sm text-gray-500">
+            {stats.totalUsers} Total Users
+          </span>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {planDistribution.length > 0 ? (
             planDistribution.map((plan, index) => {
               const PlanIcon = plan.icon;
-              const percentage = stats.totalUsers > 0 ? Math.round((plan.value / stats.totalUsers) * 100) : 0;
-              
+              const percentage =
+                stats.totalUsers > 0
+                  ? Math.round((plan.value / stats.totalUsers) * 100)
+                  : 0;
+
               return (
                 <motion.div
                   key={plan.name}
@@ -602,18 +682,24 @@ const AdminPage = () => {
                   className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-white rounded-xl border border-gray-100 hover:border-gray-200 transition-all duration-300"
                 >
                   <div className="flex items-center gap-3 flex-1">
-                    <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${plan.gradient} flex items-center justify-center shadow-md`}>
+                    <div
+                      className={`w-12 h-12 rounded-lg bg-gradient-to-br ${plan.gradient} flex items-center justify-center shadow-md`}
+                    >
                       <PlanIcon className="h-6 w-6 text-white" />
                     </div>
                     <div className="flex-1">
                       <p className="font-semibold text-gray-900">{plan.name}</p>
-                      <p className="text-sm text-gray-500">{plan.value} users</p>
+                      <p className="text-sm text-gray-500">
+                        {plan.value} users
+                      </p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-lg font-bold text-gray-900">{percentage}%</div>
+                    <div className="text-lg font-bold text-gray-900">
+                      {percentage}%
+                    </div>
                     <div className="w-20 bg-gray-200 rounded-full h-2 mt-2">
-                      <div 
+                      <div
                         className={`h-2 rounded-full bg-gradient-to-r ${plan.gradient}`}
                         style={{ width: `${percentage}%` }}
                       ></div>
@@ -642,38 +728,54 @@ const AdminPage = () => {
           <BarChart3 className="h-5 w-5 text-green-600" />
           Revenue Overview
         </h2>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="flex justify-between items-center p-6 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200">
             <div>
-              <p className="text-sm font-medium text-green-700">Current Month</p>
-              <p className="text-2xl font-bold text-green-800">{formatCurrency(stats.monthlyRevenue)}</p>
+              <p className="text-sm font-medium text-green-700">
+                Current Month
+              </p>
+              <p className="text-2xl font-bold text-green-800">
+                {formatCurrency(stats.monthlyRevenue)}
+              </p>
             </div>
             {stats.revenueGrowth >= 0 ? (
               <div className="flex items-center gap-1 bg-green-100 px-3 py-2 rounded-full">
                 <TrendingUp className="h-5 w-5 text-green-600" />
-                <span className="text-sm font-medium text-green-700">+{stats.revenueGrowth.toFixed(1)}%</span>
+                <span className="text-sm font-medium text-green-700">
+                  +{stats.revenueGrowth.toFixed(1)}%
+                </span>
               </div>
             ) : (
               <div className="flex items-center gap-1 bg-red-100 px-3 py-2 rounded-full">
                 <TrendingDown className="h-5 w-5 text-red-600" />
-                <span className="text-sm font-medium text-red-700">{stats.revenueGrowth.toFixed(1)}%</span>
+                <span className="text-sm font-medium text-red-700">
+                  {stats.revenueGrowth.toFixed(1)}%
+                </span>
               </div>
             )}
           </div>
-          
+
           <div className="p-6 bg-blue-50 rounded-xl border border-blue-200">
-            <p className="text-sm font-medium text-blue-600 mb-2">Previous Month</p>
-            <p className="text-2xl font-bold text-blue-700">{formatCurrency(stats.previousMonthRevenue)}</p>
+            <p className="text-sm font-medium text-blue-600 mb-2">
+              Previous Month
+            </p>
+            <p className="text-2xl font-bold text-blue-700">
+              {formatCurrency(stats.previousMonthRevenue)}
+            </p>
             <div className="flex items-center gap-2 mt-3">
               <Calendar className="h-4 w-4 text-blue-500" />
               <span className="text-sm text-blue-600">Last 30 days</span>
             </div>
           </div>
-          
+
           <div className="p-6 bg-purple-50 rounded-xl border border-purple-200">
-            <p className="text-sm font-medium text-purple-600 mb-2">All Time Revenue</p>
-            <p className="text-2xl font-bold text-purple-700">{formatCurrency(stats.totalRevenue)}</p>
+            <p className="text-sm font-medium text-purple-600 mb-2">
+              All Time Revenue
+            </p>
+            <p className="text-2xl font-bold text-purple-700">
+              {formatCurrency(stats.totalRevenue)}
+            </p>
             <div className="flex items-center gap-2 mt-3">
               <DollarSign className="h-4 w-4 text-purple-500" />
               <span className="text-sm text-purple-600">Total earnings</span>
@@ -694,44 +796,57 @@ const AdminPage = () => {
             <Database className="h-5 w-5 text-indigo-600" />
             Files by Category
           </h2>
-          <span className="text-sm text-gray-500">{stats.totalFiles} Total Files</span>
+          <span className="text-sm text-gray-500">
+            {stats.totalFiles} Total Files
+          </span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {Object.entries(stats.filesByCategory).map(([category, count], index) => {
-            const CategoryIcon = getCategoryIcon(category);
-            const percentage = stats.totalFiles > 0 ? Math.round((count / stats.totalFiles) * 100) : 0;
-            
-            return (
-              <motion.div
-                key={category}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.1 * index }}
-                className="p-6 bg-gradient-to-br from-gray-50 to-white rounded-xl border border-gray-200 hover:shadow-md transition-all duration-300 group"
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center group-hover:bg-indigo-200 transition-colors">
-                      <CategoryIcon className="h-6 w-6 text-indigo-600" />
+          {Object.entries(stats.filesByCategory).map(
+            ([category, count], index) => {
+              const CategoryIcon = getCategoryIcon(category);
+              const percentage =
+                stats.totalFiles > 0
+                  ? Math.round((count / stats.totalFiles) * 100)
+                  : 0;
+
+              return (
+                <motion.div
+                  key={category}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.1 * index }}
+                  className="p-6 bg-gradient-to-br from-gray-50 to-white rounded-xl border border-gray-200 hover:shadow-md transition-all duration-300 group"
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center group-hover:bg-indigo-200 transition-colors">
+                        <CategoryIcon className="h-6 w-6 text-indigo-600" />
+                      </div>
+                      <span className="font-semibold text-gray-900 capitalize">
+                        {category}
+                      </span>
                     </div>
-                    <span className="font-semibold text-gray-900 capitalize">{category}</span>
+                    <span className="text-2xl font-bold text-indigo-600">
+                      {count}
+                    </span>
                   </div>
-                  <span className="text-2xl font-bold text-indigo-600">{count}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-500">{percentage}% of total</span>
-                  <span className="text-sm text-gray-500">{count} files</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2 mt-3">
-                  <div 
-                    className="h-2 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600"
-                    style={{ width: `${percentage}%` }}
-                  ></div>
-                </div>
-              </motion.div>
-            );
-          })}
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-500">
+                      {percentage}% of total
+                    </span>
+                    <span className="text-sm text-gray-500">{count} files</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2 mt-3">
+                    <div
+                      className="h-2 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600"
+                      style={{ width: `${percentage}%` }}
+                    ></div>
+                  </div>
+                </motion.div>
+              );
+            }
+          )}
         </div>
       </motion.div>
 
@@ -753,7 +868,7 @@ const AdminPage = () => {
                 {stats.activeUsers} Active Users
               </span>
               <button
-                onClick={() => navigate('/admin/users')}
+                onClick={() => navigate("/admin/users")}
                 className="flex items-center gap-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
               >
                 View All
@@ -767,20 +882,36 @@ const AdminPage = () => {
           {users.length === 0 ? (
             <div className="text-center py-8">
               <Users className="h-16 w-16 mx-auto text-gray-400 mb-3" />
-              <h3 className="text-lg font-semibold text-gray-600 mb-2">No Users Found</h3>
-              <p className="text-gray-500">No users have been registered yet.</p>
+              <h3 className="text-lg font-semibold text-gray-600 mb-2">
+                No Users Found
+              </h3>
+              <p className="text-gray-500">
+                No users have been registered yet.
+              </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">User</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Plan</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Files</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Storage</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Joined</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Actions</th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-700">
+                      User
+                    </th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-700">
+                      Plan
+                    </th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-700">
+                      Files
+                    </th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-700">
+                      Storage
+                    </th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-700">
+                      Joined
+                    </th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-700">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -795,10 +926,12 @@ const AdminPage = () => {
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                            {user.name?.charAt(0).toUpperCase() || 'U'}
+                            {user.name?.charAt(0).toUpperCase() || "U"}
                           </div>
                           <div>
-                            <p className="font-medium text-gray-900">{user.name}</p>
+                            <p className="font-medium text-gray-900">
+                              {user.name}
+                            </p>
                             <p className="text-sm text-gray-500 flex items-center gap-1">
                               <Mail className="h-3 w-3" />
                               {user.email}
@@ -808,14 +941,18 @@ const AdminPage = () => {
                       </td>
                       <td className="py-3 px-4">
                         <span
-                          className={`px-3 py-1 rounded-full text-xs font-semibold ${getPlanColor(user.plan)}`}
+                          className={`px-3 py-1 rounded-full text-xs font-semibold ${getPlanColor(
+                            user.plan
+                          )}`}
                         >
                           {user.plan}
                         </span>
                       </td>
                       <td className="py-3 px-4">
                         <div className="text-center">
-                          <span className="text-sm font-medium text-gray-900">{user.files}</span>
+                          <span className="text-sm font-medium text-gray-900">
+                            {user.files}
+                          </span>
                         </div>
                       </td>
                       <td className="py-3 px-4">
@@ -830,7 +967,7 @@ const AdminPage = () => {
                         </div>
                       </td>
                       <td className="py-3 px-4">
-                        <button 
+                        <button
                           onClick={() => handleViewUser(user)}
                           className="flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors text-sm"
                         >
@@ -875,17 +1012,19 @@ const AdminPage = () => {
                 onChange={(e) => setSelectedCategory(e.target.value)}
                 className="text-sm border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
               >
-                {categories.map(category => (
+                {categories.map((category) => (
                   <option key={category} value={category}>
-                    {category === "all" ? "All Categories" : category.charAt(0).toUpperCase() + category.slice(1)}
+                    {category === "all"
+                      ? "All Categories"
+                      : category.charAt(0).toUpperCase() + category.slice(1)}
                   </option>
                 ))}
               </select>
             </div>
-            
+
             {/* View More Button */}
             <button
-              onClick={() => navigate('/admin/user-recent-files')}
+              onClick={() => navigate("/admin/user-recent-files")}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-lg"
             >
               <Eye className="h-4 w-4" />
@@ -893,23 +1032,37 @@ const AdminPage = () => {
             </button>
           </div>
         </div>
-        
+
         {filteredFiles.length === 0 ? (
           <div className="text-center py-8">
             <FileText className="h-16 w-16 mx-auto text-gray-400 mb-4" />
-            <h3 className="text-lg font-semibold text-gray-600 mb-2">No Files Found</h3>
-            <p className="text-gray-500">No files found for the selected category.</p>
+            <h3 className="text-lg font-semibold text-gray-600 mb-2">
+              No Files Found
+            </h3>
+            <p className="text-gray-500">
+              No files found for the selected category.
+            </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">File Name</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Category</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Size</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">User</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Date</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">
+                    File Name
+                  </th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">
+                    Category
+                  </th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">
+                    Size
+                  </th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">
+                    User
+                  </th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">
+                    Date
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -928,9 +1081,13 @@ const AdminPage = () => {
                         </div>
                         <div>
                           <p className="font-medium text-gray-900 truncate max-w-xs">
-                            {file.displayName || file.filename || 'Unknown File'}
+                            {file.displayName ||
+                              file.filename ||
+                              "Unknown File"}
                           </p>
-                          <p className="text-sm text-gray-500">ID: {file._id?.slice(-8)}</p>
+                          <p className="text-sm text-gray-500">
+                            ID: {file._id?.slice(-8)}
+                          </p>
                         </div>
                       </div>
                     </td>
@@ -941,12 +1098,12 @@ const AdminPage = () => {
                     </td>
                     <td className="py-3 px-4">
                       <span className="text-sm text-gray-600">
-                        {file.size ? formatFileSize(file.size) : 'Unknown size'}
+                        {file.size ? formatFileSize(file.size) : "Unknown size"}
                       </span>
                     </td>
                     <td className="py-3 px-4">
                       <span className="text-sm text-gray-600">
-                        {file.userName || 'Unknown user'}
+                        {file.userName || "Unknown user"}
                       </span>
                     </td>
                     <td className="py-3 px-4">

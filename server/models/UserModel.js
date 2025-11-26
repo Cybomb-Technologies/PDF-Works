@@ -26,6 +26,14 @@ const userSchema = new mongoose.Schema(
       default: "user",
     },
 
+    // Email verification fields
+    isEmailVerified: {
+      type: Boolean,
+      default: false,
+    },
+    emailVerificationToken: String,
+    emailVerificationExpires: Date,
+
     // Google OAuth
     googleId: {
       type: String,
@@ -209,4 +217,3 @@ userSchema.methods.getCycleDates = function () {
 };
 
 module.exports = mongoose.model("User", userSchema);
- 
