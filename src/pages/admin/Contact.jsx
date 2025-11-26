@@ -34,7 +34,7 @@ function ContactUser() {
         }
 
         const data = await res.json();
-        console.log("Full API response:", data); // For debugging
+        // console.log("Full API response:", data); // For debugging
 
         // Handle different possible response structures
         if (data.success && data.contacts) {

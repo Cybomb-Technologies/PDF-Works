@@ -31,7 +31,7 @@ import {
   X,
   CheckCircle,
   AlertCircle,
-  Info
+  Info,
 } from "lucide-react";
 const API_URL = import.meta.env.VITE_API_URL;
 import Metatags from "../SEO/metatags";
@@ -51,8 +51,8 @@ const formatDate = (dateString) => {
     year: "numeric",
     month: "short",
     day: "numeric",
-    hour: '2-digit',
-    minute: '2-digit'
+    hour: "2-digit",
+    minute: "2-digit",
   });
 };
 
@@ -62,14 +62,14 @@ const Toast = ({ message, type, onClose }) => {
     success: <CheckCircle className="h-5 w-5 text-green-500" />,
     error: <AlertCircle className="h-5 w-5 text-red-500" />,
     warning: <AlertTriangle className="h-5 w-5 text-yellow-500" />,
-    info: <Info className="h-5 w-5 text-blue-500" />
+    info: <Info className="h-5 w-5 text-blue-500" />,
   };
 
   const styles = {
     success: "bg-green-50 border-green-200 text-green-800",
     error: "bg-red-50 border-red-200 text-red-800",
     warning: "bg-yellow-50 border-yellow-200 text-yellow-800",
-    info: "bg-blue-50 border-blue-200 text-blue-800"
+    info: "bg-blue-50 border-blue-200 text-blue-800",
   };
 
   return (
@@ -94,7 +94,15 @@ const Toast = ({ message, type, onClose }) => {
 };
 
 // Delete Confirmation Modal Component
-const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, file, isBulk, count, loading }) => {
+const DeleteConfirmationModal = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  file,
+  isBulk,
+  count,
+  loading,
+}) => {
   if (!isOpen) return null;
 
   return (
@@ -121,7 +129,7 @@ const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, file, isBulk, cou
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900">
-                    {isBulk ? `Delete ${count} Files` : 'Delete File'}
+                    {isBulk ? `Delete ${count} Files` : "Delete File"}
                   </h3>
                   <p className="text-sm text-gray-600 mt-1">
                     This action cannot be undone
@@ -131,8 +139,9 @@ const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, file, isBulk, cou
 
               {isBulk ? (
                 <p className="text-gray-700 mb-6">
-                  Are you sure you want to delete <strong>{count} files</strong>? 
-                  This will permanently remove all selected files from your account.
+                  Are you sure you want to delete <strong>{count} files</strong>
+                  ? This will permanently remove all selected files from your
+                  account.
                 </p>
               ) : (
                 <div className="mb-6">
@@ -147,9 +156,17 @@ const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, file, isBulk, cou
                           {file?.displayName || file?.filename}
                         </div>
                         <div className="text-sm text-gray-600 mt-1 flex items-center gap-2">
-                          <span>{file?.size ? formatFileSize(file.size) : 'Unknown size'}</span>
+                          <span>
+                            {file?.size
+                              ? formatFileSize(file.size)
+                              : "Unknown size"}
+                          </span>
                           <span>•</span>
-                          <span>{file?.uploadedAt ? formatDate(file.uploadedAt) : 'Unknown date'}</span>
+                          <span>
+                            {file?.uploadedAt
+                              ? formatDate(file.uploadedAt)
+                              : "Unknown date"}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -204,14 +221,14 @@ const FilesPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(15);
   const [sortBy, setSortBy] = useState("newest");
-  
+
   // Delete modal states
   const [deleteModal, setDeleteModal] = useState({
     isOpen: false,
     file: null,
     isBulk: false,
     count: 0,
-    loading: false
+    loading: false,
   });
 
   // Toast states
@@ -222,10 +239,15 @@ const FilesPage = () => {
     { value: "all", label: "All Files", icon: FolderOpen, color: "gray" },
     { value: "converted", label: "Converted", icon: Settings, color: "blue" },
     { value: "organized", label: "Organized", icon: Merge, color: "green" },
-    { value: "optimized", label: "Optimized", icon: BarChart3, color: "purple" },
+    {
+      value: "optimized",
+      label: "Optimized",
+      icon: BarChart3,
+      color: "purple",
+    },
     { value: "edited", label: "Edited", icon: Crop, color: "orange" },
     { value: "secured", label: "Secured", icon: Shield, color: "red" },
-    { value: "advanced", label: "Advanced", icon: Zap, color: "indigo" }
+    { value: "advanced", label: "Advanced", icon: Zap, color: "indigo" },
   ];
 
   // Tool types
@@ -241,7 +263,7 @@ const FilesPage = () => {
     { value: "file-rename", label: "File Rename" },
     { value: "encryption", label: "Encryption" },
     { value: "decryption", label: "Decryption" },
-    { value: "2fa-protection", label: "2FA Protection" }
+    { value: "2fa-protection", label: "2FA Protection" },
   ];
 
   // Sort options
@@ -251,7 +273,7 @@ const FilesPage = () => {
     { value: "largest", label: "Largest First" },
     { value: "smallest", label: "Smallest First" },
     { value: "name-asc", label: "Name A-Z" },
-    { value: "name-desc", label: "Name Z-A" }
+    { value: "name-desc", label: "Name Z-A" },
   ];
 
   // Get token from localStorage
@@ -263,16 +285,16 @@ const FilesPage = () => {
   const showToast = (message, type = "info") => {
     const id = Date.now().toString();
     const newToast = { id, message, type };
-    setToasts(prev => [...prev, newToast]);
-    
+    setToasts((prev) => [...prev, newToast]);
+
     // Auto remove after 5 seconds
     setTimeout(() => {
-      setToasts(prev => prev.filter(toast => toast.id !== id));
+      setToasts((prev) => prev.filter((toast) => toast.id !== id));
     }, 5000);
   };
 
   const removeToast = (id) => {
-    setToasts(prev => prev.filter(toast => toast.id !== id));
+    setToasts((prev) => prev.filter((toast) => toast.id !== id));
   };
 
   const fetchFiles = async () => {
@@ -299,7 +321,9 @@ const FilesPage = () => {
           setError("Session expired. Please log in again.");
           localStorage.removeItem("token");
         } else if (res.status === 404) {
-          setError("Files endpoint not found. Please check if the server is running.");
+          setError(
+            "Files endpoint not found. Please check if the server is running."
+          );
         } else {
           throw new Error(`Failed to fetch files: ${res.status}`);
         }
@@ -308,10 +332,12 @@ const FilesPage = () => {
 
       const data = await res.json();
       setFiles(data);
-      console.log("📁 Files loaded from ALL tools:", data.length);
+      // console.log("📁 Files loaded from ALL tools:", data.length);
     } catch (err) {
       console.error("Fetch files error:", err);
-      setError("Failed to connect to server. Please check your internet connection.");
+      setError(
+        "Failed to connect to server. Please check your internet connection."
+      );
     } finally {
       setLoading(false);
     }
@@ -345,13 +371,16 @@ const FilesPage = () => {
   // Filter and sort files
   const filteredAndSortedFiles = files
     .filter((file) => {
-      const matchesSearch = file.filename.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           file.displayName.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesCategory = selectedCategory === "all" || file.category === selectedCategory;
-      const matchesTool = selectedTool === "all" || 
-                         file.toolUsed === selectedTool || 
-                         file.toolCategory === selectedTool;
-      
+      const matchesSearch =
+        file.filename.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        file.displayName.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCategory =
+        selectedCategory === "all" || file.category === selectedCategory;
+      const matchesTool =
+        selectedTool === "all" ||
+        file.toolUsed === selectedTool ||
+        file.toolCategory === selectedTool;
+
       return matchesSearch && matchesCategory && matchesTool;
     })
     .sort((a, b) => {
@@ -365,9 +394,13 @@ const FilesPage = () => {
         case "smallest":
           return (a.size || 0) - (b.size || 0);
         case "name-asc":
-          return (a.displayName || a.filename).localeCompare(b.displayName || b.filename);
+          return (a.displayName || a.filename).localeCompare(
+            b.displayName || b.filename
+          );
         case "name-desc":
-          return (b.displayName || b.filename).localeCompare(a.displayName || a.filename);
+          return (b.displayName || b.filename).localeCompare(
+            a.displayName || a.filename
+          );
         default:
           return new Date(b.uploadedAt) - new Date(a.uploadedAt);
       }
@@ -376,13 +409,16 @@ const FilesPage = () => {
   // Pagination
   const totalPages = Math.ceil(filteredAndSortedFiles.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const currentFiles = filteredAndSortedFiles.slice(startIndex, startIndex + itemsPerPage);
+  const currentFiles = filteredAndSortedFiles.slice(
+    startIndex,
+    startIndex + itemsPerPage
+  );
 
   // Generate page numbers for pagination
   const getPageNumbers = () => {
     const pages = [];
     const maxVisiblePages = 5;
-    
+
     if (totalPages <= maxVisiblePages) {
       for (let i = 1; i <= totalPages; i++) {
         pages.push(i);
@@ -390,17 +426,17 @@ const FilesPage = () => {
     } else {
       const startPage = Math.max(1, currentPage - 2);
       const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
-      
+
       for (let i = startPage; i <= endPage; i++) {
         pages.push(i);
       }
-      
+
       if (endPage < totalPages) {
         pages.push("...");
         pages.push(totalPages);
       }
     }
-    
+
     return pages;
   };
 
@@ -409,7 +445,7 @@ const FilesPage = () => {
     if (selectedFiles.size === currentFiles.length) {
       setSelectedFiles(new Set());
     } else {
-      const allIds = new Set(currentFiles.map(file => file._id));
+      const allIds = new Set(currentFiles.map((file) => file._id));
       setSelectedFiles(allIds);
     }
   };
@@ -439,12 +475,15 @@ const FilesPage = () => {
     try {
       // Download each selected file individually
       for (const fileId of selectedFiles) {
-        const file = files.find(f => f._id === fileId);
+        const file = files.find((f) => f._id === fileId);
         if (file) {
           await downloadSingleFile(file, token);
         }
       }
-      showToast(`${selectedFiles.size} files downloaded successfully`, "success");
+      showToast(
+        `${selectedFiles.size} files downloaded successfully`,
+        "success"
+      );
     } catch (error) {
       console.error("Bulk download error:", error);
       showToast("Some files failed to download", "error");
@@ -460,7 +499,7 @@ const FilesPage = () => {
         file,
         isBulk: false,
         count: 1,
-        loading: false
+        loading: false,
       });
     } else {
       // Bulk delete
@@ -469,7 +508,7 @@ const FilesPage = () => {
         file: null,
         isBulk: true,
         count: selectedFiles.size,
-        loading: false
+        loading: false,
       });
     }
   };
@@ -480,13 +519,13 @@ const FilesPage = () => {
       file: null,
       isBulk: false,
       count: 0,
-      loading: false
+      loading: false,
     });
   };
 
   // Handle actual deletion
   const handleDeleteConfirm = async () => {
-    setDeleteModal(prev => ({ ...prev, loading: true }));
+    setDeleteModal((prev) => ({ ...prev, loading: true }));
 
     try {
       const token = getToken();
@@ -498,7 +537,7 @@ const FilesPage = () => {
 
       if (deleteModal.isBulk) {
         // Bulk delete
-        const deletePromises = Array.from(selectedFiles).map(fileId =>
+        const deletePromises = Array.from(selectedFiles).map((fileId) =>
           fetch(`${API_URL}/api/files/${fileId}`, {
             method: "DELETE",
             headers: {
@@ -509,14 +548,14 @@ const FilesPage = () => {
         );
 
         await Promise.all(deletePromises);
-        
+
         // Refresh files and stats
         fetchFiles();
         fetchStats();
-        
+
         // Clear selection
         setSelectedFiles(new Set());
-        
+
         showToast(`${deleteModal.count} files deleted successfully`, "success");
       } else {
         // Single file delete
@@ -541,16 +580,19 @@ const FilesPage = () => {
 
         // Remove from local state
         setFiles((prev) => prev.filter((f) => f._id !== file._id));
-        
+
         // Remove from selection if selected
         const newSelected = new Set(selectedFiles);
         newSelected.delete(file._id);
         setSelectedFiles(newSelected);
-        
+
         // Refresh stats
         fetchStats();
-        
-        showToast(`"${file.displayName || file.filename}" deleted successfully`, "success");
+
+        showToast(
+          `"${file.displayName || file.filename}" deleted successfully`,
+          "success"
+        );
       }
     } catch (err) {
       console.error("Delete error:", err);
@@ -563,17 +605,17 @@ const FilesPage = () => {
   const downloadSingleFile = async (file, token) => {
     try {
       let downloadUrl;
-      
-      if (file.type === 'batch' && file.batchInfo?.batchId) {
+
+      if (file.type === "batch" && file.batchInfo?.batchId) {
         downloadUrl = `${API_URL}/api/files/download-batch/${file.batchInfo.batchId}`;
       } else {
         downloadUrl = `${API_URL}/api/files/download/${file._id}`;
       }
 
       const response = await fetch(downloadUrl, {
-        method: 'GET',
+        method: "GET",
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
       });
 
@@ -583,30 +625,29 @@ const FilesPage = () => {
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.style.display = 'none';
+      const a = document.createElement("a");
+      a.style.display = "none";
       a.href = url;
-      a.download = file.displayName || file.filename || 'download';
+      a.download = file.displayName || file.filename || "download";
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-
     } catch (error) {
-      console.error('Download error:', error);
+      console.error("Download error:", error);
       throw error;
     }
   };
 
   const handlePreview = async (file) => {
     const token = getToken();
-    
+
     if (!token) {
       showToast("Please log in to preview files", "warning");
       return;
     }
-    
-    if (file.type === 'batch') {
+
+    if (file.type === "batch") {
       showToast("Batch files need to be downloaded as ZIP", "info");
       return;
     }
@@ -615,9 +656,9 @@ const FilesPage = () => {
       const previewUrl = `${API_URL}/api/files/download/${file._id}`;
 
       const response = await fetch(previewUrl, {
-        method: 'GET',
+        method: "GET",
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
       });
 
@@ -632,30 +673,29 @@ const FilesPage = () => {
 
       const blob = await response.blob();
       const objectUrl = window.URL.createObjectURL(blob);
-      const newTab = window.open(objectUrl, '_blank');
-      
+      const newTab = window.open(objectUrl, "_blank");
+
       if (newTab) {
         newTab.onload = () => {
           window.URL.revokeObjectURL(objectUrl);
         };
       } else {
-        const a = document.createElement('a');
+        const a = document.createElement("a");
         a.href = objectUrl;
-        a.target = '_blank';
+        a.target = "_blank";
         a.click();
         setTimeout(() => window.URL.revokeObjectURL(objectUrl), 1000);
       }
-
     } catch (error) {
-      console.error('❌ Preview error:', error);
-      showToast('Preview failed. Please try again.', "error");
+      console.error("❌ Preview error:", error);
+      showToast("Preview failed. Please try again.", "error");
     }
   };
 
   const handleDownload = async (file, e) => {
     e.preventDefault();
     const token = getToken();
-    
+
     if (!token) {
       showToast("Please log in to download files", "warning");
       return;
@@ -663,10 +703,13 @@ const FilesPage = () => {
 
     try {
       await downloadSingleFile(file, token);
-      showToast(`"${file.displayName || file.filename}" downloaded successfully`, "success");
+      showToast(
+        `"${file.displayName || file.filename}" downloaded successfully`,
+        "success"
+      );
     } catch (error) {
-      console.error('❌ Download error:', error);
-      showToast('Download failed. Please try again.', "error");
+      console.error("❌ Download error:", error);
+      showToast("Download failed. Please try again.", "error");
     }
   };
 
@@ -686,38 +729,48 @@ const FilesPage = () => {
   };
 
   const getCategoryIcon = (category) => {
-    const cat = categories.find(c => c.value === category) || categories[0];
+    const cat = categories.find((c) => c.value === category) || categories[0];
     const IconComponent = cat.icon;
     return <IconComponent className={`h-4 w-4 text-${cat.color}-500`} />;
   };
 
   const getToolBadgeColor = (tool) => {
     const colors = {
-      'convert': 'blue', 'pdf-to-image': 'blue', 'image-to-pdf': 'green', 
-      'merge': 'purple', 'split': 'orange', 'rotate': 'pink', 
-      'image-optimization': 'teal', 'pdf-edit': 'indigo', 'image-crop': 'amber', 
-      'file-rename': 'cyan', 'encryption': 'red', 'decryption': 'red',
-      '2fa-protection': 'violet', 'automation': 'gray', 'api-connect': 'gray'
+      convert: "blue",
+      "pdf-to-image": "blue",
+      "image-to-pdf": "green",
+      merge: "purple",
+      split: "orange",
+      rotate: "pink",
+      "image-optimization": "teal",
+      "pdf-edit": "indigo",
+      "image-crop": "amber",
+      "file-rename": "cyan",
+      encryption: "red",
+      decryption: "red",
+      "2fa-protection": "violet",
+      automation: "gray",
+      "api-connect": "gray",
     };
-    return colors[tool] || 'gray';
+    return colors[tool] || "gray";
   };
 
   const getToolDisplayName = (tool) => {
     const names = {
-      'pdf-to-image': 'PDF to Image',
-      'image-to-pdf': 'Image to PDF',
-      'merge': 'Merge PDF',
-      'split': 'Split PDF', 
-      'rotate': 'Rotate PDF',
-      'image-optimization': 'Image Optimize',
-      'pdf-edit': 'PDF Edit',
-      'image-crop': 'Image Crop',
-      'file-rename': 'File Rename',
-      'encryption': 'Encryption',
-      'decryption': 'Decryption',
-      '2fa-protection': '2FA Protection',
-      'automation': 'Automation',
-      'api-connect': 'API Connect'
+      "pdf-to-image": "PDF to Image",
+      "image-to-pdf": "Image to PDF",
+      merge: "Merge PDF",
+      split: "Split PDF",
+      rotate: "Rotate PDF",
+      "image-optimization": "Image Optimize",
+      "pdf-edit": "PDF Edit",
+      "image-crop": "Image Crop",
+      "file-rename": "File Rename",
+      encryption: "Encryption",
+      decryption: "Decryption",
+      "2fa-protection": "2FA Protection",
+      automation: "Automation",
+      "api-connect": "API Connect",
     };
     return names[tool] || tool;
   };
@@ -735,16 +788,19 @@ const FilesPage = () => {
 
   const metaPropsData = {
     title: "My Files - All Processed Files | PDF Works",
-    description: "Access and manage all your processed files from all tools. View, download, and organize your converted, organized, optimized, edited, and secured files in one place.",
-    keyword: "all files, file management, processed files, tool files, download files, file organizer",
-    image: "https://res.cloudinary.com/dcfjt8shw/image/upload/v1761288318/wn8m8g8skdpl6iz2rwoa.svg",
+    description:
+      "Access and manage all your processed files from all tools. View, download, and organize your converted, organized, optimized, edited, and secured files in one place.",
+    keyword:
+      "all files, file management, processed files, tool files, download files, file organizer",
+    image:
+      "https://res.cloudinary.com/dcfjt8shw/image/upload/v1761288318/wn8m8g8skdpl6iz2rwoa.svg",
     url: "https://pdfworks.in/files",
   };
 
   return (
     <>
       <Metatags metaProps={metaPropsData} />
-      
+
       {/* Toast Container */}
       <AnimatePresence>
         {toasts.map((toast) => (
@@ -787,19 +843,27 @@ const FilesPage = () => {
           {stats && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="glass-effect rounded-xl p-4 text-center">
-                <div className="text-2xl font-bold text-blue-600">{stats.stats?.total || 0}</div>
+                <div className="text-2xl font-bold text-blue-600">
+                  {stats.stats?.total || 0}
+                </div>
                 <div className="text-sm text-muted-foreground">Total Files</div>
               </div>
               <div className="glass-effect rounded-xl p-4 text-center">
-                <div className="text-2xl font-bold text-green-600">{stats.stats?.convert || 0}</div>
+                <div className="text-2xl font-bold text-green-600">
+                  {stats.stats?.convert || 0}
+                </div>
                 <div className="text-sm text-muted-foreground">Converted</div>
               </div>
               <div className="glass-effect rounded-xl p-4 text-center">
-                <div className="text-2xl font-bold text-purple-600">{stats.stats?.organize || 0}</div>
+                <div className="text-2xl font-bold text-purple-600">
+                  {stats.stats?.organize || 0}
+                </div>
                 <div className="text-sm text-muted-foreground">Organized</div>
               </div>
               <div className="glass-effect rounded-xl p-4 text-center">
-                <div className="text-2xl font-bold text-orange-600">{stats.stats?.edit || 0}</div>
+                <div className="text-2xl font-bold text-orange-600">
+                  {stats.stats?.edit || 0}
+                </div>
                 <div className="text-sm text-muted-foreground">Edited</div>
               </div>
             </div>
@@ -835,20 +899,22 @@ const FilesPage = () => {
 
           {/* Expandable Filters */}
           {showSearchFilters && (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
+              animate={{ opacity: 1, height: "auto" }}
               className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-gray-200"
             >
               {/* Category Filter */}
               <div>
-                <label className="block text-sm font-medium mb-2">Category</label>
+                <label className="block text-sm font-medium mb-2">
+                  Category
+                </label>
                 <select
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
                   className="w-full p-2 bg-transparent border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  {categories.map(category => (
+                  {categories.map((category) => (
                     <option key={category.value} value={category.value}>
                       {category.label}
                     </option>
@@ -864,7 +930,7 @@ const FilesPage = () => {
                   onChange={(e) => setSelectedTool(e.target.value)}
                   className="w-full p-2 bg-transparent border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  {toolTypes.map(tool => (
+                  {toolTypes.map((tool) => (
                     <option key={tool.value} value={tool.value}>
                       {tool.label}
                     </option>
@@ -874,13 +940,15 @@ const FilesPage = () => {
 
               {/* Sort Filter */}
               <div>
-                <label className="block text-sm font-medium mb-2">Sort By</label>
+                <label className="block text-sm font-medium mb-2">
+                  Sort By
+                </label>
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
                   className="w-full p-2 bg-transparent border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  {sortOptions.map(option => (
+                  {sortOptions.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
                     </option>
@@ -902,7 +970,8 @@ const FilesPage = () => {
               <div className="flex items-center gap-3">
                 <Check className="h-5 w-5 text-blue-600" />
                 <span className="font-medium text-blue-800">
-                  {selectedFiles.size} file{selectedFiles.size > 1 ? 's' : ''} selected
+                  {selectedFiles.size} file{selectedFiles.size > 1 ? "s" : ""}{" "}
+                  selected
                 </span>
               </div>
               <div className="flex gap-2">
@@ -979,10 +1048,16 @@ const FilesPage = () => {
           >
             <File className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
             <h3 className="text-xl font-semibold mb-2">
-              {searchTerm || selectedCategory !== 'all' || selectedTool !== 'all' ? "No files found" : "No files yet"}
+              {searchTerm ||
+              selectedCategory !== "all" ||
+              selectedTool !== "all"
+                ? "No files found"
+                : "No files yet"}
             </h3>
             <p className="text-muted-foreground">
-              {searchTerm || selectedCategory !== 'all' || selectedTool !== 'all' 
+              {searchTerm ||
+              selectedCategory !== "all" ||
+              selectedTool !== "all"
                 ? "Try adjusting your filters to find what you're looking for."
                 : "Process your first file using any tool to get started!"}
             </p>
@@ -993,7 +1068,8 @@ const FilesPage = () => {
               {/* File List Header */}
               <div className="flex items-center justify-between">
                 <div className="text-sm text-muted-foreground">
-                  Showing {Math.min(currentFiles.length, itemsPerPage)} of {filteredAndSortedFiles.length} files
+                  Showing {Math.min(currentFiles.length, itemsPerPage)} of{" "}
+                  {filteredAndSortedFiles.length} files
                   {searchTerm && ` for "${searchTerm}"`}
                 </div>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -1002,7 +1078,9 @@ const FilesPage = () => {
                     className="flex items-center gap-2 px-3 py-1 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
                   >
                     <Check className="h-3 w-3" />
-                    {selectedFiles.size === currentFiles.length ? 'Deselect All' : 'Select All'}
+                    {selectedFiles.size === currentFiles.length
+                      ? "Deselect All"
+                      : "Select All"}
                   </button>
                 </div>
               </div>
@@ -1016,7 +1094,9 @@ const FilesPage = () => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.02 }}
                     className={`glass-effect rounded-xl p-4 hover-lift transition-all duration-200 ${
-                      selectedFiles.has(file._id) ? 'ring-2 ring-blue-500 bg-blue-50' : ''
+                      selectedFiles.has(file._id)
+                        ? "ring-2 ring-blue-500 bg-blue-50"
+                        : ""
                     }`}
                   >
                     <div className="flex items-center gap-4">
@@ -1025,16 +1105,18 @@ const FilesPage = () => {
                         onClick={() => handleSelectFile(file._id)}
                         className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
                           selectedFiles.has(file._id)
-                            ? 'bg-blue-600 border-blue-600 text-white'
-                            : 'border-gray-300 hover:border-blue-500'
+                            ? "bg-blue-600 border-blue-600 text-white"
+                            : "border-gray-300 hover:border-blue-500"
                         }`}
                       >
-                        {selectedFiles.has(file._id) && <Check className="h-3 w-3" />}
+                        {selectedFiles.has(file._id) && (
+                          <Check className="h-3 w-3" />
+                        )}
                       </button>
 
                       {/* File Icon */}
                       <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
-                        {file.type === 'batch' ? (
+                        {file.type === "batch" ? (
                           <Archive className="h-6 w-6 text-white" />
                         ) : (
                           <FileText className="h-6 w-6 text-white" />
@@ -1047,7 +1129,7 @@ const FilesPage = () => {
                           <h3 className="font-semibold truncate text-foreground">
                             {file.displayName || file.filename}
                           </h3>
-                          {file.type === 'batch' && (
+                          {file.type === "batch" && (
                             <span className="px-2 py-1 bg-cyan-100 text-cyan-800 text-xs rounded-full">
                               Batch ({file.batchInfo?.totalFiles || 0} files)
                             </span>
@@ -1059,7 +1141,13 @@ const FilesPage = () => {
                           <Calendar className="h-3 w-3" />
                           <span>{formatDate(file.uploadedAt)}</span>
                           <span>•</span>
-                          <span className={`px-2 py-1 rounded-full text-xs bg-${getToolBadgeColor(file.toolUsed)}-100 text-${getToolBadgeColor(file.toolUsed)}-800`}>
+                          <span
+                            className={`px-2 py-1 rounded-full text-xs bg-${getToolBadgeColor(
+                              file.toolUsed
+                            )}-100 text-${getToolBadgeColor(
+                              file.toolUsed
+                            )}-800`}
+                          >
                             {getToolDisplayName(file.toolUsed)}
                           </span>
                           <span>•</span>
@@ -1076,7 +1164,7 @@ const FilesPage = () => {
                           onClick={() => handlePreview(file)}
                           className="p-2 text-muted-foreground hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                           title="Preview"
-                          disabled={file.type === 'batch'}
+                          disabled={file.type === "batch"}
                         >
                           <Eye className="h-4 w-4" />
                         </button>
@@ -1109,7 +1197,9 @@ const FilesPage = () => {
                   <div className="flex items-center gap-1">
                     {/* Previous Button */}
                     <button
-                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      onClick={() =>
+                        setCurrentPage((prev) => Math.max(1, prev - 1))
+                      }
                       disabled={currentPage === 1}
                       className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
@@ -1120,15 +1210,17 @@ const FilesPage = () => {
                     {getPageNumbers().map((page, index) => (
                       <button
                         key={index}
-                        onClick={() => typeof page === 'number' ? setCurrentPage(page) : null}
+                        onClick={() =>
+                          typeof page === "number" ? setCurrentPage(page) : null
+                        }
                         className={`min-w-[40px] h-10 rounded-lg transition-colors ${
                           page === currentPage
-                            ? 'bg-blue-600 text-white'
-                            : page === '...'
-                            ? 'cursor-default'
-                            : 'hover:bg-gray-100'
+                            ? "bg-blue-600 text-white"
+                            : page === "..."
+                            ? "cursor-default"
+                            : "hover:bg-gray-100"
                         }`}
-                        disabled={page === '...'}
+                        disabled={page === "..."}
                       >
                         {page}
                       </button>
@@ -1136,7 +1228,9 @@ const FilesPage = () => {
 
                     {/* Next Button */}
                     <button
-                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      onClick={() =>
+                        setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+                      }
                       disabled={currentPage === totalPages}
                       className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >

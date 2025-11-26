@@ -42,7 +42,7 @@ const BlogPage = () => {
         url += `&tag=${encodeURIComponent(tag)}`;
       }
 
-      console.log("Fetching from:", url); // Debug log
+      // console.log("Fetching from:", url); // Debug log
 
       const response = await fetch(url, {
         headers: {

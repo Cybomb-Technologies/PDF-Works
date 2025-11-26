@@ -9,6 +9,7 @@ import { motion } from "framer-motion";
 import { FileText } from "lucide-react";
 import Metatags from "../SEO/metatags";
 import { useAuth } from "@/contexts/AuthContext";
+import OTPVerification from "./OTPVerification"; // Import OTP component
 
 const SignUpForm = () => {
   const [formData, setFormData] = React.useState({
@@ -19,6 +20,8 @@ const SignUpForm = () => {
   const [isLoading, setIsLoading] = React.useState(false);
   const [googleLoading, setGoogleLoading] = React.useState(false);
   const [errors, setErrors] = React.useState({});
+  const [showOTPVerification, setShowOTPVerification] = React.useState(false);
+  const [pendingEmail, setPendingEmail] = React.useState("");
   const navigate = useNavigate();
   const { loginBackend } = useAuth();
 
@@ -58,6 +61,7 @@ const SignUpForm = () => {
           width: "100%",
           text: "signup_with",
           type: "standard",
+          logo_alignment: "center",
         });
       }
     };
@@ -77,7 +81,7 @@ const SignUpForm = () => {
   const handleGoogleResponse = async (response) => {
     try {
       setGoogleLoading(true);
-      console.log("Google response received:", response);
+      // console.log("Google response received:", response);
 
       const API_URL = `${import.meta.env.VITE_API_URL}/api/auth/google`;
 
@@ -95,7 +99,7 @@ const SignUpForm = () => {
       }
 
       const result = await backendResponse.json();
-      console.log("Backend response:", result);
+      // console.log("Backend response:", result);
 
       if (result.success) {
         if (result.token) {
@@ -190,10 +194,16 @@ const SignUpForm = () => {
           title: "Account created! 🎉",
           description:
             result.message ||
-            "Registration successful. Please login with your credentials.",
+            "Registration successful. Please verify your email.",
         });
 
-        navigate("/login");
+        // Show OTP verification for new registration
+        if (result.requiresVerification) {
+          setPendingEmail(formData.email);
+          setShowOTPVerification(true);
+        } else {
+          navigate("/login");
+        }
       } else {
         toast({
           title: "Error",
@@ -214,6 +224,29 @@ const SignUpForm = () => {
     }
   };
 
+  // Handle OTP verification success
+  const handleVerificationSuccess = (token, userData) => {
+    // Store token and user data
+    if (token) {
+      localStorage.setItem("token", token);
+    }
+
+    if (userData && token) {
+      loginBackend(userData, token);
+    }
+
+    // Navigate to home page after a short delay
+    setTimeout(() => {
+      navigate("/");
+    }, 1000);
+  };
+
+  // Handle back to signup from OTP verification
+  const handleBackFromOTP = () => {
+    setShowOTPVerification(false);
+    setPendingEmail("");
+  };
+
   const metaPropsData = {
     title: "Sign Up with PDF Works - Create Your Free Account",
     description:
@@ -224,6 +257,34 @@ const SignUpForm = () => {
       "https://res.cloudinary.com/dcfjt8shw/image/upload/v1761288318/wn8m8g8skdpl6iz2rwoa.svg",
     url: "https://pdfworks.in/signup",
   };
+
+  if (showOTPVerification) {
+    return (
+      <>
+        <Metatags metaProps={metaPropsData} />
+        <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="glass-effect rounded-2xl p-8 max-w-md w-full shadow-lg bg-white/70 backdrop-blur-lg border border-white/30"
+          >
+            <Link to="/" className="flex items-center justify-center mb-8">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center shadow-md">
+                <FileText className="h-10 w-10 text-white" />
+              </div>
+            </Link>
+
+            <OTPVerification
+              email={pendingEmail}
+              onVerificationSuccess={handleVerificationSuccess}
+              onBackToLogin={handleBackFromOTP}
+              isResend={true}
+            />
+          </motion.div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -253,7 +314,7 @@ const SignUpForm = () => {
             <div className="space-y-2">
               <Label htmlFor="name">Full Name</Label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                {/* <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" /> */}
                 <Input
                   id="name"
                   type="text"
@@ -276,7 +337,7 @@ const SignUpForm = () => {
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                {/* <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" /> */}
                 <Input
                   id="email"
                   type="email"
@@ -299,7 +360,7 @@ const SignUpForm = () => {
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                {/* <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" /> */}
                 <Input
                   id="password"
                   type="password"
@@ -349,7 +410,7 @@ const SignUpForm = () => {
             </div>
 
             {/* Google Sign In Button Container */}
-            <div className="w-full">
+            <div className="w-full flex justify-center">
               <div id="googleSignUpButton" className="w-full"></div>
             </div>
 

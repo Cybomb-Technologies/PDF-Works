@@ -21,7 +21,7 @@ const BlogDetailPage = () => {
           ? `${API_BASE_URL}/api/blogs/${id}`
           : `/api/blogs/${id}`;
 
-        console.log("Fetching blog from:", url);
+        // console.log("Fetching blog from:", url);
 
         const response = await fetch(url, {
           headers: {

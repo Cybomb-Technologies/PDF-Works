@@ -31,7 +31,7 @@ const SubscriptionSuccess = () => {
       }
 
       try {
-        console.log("Verifying payment for order:", orderId);
+        // console.log("Verifying payment for order:", orderId);
 
         // Verify payment with backend
         const response = await fetch(
@@ -56,7 +56,8 @@ const SubscriptionSuccess = () => {
           }
           toast({
             title: "Success!",
-            description: "Your subscription has been activated successfully and your usage progress has been preserved.",
+            description:
+              "Your subscription has been activated successfully and your usage progress has been preserved.",
           });
         } else {
           throw new Error(data.message || "Payment verification failed");
@@ -143,7 +144,9 @@ const SubscriptionSuccess = () => {
           </h1>
 
           <p className="text-gray-600 mb-6">
-            Your subscription has been activated successfully. You now have access to all premium features, and your current usage progress has been preserved.
+            Your subscription has been activated successfully. You now have
+            access to all premium features, and your current usage progress has
+            been preserved.
           </p>
 
           <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">

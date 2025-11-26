@@ -10,8 +10,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import ForgotPasswordForm from "./ForgotPasswordForm";
 import Metatags from "../SEO/metatags";
-
-const API_URL1 = import.meta.env.VITE_API_URL;
+import OTPVerification from "./OTPVerification";
 
 const LoginPage = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -19,6 +18,8 @@ const LoginPage = () => {
   const [forgotPasswordStep, setForgotPasswordStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [showOTPVerification, setShowOTPVerification] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState("");
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -30,7 +31,10 @@ const LoginPage = () => {
   const { loginBackend } = useAuth();
   const navigate = useNavigate();
 
-  // Load Google SDK - SIMPLIFIED VERSION
+  // Get API URL from environment
+  const API_URL = import.meta.env.VITE_API_URL;
+
+  // Load Google SDK
   React.useEffect(() => {
     const loadGoogleSDK = () => {
       if (window.google) return;
@@ -45,7 +49,7 @@ const LoginPage = () => {
     loadGoogleSDK();
   }, []);
 
-  // Initialize Google Sign-In when component mounts
+  // Initialize Google Sign-In
   React.useEffect(() => {
     const initializeGoogleSignIn = () => {
       if (!window.google) return;
@@ -57,7 +61,6 @@ const LoginPage = () => {
         context: "signin",
       });
 
-      // Render button directly without One Tap
       const buttonContainer = document.getElementById("googleSignInButton");
       if (buttonContainer) {
         window.google.accounts.id.renderButton(buttonContainer, {
@@ -66,11 +69,11 @@ const LoginPage = () => {
           width: "100%",
           text: "continue_with",
           type: "standard",
+          logo_alignment: "center",
         });
       }
     };
 
-    // Wait for Google SDK to load
     const checkGoogleSDK = setInterval(() => {
       if (window.google) {
         initializeGoogleSignIn();
@@ -81,55 +84,41 @@ const LoginPage = () => {
     return () => clearInterval(checkGoogleSDK);
   }, []);
 
-  // Handle Google OAuth Response - UPDATED VERSION
+  // Handle Google OAuth Response
   const handleGoogleResponse = async (response) => {
     try {
       setGoogleLoading(true);
-      console.log("Google response received:", response);
 
       if (!response.credential) {
         throw new Error("No credential received from Google");
       }
 
-      const API_URL = `${API_URL1}/api/auth/google`;
-
-      const backendResponse = await fetch(API_URL, {
+      const backendResponse = await fetch(`${API_URL}/api/auth/google`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Accept: "application/json",
         },
         body: JSON.stringify({ token: response.credential }),
       });
 
-      console.log("Backend response status:", backendResponse.status);
-
       if (!backendResponse.ok) {
-        const errorText = await backendResponse.text();
-        console.error("Backend error response:", errorText);
         throw new Error(`HTTP error! status: ${backendResponse.status}`);
       }
 
       const result = await backendResponse.json();
-      console.log("Backend success response:", result);
 
       if (result.success) {
-        // Store token and user data
         if (result.token) {
           localStorage.setItem("token", result.token);
-          console.log("JWT token stored");
         }
 
         const userData = result.user;
         if (userData && result.token) {
-          // Create complete user object with token
           const completeUser = {
             ...userData,
             token: result.token,
           };
           localStorage.setItem("pdfpro_user", JSON.stringify(completeUser));
-
-          // Update AuthContext
           loginBackend(userData, result.token);
         }
 
@@ -138,7 +127,6 @@ const LoginPage = () => {
           description: "Google sign-in successful",
         });
 
-        // Navigate to home page
         navigate("/");
       } else {
         throw new Error(result.error || "Authentication failed");
@@ -156,30 +144,16 @@ const LoginPage = () => {
     }
   };
 
-  // Manual Google Sign-In trigger (fallback)
-  const handleManualGoogleSignIn = () => {
-    if (!window.google) {
-      toast({
-        title: "Google Sign-In Not Ready",
-        description:
-          "Please wait for Google Sign-In to load, or refresh the page.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Trigger Google Sign-In programmatically
-    window.google.accounts.id.prompt();
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      const API_URL = `${API_URL1}/api/auth`;
-      const url = isLogin ? `${API_URL}/login` : `${API_URL}/register`;
+      const url = isLogin
+        ? `${API_URL}/api/auth/login`
+        : `${API_URL}/api/auth/register`;
 
+      // Validation
       if (
         !isLogin &&
         (!formData.name || !formData.email || !formData.password)
@@ -193,11 +167,12 @@ const LoginPage = () => {
         return;
       }
 
+      // console.log("Sending request to:", url);
+
       const response = await fetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Accept: "application/json",
         },
         body: JSON.stringify(
           isLogin
@@ -213,10 +188,13 @@ const LoginPage = () => {
         ),
       });
 
-      const result = await response.json();
+      // console.log("Response status:", response.status);
 
-      if (!response.ok) {
-        // Use the actual error message from backend instead of generic HTTP error
+      const result = await response.json();
+      // console.log("Response data:", result);
+
+      // Don't throw error for verification required cases
+      if (!response.ok && !result.requiresVerification) {
         throw new Error(
           result.error || `HTTP error! status: ${response.status}`
         );
@@ -229,7 +207,7 @@ const LoginPage = () => {
             localStorage.setItem("token", result.token);
           }
 
-          const userData = result.admin || result.user;
+          const userData = result.user;
           if (userData && result.token) {
             loginBackend(userData, result.token);
           }
@@ -239,42 +217,78 @@ const LoginPage = () => {
             description: result.message || "Login successful",
           });
 
-          // Navigate to files page
           navigate("/");
         } else {
-          // Handle registration success - switch to login mode
+          // Handle registration success
           toast({
             title: "Account created! 🎉",
             description:
               result.message ||
-              "Registration successful. Please login with your credentials.",
+              "Registration successful. Please verify your email.",
           });
 
-          // Clear form data and switch to login mode
-          setFormData({
-            ...formData,
-            password: "", // Clear password but keep email
-            name: "", // Clear name
-          });
-          setIsLogin(true); // Switch to login form
+          if (result.requiresVerification) {
+            setPendingEmail(formData.email);
+            setShowOTPVerification(true);
+          } else {
+            setFormData({
+              ...formData,
+              password: "",
+              name: "",
+            });
+            setIsLogin(true);
+          }
         }
       } else {
-        toast({
-          title: "Error",
-          description: result.error || "Something went wrong",
-          variant: "destructive",
-        });
+        // Handle cases where success is false but verification is required
+        if (result.requiresVerification) {
+          setPendingEmail(formData.email);
+          setShowOTPVerification(true);
+          toast({
+            title: "Email Verification Required",
+            description: result.message || "Please verify your email to login.",
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: result.error || "Something went wrong",
+            variant: "destructive",
+          });
+        }
       }
     } catch (error) {
       console.error("Auth error:", error);
       toast({
         title: "Authentication Failed",
-        description: error.message || "Invalid email or password",
+        description:
+          error.message ||
+          "Unable to connect to server. Please check if the backend is running.",
         variant: "destructive",
       });
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Handle OTP verification success
+  const handleVerificationSuccess = (token, userData) => {
+    if (token) {
+      localStorage.setItem("token", token);
+    }
+
+    if (userData && token) {
+      loginBackend(userData, token);
+    }
+
+    setTimeout(() => {
+      navigate("/");
+    }, 1000);
+  };
+
+  // Handle back to login from OTP verification
+  const handleBackFromOTP = () => {
+    setShowOTPVerification(false);
+    setPendingEmail("");
   };
 
   const handleBackToLogin = () => {
@@ -294,8 +308,8 @@ const LoginPage = () => {
     setIsLogin(!isLogin);
     setFormData({
       ...formData,
-      password: "", // Clear password when switching
-      name: !isLogin ? "" : formData.name, // Clear name only when switching to login
+      password: "",
+      name: !isLogin ? "" : formData.name,
     });
   };
 
@@ -306,7 +320,7 @@ const LoginPage = () => {
           <div className="space-y-2">
             <Label htmlFor="name">Full Name</Label>
             <div className="relative">
-              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              {/* <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" /> */}
               <Input
                 id="name"
                 type="text"
@@ -325,7 +339,7 @@ const LoginPage = () => {
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              {/* <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" /> */}
               <Input
                 id="email"
                 type="email"
@@ -344,7 +358,7 @@ const LoginPage = () => {
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              {/* <Lock className="absolute left-5 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" /> */}
               <Input
                 id="password"
                 type="password"
@@ -390,7 +404,6 @@ const LoginPage = () => {
             </div>
           </div>
 
-          {/* Google Sign In Button Container */}
           <div className="w-full">
             <div id="googleSignInButton" className="w-full"></div>
           </div>
@@ -423,7 +436,7 @@ const LoginPage = () => {
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              {/* <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" /> */}
               <Input
                 id="email"
                 type="email"
@@ -442,7 +455,7 @@ const LoginPage = () => {
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              {/* <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" /> */}
               <Input
                 id="password"
                 type="password"
@@ -499,8 +512,7 @@ const LoginPage = () => {
             </div>
           </div>
 
-          {/* Google Sign In Button Container */}
-          <div className="w-full">
+          <div className="w-full flex justify-center">
             <div id="googleSignInButton" className="w-full"></div>
           </div>
 
@@ -541,7 +553,13 @@ const LoginPage = () => {
       <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50">
         <Helmet>
           <title>
-            {forgotPassword ? "Reset Password" : isLogin ? "Login" : "Sign Up"}{" "}
+            {showOTPVerification
+              ? "Verify Email"
+              : forgotPassword
+              ? "Reset Password"
+              : isLogin
+              ? "Login"
+              : "Sign Up"}{" "}
             - pdfworks
           </title>
         </Helmet>
@@ -558,7 +576,9 @@ const LoginPage = () => {
           </Link>
 
           <h1 className="text-3xl font-bold text-center bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">
-            {forgotPassword
+            {showOTPVerification
+              ? "Verify Email"
+              : forgotPassword
               ? "Reset Password"
               : isLogin
               ? "Welcome Back!"
@@ -566,14 +586,22 @@ const LoginPage = () => {
           </h1>
 
           <p className="text-center text-gray-600 mb-6">
-            {forgotPassword
+            {showOTPVerification
+              ? "Enter the OTP sent to your email"
+              : forgotPassword
               ? "Reset your password in simple steps"
               : isLogin
               ? "Sign in to access your files"
               : "Join us to start managing your PDF files"}
           </p>
 
-          {forgotPassword ? (
+          {showOTPVerification ? (
+            <OTPVerification
+              email={pendingEmail}
+              onVerificationSuccess={handleVerificationSuccess}
+              onBackToLogin={handleBackFromOTP}
+            />
+          ) : forgotPassword ? (
             <ForgotPasswordForm
               formData={formData}
               setFormData={setFormData}

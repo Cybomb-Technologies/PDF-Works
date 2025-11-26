@@ -52,7 +52,7 @@ const OrganizeTools = () => {
   const [showPreview, setShowPreview] = useState(false);
   const [fileSaved, setFileSaved] = useState(false);
   const [organizeId, setOrganizeId] = useState("");
-  
+
   const { showNotification } = useNotification();
 
   // Get token from localStorage
@@ -100,7 +100,7 @@ const OrganizeTools = () => {
     setOrganizeId("");
 
     const formData = new FormData();
-    
+
     // Add files to form data
     files.forEach((file) => {
       formData.append("files", file);
@@ -122,7 +122,9 @@ const OrganizeTools = () => {
       }
 
       const response = await fetch(
-        `${API_URL}/api/tools/organize/${selectedTool.id}?${queryParams.toString()}`,
+        `${API_URL}/api/tools/organize/${
+          selectedTool.id
+        }?${queryParams.toString()}`,
         {
           method: "POST",
           headers: {
@@ -133,36 +135,41 @@ const OrganizeTools = () => {
       );
 
       // Check content type to determine if it's PDF or JSON error
-      const contentType = response.headers.get('content-type');
-      
+      const contentType = response.headers.get("content-type");
+
       // Handle JSON responses (errors or limit exceeded)
-      if (contentType && contentType.includes('application/json')) {
+      if (contentType && contentType.includes("application/json")) {
         const result = await response.json();
-        
+
         // Check for limit exceeded error
-        if (result.type === 'limit_exceeded') {
+        if (result.type === "limit_exceeded") {
           showNotification({
-            type: 'error',
-            title: result.title || 'Usage Limit Reached',
-            message: result.message || result.reason || 'Organize tools limit reached',
+            type: "error",
+            title: result.title || "Usage Limit Reached",
+            message:
+              result.message || result.reason || "Organize tools limit reached",
             duration: 8000,
             currentUsage: result.currentUsage,
             limit: result.limit,
             upgradeRequired: result.upgradeRequired,
-            action: result.upgradeRequired ? {
-              label: 'Upgrade Plan',
-              onClick: () => window.location.href = '/billing',
-              external: true
-            } : undefined
+            action: result.upgradeRequired
+              ? {
+                  label: "Upgrade Plan",
+                  onClick: () => (window.location.href = "/billing"),
+                  external: true,
+                }
+              : undefined,
           });
-          
+
           setProcessing(false);
           return;
         }
-        
+
         // Handle other JSON errors
         if (!response.ok || !result.success) {
-          throw new Error(result.error || result.message || `Server error: ${response.status}`);
+          throw new Error(
+            result.error || result.message || `Server error: ${response.status}`
+          );
         }
       }
 
@@ -171,17 +178,21 @@ const OrganizeTools = () => {
         // For error responses, try to read as JSON first
         try {
           const errorData = await response.json();
-          throw new Error(errorData.error || `Server error: ${response.status}`);
+          throw new Error(
+            errorData.error || `Server error: ${response.status}`
+          );
         } catch (jsonError) {
           // If not JSON, use text error
           const errorText = await response.text();
-          throw new Error(errorText || `Failed to process PDF: ${response.status}`);
+          throw new Error(
+            errorText || `Failed to process PDF: ${response.status}`
+          );
         }
       }
 
       // Success - it's a PDF file
-      const organizeId = response.headers.get('X-Organize-Id');
-      const fileSaved = response.headers.get('X-File-Saved');
+      const organizeId = response.headers.get("X-Organize-Id");
+      const fileSaved = response.headers.get("X-File-Saved");
 
       if (organizeId && fileSaved === "true") {
         setFileSaved(true);
@@ -192,28 +203,30 @@ const OrganizeTools = () => {
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       setDownloadUrl(url);
-      
+
       // Show success notification
       showNotification({
-        type: 'success',
-        title: 'PDF Processed Successfully',
+        type: "success",
+        title: "PDF Processed Successfully",
         message: `${selectedTool.name} completed successfully!`,
-        duration: 5000
+        duration: 5000,
       });
 
-      console.log("✅ File processed successfully. Organize ID:", organizeId);
-
+      // console.log("✅ File processed successfully. Organize ID:", organizeId);
     } catch (err) {
       console.error("Processing error:", err);
-      
+
       // Don't show duplicate notifications for limit exceeded
-      if (!err.message.includes('Usage Limit Reached') && !err.message.includes('limit_exceeded')) {
+      if (
+        !err.message.includes("Usage Limit Reached") &&
+        !err.message.includes("limit_exceeded")
+      ) {
         setError(err.message || "Failed to process PDF. Please try again.");
         showNotification({
-          type: 'error',
-          title: 'Processing Failed',
+          type: "error",
+          title: "Processing Failed",
           message: err.message || "Failed to process PDF. Please try again.",
-          duration: 5000
+          duration: 5000,
         });
       }
     } finally {
@@ -250,7 +263,8 @@ const OrganizeTools = () => {
             {fileSaved && (
               <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
                 <p className="text-green-700 text-sm font-medium">
-                  ✅ File automatically saved to <strong>Organize History</strong>
+                  ✅ File automatically saved to{" "}
+                  <strong>Organize History</strong>
                 </p>
                 {organizeId && (
                   <p className="text-green-600 text-xs mt-1">
@@ -289,7 +303,8 @@ const OrganizeTools = () => {
                   />
                 </div>
                 <p className="text-xs text-muted-foreground mt-2 text-center">
-                  Note: Preview may not work in all browsers. Download to view the full document.
+                  Note: Preview may not work in all browsers. Download to view
+                  the full document.
                 </p>
               </div>
             )}
@@ -350,7 +365,9 @@ const OrganizeTools = () => {
 
             {files.length > 0 && (
               <div className="mt-4">
-                <p className="text-sm font-semibold mb-2">Selected Files ({files.length}):</p>
+                <p className="text-sm font-semibold mb-2">
+                  Selected Files ({files.length}):
+                </p>
                 <ul className="list-disc pl-5 space-y-1">
                   {files.map((file, index) => (
                     <li key={index} className="text-sm text-muted-foreground">
