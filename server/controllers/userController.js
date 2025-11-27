@@ -1,4 +1,4 @@
-// controllers/userController.js (OTP REQUIRED FOR EVERY LOGIN)
+// controllers/userController.js (OTP REQUIRED FOR EVERY LOGIN EXCEPT GOOGLE AUTH)
 const User = require("../models/UserModel");
 const PricingPlan = require("../models/Pricing"); // ADD THIS IMPORT
 const bcrypt = require("bcryptjs");
@@ -11,7 +11,7 @@ const fs = require("fs");
 const path = require("path");
 const { OAuth2Client } = require("google-auth-library");
 
-// Initialize Google OAuth2 client
+// Initialize Google OAuth2 client with proper configuration
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 // Function to generate a 6-digit numeric OTP
@@ -279,7 +279,7 @@ const googleAuthCallback = async (req, res) => {
         planName: "Free",
         subscriptionStatus: "active",
         billingCycle: "monthly",
-        isEmailVerified: false, // OTP required even for Google users
+        isEmailVerified: true, // Google users are automatically verified
         usage: {
           conversions: 0,
           compressions: 0,
@@ -301,21 +301,15 @@ const googleAuthCallback = async (req, res) => {
       await user.save();
     }
 
-    // Send OTP for Google auth users too
-    const otp = generateOTP();
-    const tokenExpiry = Date.now() + 10 * 60 * 1000; // 10 minutes
+    // Generate JWT token for immediate login (NO OTP for Google users)
+    const token = jwt.sign(
+      { id: user._id, email: user.email, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "1d" }
+    );
 
-    user.emailVerificationToken = otp;
-    user.emailVerificationExpires = tokenExpiry;
-    await user.save();
-
-    // Send OTP email
-    await sendOTPEmail(user.email, user.name, otp);
-
-    // Redirect to frontend with verification required
-    const redirectUrl = `${
-      process.env.FRONTEND_URL
-    }/login?email=${encodeURIComponent(email)}&requiresVerification=true`;
+    // Redirect to frontend with success
+    const redirectUrl = `${process.env.FRONTEND_URL}/login?googleSuccess=true`;
     res.redirect(redirectUrl);
   } catch (error) {
     console.error("Google auth callback error:", error);
@@ -324,7 +318,7 @@ const googleAuthCallback = async (req, res) => {
   }
 };
 
-// GOOGLE AUTH: Direct authentication (for frontend) - FIXED VERSION
+// GOOGLE AUTH: Direct authentication (for frontend) - UPDATED VERSION (NO OTP)
 const googleAuth = async (req, res) => {
   try {
     const { token: googleToken } = req.body;
@@ -369,7 +363,7 @@ const googleAuth = async (req, res) => {
         planName: "Free",
         subscriptionStatus: "active",
         billingCycle: "monthly",
-        isEmailVerified: false, // OTP required even for Google users
+        isEmailVerified: true, // Google users are automatically verified
         usage: {
           conversions: 0,
           compressions: 0,
@@ -391,28 +385,38 @@ const googleAuth = async (req, res) => {
       await user.save();
     }
 
-    // Send OTP for Google auth users too
-    const otp = generateOTP();
-    const tokenExpiry = Date.now() + 10 * 60 * 1000; // 10 minutes
-
-    user.emailVerificationToken = otp;
-    user.emailVerificationExpires = tokenExpiry;
-    await user.save();
-
-    // Send OTP email
-    await sendOTPEmail(user.email, user.name, otp);
+    // Generate JWT token for immediate login (NO OTP for Google users)
+    const token = jwt.sign(
+      { id: user._id, email: user.email, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "1d" }
+    );
 
     res.json({
-      success: false,
-      requiresVerification: true,
-      message: "OTP sent to your email for verification",
-      email: user.email,
+      success: true,
+      message: "Google authentication successful",
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        plan: user.plan,
+        planName: user.planName,
+        billingCycle: user.billingCycle,
+        subscriptionStatus: user.subscriptionStatus,
+        planExpiry: user.planExpiry,
+        usage: user.usage,
+        autoRenewal: user.autoRenewal,
+        isEmailVerified: user.isEmailVerified,
+      },
     });
   } catch (error) {
     console.error("Google auth error:", error);
     res.status(500).json({
       success: false,
       error: "Google authentication failed",
+      details: error.message,
     });
   }
 };
