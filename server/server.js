@@ -124,6 +124,7 @@ app.use("/api/blogs", blogRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/activities", activitiesRoutes);
 app.use("/api/admin/dashboard", adminDashboardRoutes);
+app.use("/api/tools/ocr", require("./routes/tools-routes/Edit/OCR-Route"));
 
 // TOOLS ROUTES (from file 2)
 app.use("/api/tools/advanced", AdvancedRoutes);
