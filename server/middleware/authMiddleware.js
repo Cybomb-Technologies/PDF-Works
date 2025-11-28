@@ -1,9 +1,22 @@
 const jwt = require("jsonwebtoken");
 
+// Domains allowed without token
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://cybombadmin.cybomb.com"
+];
+
 const verifyToken = (req, res, next) => {
+  const origin = req.headers.origin;
+
+  // 1️⃣ If request is from allowed domain → skip token check
+  if (allowedOrigins.includes(origin)) {
+    console.log("Bypassed token (allowed origin):", origin);
+    return next();
+  }
+
   const authHeader = req.headers["authorization"];
 
-  // Check if authorization header exists and has Bearer token
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return res.status(401).json({
       success: false,
@@ -15,7 +28,6 @@ const verifyToken = (req, res, next) => {
   const token = authHeader.split(" ")[1];
 
   try {
-    // Verify the token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.user = decoded;
 
@@ -36,7 +48,17 @@ const verifyToken = (req, res, next) => {
   }
 };
 
+
+// Admin verification (bypass also applied)
 const verifyAdmin = (req, res, next) => {
+  const origin = req.headers.origin;
+
+  // Allow same bypass for admin routes
+  if (allowedOrigins.includes(origin)) {
+    console.log("Bypassed admin token (allowed origin):", origin);
+    return next();
+  }
+
   const authHeader = req.headers["authorization"];
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -52,7 +74,6 @@ const verifyAdmin = (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.user = decoded;
 
-    // Check if user has admin role
     if (req.user.role !== "admin") {
       return res.status(403).json({
         success: false,
@@ -68,7 +89,8 @@ const verifyAdmin = (req, res, next) => {
   }
 };
 
-// For routes that don't require authentication but should still extract user if token exists
+
+// Optional auth stays same
 const optionalAuth = (req, res, next) => {
   const authHeader = req.headers["authorization"];
 
@@ -78,7 +100,7 @@ const optionalAuth = (req, res, next) => {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       req.user = decoded;
     } catch (err) {
-      // Ignore token errors for optional auth
+      //
     }
   }
   next();
