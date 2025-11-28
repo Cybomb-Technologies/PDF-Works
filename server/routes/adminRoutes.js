@@ -16,7 +16,8 @@ const ALLOWED_DOMAINS = [
   "http://localhost:5173",
   "http://localhost:5174", 
   "http://localhost:3000",
-  "https://pfdworksadmin.pfdworks.com"
+  "https://pfdworksadmin.pfdworks.com",
+  "https://cybombadmin.cybomb.com"
 ];
 
 // ✅ Auth Middleware with bypass (using same verifyToken logic)

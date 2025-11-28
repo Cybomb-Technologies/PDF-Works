@@ -7,6 +7,7 @@ const corsOptions = {
       "http://localhost:3000",
       "https://pdfworks.in",
       "https://www.pdfworks.in",
+      "https://cybombadmin.cybomb.com"
     ];
 
     // Allow requests with no origin (like mobile apps or curl requests)
