@@ -29,9 +29,10 @@ const EditSchema = new mongoose.Schema(
       required: true,
       enum: [
         "pdf-edit",
-        "image-crop", 
+        "image-crop",
         "file-rename",
-        "e-signature"
+        "e-signature",
+        "ocr-text", // Added OCR type
       ],
     },
     fileSize: {
@@ -62,7 +63,7 @@ const EditSchema = new mongoose.Schema(
     editMetadata: {
       type: Object,
       required: false,
-    }
+    },
   },
   {
     timestamps: true,

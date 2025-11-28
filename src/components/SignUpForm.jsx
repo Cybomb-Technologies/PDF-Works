@@ -9,7 +9,7 @@ import { motion } from "framer-motion";
 import { FileText } from "lucide-react";
 import Metatags from "../SEO/metatags";
 import { useAuth } from "@/contexts/AuthContext";
-import OTPVerification from "./OTPVerification"; // Import OTP component
+import OTPVerification from "./OTPVerification";
 
 const SignUpForm = () => {
   const [formData, setFormData] = React.useState({
@@ -22,66 +22,115 @@ const SignUpForm = () => {
   const [errors, setErrors] = React.useState({});
   const [showOTPVerification, setShowOTPVerification] = React.useState(false);
   const [pendingEmail, setPendingEmail] = React.useState("");
+  const [googleScriptLoaded, setGoogleScriptLoaded] = React.useState(false);
   const navigate = useNavigate();
   const { loginBackend } = useAuth();
 
-  // Load Google SDK - SIMPLIFIED VERSION
+  // Load Google SDK - IMPROVED VERSION
   React.useEffect(() => {
     const loadGoogleSDK = () => {
-      if (window.google) return;
+      // Check if already loaded
+      if (window.google) {
+        setGoogleScriptLoaded(true);
+        initializeGoogleSignIn();
+        return;
+      }
+
+      // Check if script is already in the document
+      const existingScript = document.querySelector(
+        'script[src*="accounts.google.com/gsi/client"]'
+      );
+      if (existingScript) {
+        existingScript.onload = () => {
+          setGoogleScriptLoaded(true);
+          initializeGoogleSignIn();
+        };
+        return;
+      }
 
       const script = document.createElement("script");
       script.src = "https://accounts.google.com/gsi/client";
       script.async = true;
       script.defer = true;
+      script.onload = () => {
+        console.log("Google SDK loaded successfully");
+        setGoogleScriptLoaded(true);
+        initializeGoogleSignIn();
+      };
+      script.onerror = (error) => {
+        console.error("Failed to load Google SDK:", error);
+        toast({
+          title: "Google Sign-In Error",
+          description:
+            "Failed to load Google authentication. Please refresh the page.",
+          variant: "destructive",
+        });
+      };
       document.head.appendChild(script);
     };
 
     loadGoogleSDK();
   }, []);
 
-  // Initialize Google Sign-In when component mounts
-  React.useEffect(() => {
-    const initializeGoogleSignIn = () => {
-      if (!window.google) return;
+  // Initialize Google Sign-In
+  const initializeGoogleSignIn = React.useCallback(() => {
+    if (!window.google) {
+      console.error("Google SDK not available");
+      return;
+    }
+
+    try {
+      console.log("Initializing Google Sign-In...");
 
       window.google.accounts.id.initialize({
         client_id:
           "69147878779-uti783ij0hrf5p7upa962jmigv3mesj1.apps.googleusercontent.com",
         callback: handleGoogleResponse,
         context: "signup",
+        ux_mode: "popup",
+        auto_select: false,
       });
 
-      // Render button directly without One Tap
-      const buttonContainer = document.getElementById("googleSignUpButton");
-      if (buttonContainer) {
-        window.google.accounts.id.renderButton(buttonContainer, {
-          theme: "outline",
-          size: "large",
-          width: "100%",
-          text: "signup_with",
-          type: "standard",
-          logo_alignment: "center",
-        });
-      }
-    };
+      // Render button with a small delay to ensure DOM is ready
+      setTimeout(() => {
+        const buttonContainer = document.getElementById("googleSignUpButton");
+        if (buttonContainer && buttonContainer.children.length === 0) {
+          console.log("Rendering Google button...");
+          window.google.accounts.id.renderButton(buttonContainer, {
+            theme: "outline",
+            size: "large",
+            width: "100%",
+            text: "signup_with",
+            type: "standard",
+            logo_alignment: "center",
+            shape: "rectangular",
+          });
 
-    // Wait for Google SDK to load
-    const checkGoogleSDK = setInterval(() => {
-      if (window.google) {
-        initializeGoogleSignIn();
-        clearInterval(checkGoogleSDK);
-      }
-    }, 100);
-
-    return () => clearInterval(checkGoogleSDK);
+          // Also enable prompt for better UX
+          window.google.accounts.id.prompt();
+        }
+      }, 100);
+    } catch (error) {
+      console.error("Error initializing Google Sign-In:", error);
+    }
   }, []);
 
-  // Handle Google OAuth Response - UPDATED VERSION
+  // Re-initialize Google Sign-In when script loads
+  React.useEffect(() => {
+    if (googleScriptLoaded) {
+      initializeGoogleSignIn();
+    }
+  }, [googleScriptLoaded, initializeGoogleSignIn]);
+
+  // Handle Google OAuth Response - UPDATED TO HANDLE DIRECT LOGIN
   const handleGoogleResponse = async (response) => {
     try {
       setGoogleLoading(true);
-      // console.log("Google response received:", response);
+      console.log("Google response received:", response);
+
+      if (!response.credential) {
+        throw new Error("No credential received from Google");
+      }
 
       const API_URL = `${import.meta.env.VITE_API_URL}/api/auth/google`;
 
@@ -94,21 +143,22 @@ const SignUpForm = () => {
         body: JSON.stringify({ token: response.credential }),
       });
 
+      const result = await backendResponse.json();
+      console.log("Backend response:", result);
+
       if (!backendResponse.ok) {
-        throw new Error(`HTTP error! status: ${backendResponse.status}`);
+        throw new Error(
+          result.error || `HTTP error! status: ${backendResponse.status}`
+        );
       }
 
-      const result = await backendResponse.json();
-      // console.log("Backend response:", result);
-
       if (result.success) {
-        if (result.token) {
+        // For Google OAuth, we expect direct login without OTP
+        if (result.token && result.user) {
+          // Store token and user data
           localStorage.setItem("token", result.token);
-        }
 
-        const userData = result.user;
-        if (userData && result.token) {
-          // Create complete user object with token
+          const userData = result.user;
           const completeUser = {
             ...userData,
             token: result.token,
@@ -123,23 +173,19 @@ const SignUpForm = () => {
             description: "Account created successfully with Google",
           });
 
-          // Navigate to home page
           navigate("/");
-          return; // Important: return early to prevent duplicate navigation
+        } else {
+          throw new Error("Invalid response from server");
         }
       } else {
-        toast({
-          title: "Google Sign-Up Error",
-          description: result.error || "Registration failed",
-          variant: "destructive",
-        });
+        throw new Error(result.error || "Registration failed");
       }
     } catch (error) {
       console.error("Google auth error:", error);
       toast({
-        title: "Connection Error",
+        title: "Google Sign-Up Failed",
         description:
-          "Unable to connect to server. Please check your connection.",
+          error.message || "Unable to sign up with Google. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -183,7 +229,6 @@ const SignUpForm = () => {
       const result = await response.json();
 
       if (!response.ok) {
-        // Use the actual error message from backend instead of generic HTTP error
         throw new Error(
           result.error || `HTTP error! status: ${response.status}`
         );
@@ -197,7 +242,6 @@ const SignUpForm = () => {
             "Registration successful. Please verify your email.",
         });
 
-        // Show OTP verification for new registration
         if (result.requiresVerification) {
           setPendingEmail(formData.email);
           setShowOTPVerification(true);
@@ -226,7 +270,6 @@ const SignUpForm = () => {
 
   // Handle OTP verification success
   const handleVerificationSuccess = (token, userData) => {
-    // Store token and user data
     if (token) {
       localStorage.setItem("token", token);
     }
@@ -235,7 +278,6 @@ const SignUpForm = () => {
       loginBackend(userData, token);
     }
 
-    // Navigate to home page after a short delay
     setTimeout(() => {
       navigate("/");
     }, 1000);
@@ -314,7 +356,6 @@ const SignUpForm = () => {
             <div className="space-y-2">
               <Label htmlFor="name">Full Name</Label>
               <div className="relative">
-                {/* <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" /> */}
                 <Input
                   id="name"
                   type="text"
@@ -337,7 +378,6 @@ const SignUpForm = () => {
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <div className="relative">
-                {/* <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" /> */}
                 <Input
                   id="email"
                   type="email"
@@ -360,7 +400,6 @@ const SignUpForm = () => {
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <div className="relative">
-                {/* <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" /> */}
                 <Input
                   id="password"
                   type="password"
@@ -409,9 +448,19 @@ const SignUpForm = () => {
               </div>
             </div>
 
-            {/* Google Sign In Button Container */}
+            {/* Google Sign In Button Container - Fixed border styling */}
             <div className="w-full flex justify-center">
-              <div id="googleSignUpButton" className="w-full"></div>
+              <div
+                id="googleSignUpButton"
+                className="w-full min-h-[44px] flex items-center justify-center rounded-md overflow-hidden"
+              >
+                {!googleScriptLoaded && (
+                  <div className="flex items-center justify-center text-gray-500">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600 mr-2"></div>
+                    Loading Google Sign-In...
+                  </div>
+                )}
+              </div>
             </div>
 
             {googleLoading && (

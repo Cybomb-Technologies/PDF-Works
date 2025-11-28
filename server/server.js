@@ -124,6 +124,7 @@ app.use("/api/blogs", blogRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/activities", activitiesRoutes);
 app.use("/api/admin/dashboard", adminDashboardRoutes);
+app.use("/api/tools/ocr", require("./routes/tools-routes/Edit/OCR-Route"));
 
 // TOOLS ROUTES (from file 2)
 app.use("/api/tools/advanced", AdvancedRoutes);
@@ -301,7 +302,7 @@ app.use((req, res) => {
 
 // MONGODB
 mongoose
-  .connect("mongodb://localhost:27017/pdf-tools")
+  .connect("mongodb://sudesh.t%40cybomb.com:Cybomb%401234@147.93.111.96:27017/pdf-works?authSource=admin")
   //.connect("mongodb://localhost:27017/pdf-tools")
   .then(() => console.log("MongoDB connected successfully"))
   .catch((err) => {
