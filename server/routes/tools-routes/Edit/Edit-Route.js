@@ -1,8 +1,8 @@
+// server/routes/tools-routes/Edit/Edit-Route.js
 const express = require("express");
 const router = express.Router();
 const multer = require("multer");
 const EditController = require("../../../controllers/tool-controller/Edit/Edit-Controller");
-const OCRController = require("../../../controllers/tool-controller/Edit/OCR-Controller");
 
 // Auth middleware
 const { verifyToken } = require("../../../middleware/authMiddleware");
@@ -54,12 +54,6 @@ router.post(
   upload.single("file"),
   EditController.saveImageCrop
 );
-router.post(
-  "/save-ocr",
-  verifyToken,
-  upload.single("file"),
-  OCRController.saveOCR
-); // Added OCR save route
 
 // File rename with batch support - PROTECTED WITH AUTH
 router.post(

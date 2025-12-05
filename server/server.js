@@ -27,7 +27,11 @@ const blogRoutes = require("./routes/blogRoutes");
 const dashboardRoutes = require("./routes/dashboard/dashboard-routes");
 const activitiesRoutes = require("./routes/activities/activities-routes");
 const adminDashboardRoutes = require("./routes/adminDashboardRoutes");
-
+const topupRoutes = require('./routes/topupRoutes');
+const topupPaymentRoutes = require("./routes/topupPaymentRoutes");
+const topupInvoiceRoutes = require('./routes/topupInvoiceRoutes');
+const toolUsageRoutes = require('./routes/toolUsageRoutes');
+const limitsRoutes = require('./routes/limitsRoutes');
 const app = express();
 
 // Ensure Upload Folders - COMBINED VERSION
@@ -124,7 +128,11 @@ app.use("/api/blogs", blogRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/activities", activitiesRoutes);
 app.use("/api/admin/dashboard", adminDashboardRoutes);
-app.use("/api/tools/ocr", require("./routes/tools-routes/Edit/OCR-Route"));
+app.use("/api/tools/ocr", require("./routes/tools-routes/OCR-Route"));
+app.use('/api/topup', topupRoutes);
+app.use("/api/payments/topup", topupPaymentRoutes); 
+app.use('/api/payments/topup/invoice', topupInvoiceRoutes);
+app.use('/api/tool-usage', toolUsageRoutes);
 
 // TOOLS ROUTES (from file 2)
 app.use("/api/tools/advanced", AdvancedRoutes);
@@ -302,8 +310,8 @@ app.use((req, res) => {
 
 // MONGODB
 mongoose
-  .connect("mongodb://sudesh.t%40cybomb.com:Cybomb%401234@147.93.111.96:27017/pdf-works?authSource=admin")
-  //.connect("mongodb://localhost:27017/pdf-tools")
+  //.connect("mongodb://sudesh.t%40cybomb.com:Cybomb%401234@147.93.111.96:27017/pdf-works?authSource=admin")
+  .connect("mongodb://localhost:27017/pdf-tools")
   .then(() => console.log("MongoDB connected successfully"))
   .catch((err) => {
     console.error("MongoDB connection error:", err);

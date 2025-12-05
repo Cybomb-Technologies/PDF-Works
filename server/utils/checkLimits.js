@@ -3,16 +3,13 @@ const PricingPlan = require("../models/Pricing");
 const File = require("../models/FileModel");
 
 /**
- * Get the latest plan data for a user (always fresh from database)
+ * Get plan from DB
  */
 async function getUserPlan(user) {
   let plan = null;
-
-  // Always fetch fresh plan data from database
   if (user.plan) {
     plan = await PricingPlan.findById(user.plan);
   }
-  
   if (!plan && user.planName) {
     plan = await PricingPlan.findOne({
       $or: [
@@ -21,338 +18,216 @@ async function getUserPlan(user) {
       ]
     });
   }
-  
-  // Fallback to free plan
   if (!plan) {
     plan = await PricingPlan.findOne({ planId: "free" });
   }
-
   return plan;
 }
 
+/**
+ * Get topup credits for current feature
+ */
+function getTopupCreditsForFeature(user, feature) {
+  if (!user.topupCredits) return 0;
+  const map = {
+    "convert": "conversion",
+    "conversions": "conversion",
+    "edit-tools": "editTools",
+    "organize-tools": "organizeTools",
+    "security-tools": "securityTools",
+    "optimize-tools": "optimizeTools",
+    "advanced-tools": "advancedTools",
+  };
+  return user.topupCredits[map[feature]] || 0;
+}
+
+/**
+ * Get full available (plan + topup)
+ */
+function getTotalAvailable(planLimit, topup) {
+  if (planLimit === 0 || planLimit === 99999) return 99999;
+  return planLimit + topup;
+}
+
+/**
+ * Limit check function
+ */
 async function checkLimits(userId, feature, fileSizeBytes = 0) {
   try {
-    console.log(`🔍 CHECKING LIMITS: User ${userId}, Feature: ${feature}`);
+    console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+    console.log(`🔍 LIMIT CHECK REQUEST | User: ${userId}`);
+    console.log(`   Feature: ${feature}`);
+    console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
 
     if (!userId) {
-      return { 
-        allowed: false, 
-        reason: "Authentication required",
-        notificationType: "error",
-        title: "Authentication Required"
-      };
+      console.log(`⛔ No User ID Provided`);
+      return { allowed: false, reason: "Authentication required" };
     }
 
-    // 1. Load user
+    // Load user
     const user = await User.findById(userId);
-    if (!user) return { 
-      allowed: false, 
-      reason: "User not found",
-      notificationType: "error",
-      title: "User Not Found"
-    };
-
-    // 2. Get FRESH plan data from database (not cached)
-    const plan = await getUserPlan(user);
-    
-    if (!plan) {
-      return {
-        allowed: false,
-        reason: "Unable to load plan information",
-        notificationType: "error",
-        title: "Plan Error"
-      };
+    if (!user) {
+      console.log(`❌ User Not Found`);
+      return { allowed: false, reason: "User not found" };
     }
 
-    console.log("🔍 LIMIT CHECK:", {
-      userId: user._id,
-      userPlan: user.planName,
-      resolvedPlan: plan.name,
-      feature: feature,
-      conversionLimit: plan.conversionLimit,
-      currentConversions: user.usage?.conversions || 0,
-      editToolsLimit: plan.editToolsLimit,
-      currentEditTools: user.usage?.editTools || 0,
-      organizeToolsLimit: plan.organizeToolsLimit,
-      currentOrganizeTools: user.usage?.organizeTools || 0,
-      securityToolsLimit: plan.securityToolsLimit,
-      currentSecurityTools: user.usage?.securityTools || 0,
-      optimizeToolsLimit: plan.optimizeToolsLimit,
-      currentOptimizeTools: user.usage?.optimizeTools || 0,
-      advancedToolsLimit: plan.advancedToolsLimit,
-      currentAdvancedTools: user.usage?.advancedTools || 0
-    });
+    // Load plan fresh
+    const plan = await getUserPlan(user);
+    console.log(`📌 PLAN RESOLVED: ${plan?.name || "None"}`);
 
+    if (!plan) return { allowed: false, reason: "Plan not found" };
+
+    // Topup for this feature
+    const topupCredits = getTopupCreditsForFeature(user, feature);
+
+    // Ensure usage object initialized
     const now = new Date();
-
-    // 3. Ensure usage object has required fields
     const defaultUsage = {
-      conversions: 0,
-      compressions: 0,
-      ocr: 0,
-      signatures: 0,
-      edits: 0,
-      organizes: 0,
-      securityOps: 0,
-      operations: 0,
+      conversions: 0, compressions: 0, ocr: 0, signatures: 0,
+      edits: 0, organizes: 0, securityOps: 0, operations: 0,
       storageUsedBytes: 0,
-      
-      // Tool-specific usage tracking
-      editTools: 0,
-      organizeTools: 0,
-      securityTools: 0,
-      optimizeTools: 0,
-      advancedTools: 0,
-      
+      editTools: 0, organizeTools: 0, securityTools: 0,
+      optimizeTools: 0, advancedTools: 0,
       resetDate: now
     };
 
-    let usageNeedsFix = false;
-
     if (!user.usage || typeof user.usage !== "object") {
+      console.log(`⚠️ FIXING MISSING USAGE OBJECT`);
       user.usage = { ...defaultUsage };
-      usageNeedsFix = true;
-    } else {
-      for (const k of Object.keys(defaultUsage)) {
-        if (user.usage[k] === undefined) {
-          user.usage[k] = defaultUsage[k];
-          usageNeedsFix = true;
-        }
-      }
-    }
-
-    if (usageNeedsFix) {
       await user.save();
     }
 
-    // Reload usage after potential fix
-    const usage = user.usage;
+    let usage = user.usage;
 
-    // 4. ✅ FIXED: SUBSCRIPTION CYCLE RESET - Use User model method
-    const cycleChanged = user.shouldResetUsage();
-
-    if (cycleChanged) {
+    // Reset monthly cycle if needed
+    if (user.shouldResetUsage()) {
+      console.log(`🔄 MONTHLY CYCLE RESET`);
       user.usage = { ...defaultUsage, resetDate: now };
       await user.save();
-      console.log(`🔄 Usage reset for user ${userId}`);
+      usage = user.usage;
     }
 
-    // 5. Extract plan limits
-    const conversionLimit = plan?.conversionLimit ?? 0;
-    const editToolsLimit = plan?.editToolsLimit ?? 0;
-    const organizeToolsLimit = plan?.organizeToolsLimit ?? 0;
-    const securityToolsLimit = plan?.securityToolsLimit ?? 0;
-    const optimizeToolsLimit = plan?.optimizeToolsLimit ?? 0;
-    const advancedToolsLimit = plan?.advancedToolsLimit ?? 0;
-    const maxFileSizeMB = plan?.maxFileSize ?? 0;
-    const storageLimitGB = plan?.storage ?? 0;
-    const storageLimitBytes = storageLimitGB * 1024 * 1024 * 1024;
+    // Extract feature limits
+    const limits = {
+      conversionLimit: plan?.conversionLimit ?? 0,
+      editToolsLimit: plan?.editToolsLimit ?? 0,
+      organizeToolsLimit: plan?.organizeToolsLimit ?? 0,
+      securityToolsLimit: plan?.securityToolsLimit ?? 0,
+      optimizeToolsLimit: plan?.optimizeToolsLimit ?? 0,
+      advancedToolsLimit: plan?.advancedToolsLimit ?? 0,
+      maxFileSizeMB: plan?.maxFileSize ?? 0,
+      storageLimitGB: plan?.storage ?? 0
+    };
 
-    // 6. Subscription check (paid plans only)
+    // Subscription validation
     if (plan?.planId !== "free" && user.subscriptionStatus !== "active") {
+      console.log(`❌ SUBSCRIPTION NOT ACTIVE`);
       return {
         allowed: false,
-        reason: "Your subscription is inactive. Please renew your subscription to continue using premium features.",
-        notificationType: "error",
-        title: "Subscription Inactive",
-        currentUsage: 0,
-        limit: 0,
+        reason: "Subscription inactive",
         upgradeRequired: true
       };
     }
 
-    // 7. File size limit
-    if (fileSizeBytes > 0 && maxFileSizeMB > 0) {
+    // File Size Check
+    if (fileSizeBytes > 0 && limits.maxFileSizeMB > 0) {
       const fileMB = fileSizeBytes / (1024 * 1024);
-      if (fileMB > maxFileSizeMB) {
+      if (fileMB > limits.maxFileSizeMB) {
+        console.log(`❌ FILE TOO LARGE (${fileMB.toFixed(1)}MB)`);
         return {
           allowed: false,
-          reason: `File too large. Maximum allowed file size is ${maxFileSizeMB} MB. Your file is ${fileMB.toFixed(1)} MB.`,
-          notificationType: "error",
-          title: "File Too Large",
-          currentUsage: fileMB,
-          limit: maxFileSizeMB
+          reason: `Max file ${limits.maxFileSizeMB} MB exceeded`
         };
       }
     }
 
-    // 8. Storage limit
-    if (storageLimitGB > 0) {
-      const storageAgg = await File.aggregate([
+    // Storage Limit Check
+    if (limits.storageLimitGB > 0) {
+      const agg = await File.aggregate([
         { $match: { uploadedBy: user._id } },
         { $group: { _id: null, total: { $sum: "$size" } } }
       ]);
-      const usedBytes = storageAgg?.[0]?.total || 0;
-      const usedGB = usedBytes / (1024 * 1024 * 1024);
+      const usedBytes = agg?.[0]?.total || 0;
+      const maxBytes = limits.storageLimitGB * 1024 * 1024 * 1024;
 
-      if (usedBytes + fileSizeBytes > storageLimitBytes) {
-        return {
-          allowed: false,
-          reason: `Storage limit exceeded. You have used ${usedGB.toFixed(1)}GB of ${storageLimitGB}GB storage. Please free up space or upgrade your plan.`,
-          notificationType: "error",
-          title: "Storage Limit Exceeded",
-          currentUsage: usedGB,
-          limit: storageLimitGB,
-          upgradeRequired: true
-        };
+      if (usedBytes + fileSizeBytes > maxBytes) {
+        console.log(`❌ STORAGE LIMIT EXCEEDED`);
+        return { allowed: false, reason: "Storage limit exceeded" };
       }
     }
 
-    // 9. Feature-specific checks
+    // ================ LIMIT CHECKS ==================
+
+    function checkMax(limit, used) {
+      const totalAllowed = getTotalAvailable(limit, topupCredits);
+      const isUnlimited = totalAllowed === 99999;
+
+      console.log(`📊 LIMIT CHECK:`);
+      console.log(`   PlanLimit: ${limit}`);
+      console.log(`   Used: ${used}`);
+      console.log(`   Topup: ${topupCredits}`);
+      console.log(`   TotalAllowed: ${totalAllowed}`);
+
+      if (isUnlimited) return true;
+      if (used < limit) return true; // still in plan
+      if (topupCredits > 0) return true; // can use topup
+
+      return false;
+    }
+
     switch (feature) {
       case "convert":
       case "conversions":
-        if (conversionLimit > 0 && usage.conversions >= conversionLimit) {
-          return {
-            allowed: false,
-            reason: `PDF conversion limit reached. You've used ${usage.conversions} of ${conversionLimit} conversions this month.`,
-            notificationType: "error",
-            title: "Conversion Limit Reached",
-            currentUsage: usage.conversions,
-            limit: conversionLimit,
-            upgradeRequired: true
-          };
+        if (!checkMax(limits.conversionLimit, usage.conversions)) {
+          console.log(`❌ CONVERSION LIMIT BLOCKED`);
+          return { allowed: false, reason: "Conversion credits exhausted", upgradeRequired: true };
         }
         break;
 
       case "edit-tools":
-        if (editToolsLimit > 0 && usage.editTools >= editToolsLimit) {
-          return {
-            allowed: false,
-            reason: `PDF editing tools limit reached. You've used ${usage.editTools} of ${editToolsLimit} edit operations this month.`,
-            notificationType: "error",
-            title: "Edit Tools Limit Reached",
-            currentUsage: usage.editTools,
-            limit: editToolsLimit,
-            upgradeRequired: true
-          };
+        if (!checkMax(limits.editToolsLimit, usage.editTools)) {
+          return { allowed: false, reason: "Edit tools limit reached", upgradeRequired: true };
         }
         break;
 
       case "organize-tools":
-        if (organizeToolsLimit > 0 && usage.organizeTools >= organizeToolsLimit) {
-          return {
-            allowed: false,
-            reason: `Organize tools limit reached (${usage.organizeTools}/${organizeToolsLimit}). Please upgrade your plan.`,
-            notificationType: "error",
-            title: "Organize Tools Limit Reached",
-            currentUsage: usage.organizeTools,
-            limit: organizeToolsLimit,
-            upgradeRequired: true
-          };
+        if (!checkMax(limits.organizeToolsLimit, usage.organizeTools)) {
+          return { allowed: false, reason: "Organize tools limit reached", upgradeRequired: true };
         }
         break;
 
       case "security-tools":
-        if (securityToolsLimit > 0 && usage.securityTools >= securityToolsLimit) {
-          return {
-            allowed: false,
-            reason: `Security tools limit reached (${usage.securityTools}/${securityToolsLimit}). Please upgrade your plan.`,
-            notificationType: "error",
-            title: "Security Tools Limit Reached",
-            currentUsage: usage.securityTools,
-            limit: securityToolsLimit,
-            upgradeRequired: true
-          };
+        if (!checkMax(limits.securityToolsLimit, usage.securityTools)) {
+          return { allowed: false, reason: "Security tools limit reached", upgradeRequired: true };
         }
         break;
 
       case "optimize-tools":
-        if (optimizeToolsLimit > 0 && usage.optimizeTools >= optimizeToolsLimit) {
-          return {
-            allowed: false,
-            reason: `Optimize tools limit reached (${usage.optimizeTools}/${optimizeToolsLimit}). Please upgrade your plan.`,
-            notificationType: "error",
-            title: "Optimize Tools Limit Reached",
-            currentUsage: usage.optimizeTools,
-            limit: optimizeToolsLimit,
-            upgradeRequired: true
-          };
+        if (!checkMax(limits.optimizeToolsLimit, usage.optimizeTools)) {
+          return { allowed: false, reason: "Optimize tools limit reached", upgradeRequired: true };
         }
         break;
 
       case "advanced-tools":
-        if (advancedToolsLimit > 0 && usage.advancedTools >= advancedToolsLimit) {
-          return {
-            allowed: false,
-            reason: `Advanced tools limit reached. You've used ${usage.advancedTools} of ${advancedToolsLimit} advanced operations this month.`,
-            notificationType: "error",
-            title: "Advanced Tools Limit Reached",
-            currentUsage: usage.advancedTools,
-            limit: advancedToolsLimit,
-            upgradeRequired: true
-          };
-        }
-        break;
-
-      case "ocr":
-        if (!plan?.hasOCR) {
-          return { 
-            allowed: false, 
-            reason: "OCR text recognition requires a Professional plan or higher.",
-            notificationType: "error",
-            title: "OCR Not Available",
-            upgradeRequired: true
-          };
-        }
-        break;
-
-      case "batch":
-        if (!plan?.hasBatchProcessing) {
-          return { 
-            allowed: false, 
-            reason: "Batch processing requires a Professional plan or higher.",
-            notificationType: "error",
-            title: "Batch Processing Not Available",
-            upgradeRequired: true
-          };
-        }
-        break;
-
-      case "signature":
-        if (!plan?.hasDigitalSignatures) {
-          return { 
-            allowed: false, 
-            reason: "Digital signatures require a Professional plan or higher.",
-            notificationType: "error",
-            title: "Digital Signatures Not Available",
-            upgradeRequired: true
-          };
-        }
-        break;
-
-      case "security":
-        if (!plan?.hasWatermarks) {
-          return { 
-            allowed: false, 
-            reason: "Security tools require a Starter plan or higher.",
-            notificationType: "error",
-            title: "Security Tools Not Available",
-            upgradeRequired: true
-          };
+        if (!checkMax(limits.advancedToolsLimit, usage.advancedTools)) {
+          return { allowed: false, reason: "Advanced tools limit reached", upgradeRequired: true };
         }
         break;
     }
 
-    // 10. All good
+    console.log(`✔️ LIMIT CHECK PASSED`);
+    console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
+
     return {
       allowed: true,
-      reason: null,
-      user,
+      usage,
       plan,
-      usage: user.usage,
-      resetRequired: cycleChanged,
-      notificationType: "success"
+      topupCredits
     };
 
   } catch (err) {
-    console.error("checkLimits error:", err);
-    return { 
-      allowed: false, 
-      reason: "Server error during limit check. Please try again.",
-      notificationType: "error",
-      title: "Server Error"
-    };
+    console.error(`❌ checkLimits ERROR:`, err);
+    return { allowed: false, reason: "Server error" };
   }
 }
 

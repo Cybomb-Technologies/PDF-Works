@@ -9,6 +9,7 @@ import {
   Lock,
   Minimize2,
   Eye,
+  ScanText, // ADD THIS
 } from "lucide-react";
 import FileUploadModal from "@/components/FileUploadModal";
 import { useNavigate } from "react-router-dom";
@@ -20,6 +21,7 @@ import EditTools from "@/pages/tools/EditTools";
 import SecurityTools from "@/pages/tools/SecurityTools";
 import OptimizeTools from "@/pages/tools/OptimizeTools";
 import AdvancedTools from "@/pages/tools/AdvancedTools";
+import OCR from "@/pages/tools/OCR"; // Import your updated OCR component
 import Metatags from "../SEO/metatags";
 
 const ToolsPage = () => {
@@ -29,11 +31,13 @@ const ToolsPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
+  // UPDATE categories array to include OCR
   const categories = [
     { id: "all", name: "All Tools", icon: Zap },
     { id: "organize", name: "Organize", icon: Merge },
     { id: "convert", name: "Convert", icon: FileType },
     { id: "edit", name: "Edit", icon: Edit3 },
+    { id: "ocr", name: "OCR", icon: ScanText }, // ADD OCR CATEGORY
     { id: "security", name: "Security", icon: Lock },
     { id: "optimize", name: "Optimize", icon: Minimize2 },
     { id: "advanced", name: "Advanced", icon: Eye },
@@ -46,6 +50,8 @@ const ToolsPage = () => {
     }
     if (tool.id === "edit") {
       navigate("/tools/edit");
+    } else if (tool.id === "ocr") {
+      // OCR is now handled inline in the OCR component
     } else {
       setSelectedTool(tool);
       setShowUploadModal(true);
@@ -60,6 +66,8 @@ const ToolsPage = () => {
         return <ConvertTools handleToolClick={handleToolClick} />;
       case "edit":
         return <EditTools handleToolClick={handleToolClick} />;
+      case "ocr": // ADD OCR CASE - render the OCR component directly
+        return <OCR handleToolClick={handleToolClick} />;
       case "security":
         return <SecurityTools handleToolClick={handleToolClick} />;
       case "optimize":
@@ -69,26 +77,26 @@ const ToolsPage = () => {
       default:
         // "All Tools" tab — render all components together
         return (
-          <>
+          <div className="space-y-12">
             <OrganizeTools handleToolClick={handleToolClick} />
             <ConvertTools handleToolClick={handleToolClick} />
             <EditTools handleToolClick={handleToolClick} />
+            <OCR handleToolClick={handleToolClick} /> {/* ADD OCR TO ALL TOOLS */}
             <SecurityTools handleToolClick={handleToolClick} />
             <OptimizeTools handleToolClick={handleToolClick} />
             <AdvancedTools handleToolClick={handleToolClick} />
-          </>
+          </div>
         );
     }
   };
 
   const metaPropsData = {
     title:
-      "Our PDF Works Tools - Online PDF Editor, Converter, Compressor & Merger",
-
+      "Our PDF Works Tools - Online PDF Editor, Converter, Compressor, OCR & Merger",
     description:
-      "Use our free online PDF Works tools including PDF editor, converter, compressor, merger, splitter, and organizer. Optimize and secure your documents with our advanced free PDF editor tools.",
+      "Use our free online PDF Works tools including PDF editor, converter, compressor, OCR, merger, splitter, and organizer. Optimize and secure your documents with our advanced free PDF editor tools.",
     keyword:
-      "free pdf tools, online pdf editor, pdf converter, pdf compressor, pdf merger, pdf splitter, pdf organizer, pdf security, pdf optimize, free pdf editor tools",
+      "free pdf tools, online pdf editor, pdf converter, pdf compressor, pdf ocr, pdf merger, pdf splitter, pdf organizer, pdf security, pdf optimize, free pdf editor tools",
     image:
       "https://res.cloudinary.com/dcfjt8shw/image/upload/v1761288318/wn8m8g8skdpl6iz2rwoa.svg",
     url: "https://pdfworks.in/tools",

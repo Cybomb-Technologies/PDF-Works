@@ -4,7 +4,7 @@ const fs = require("fs").promises;
 const path = require("path");
 const Organize = require("../../../models/tools-models/Organize/Organize-Model");
 
-// ✅ FIXED: Import usage tracking functions
+// ✅ ENHANCED: Import usage tracking functions with TOPUP support
 const { checkLimits } = require("../../../utils/checkLimits");
 const { incrementUsage } = require("../../../utils/incrementUsage");
 
@@ -108,7 +108,7 @@ const organizePDF = async (req, res) => {
   const { pages, side } = req.query;
   const userId = req.user?.id;
 
-  console.log('Organize request received:', {
+  console.log('🔍 [ORGANIZE DEBUG] Organize request received:', {
     tool: tool,
     filesCount: files ? files.length : 0,
     pages: pages,
@@ -117,24 +117,48 @@ const organizePDF = async (req, res) => {
   });
 
   // -------------------------------------------------------
-  // ✅ USAGE LIMIT CHECK - FIXED
+  // ✅ ENHANCED: Usage limit check WITH TOPUP SUPPORT
   // -------------------------------------------------------
+  let creditsInfo = null;
   if (userId) {
     try {
+      console.log('🔍 [ORGANIZE DEBUG] Checking limits for user:', userId);
+      
       const limitCheck = await checkLimits(userId, "organize-tools");
+      creditsInfo = limitCheck.creditsInfo;
+      
+      console.log('🔍 [ORGANIZE DEBUG] Organize Tools Limit Check:', {
+        allowed: limitCheck.allowed,
+        reason: limitCheck.reason,
+        currentUsage: limitCheck.usage?.organizeTools || 0,
+        limit: limitCheck.plan?.organizeToolsLimit || 0,
+        usingTopup: limitCheck.creditsInfo?.usingTopup || false,
+        topupAvailable: limitCheck.creditsInfo?.topupAvailable || 0
+      });
+
       if (!limitCheck.allowed) {
+        console.log('🚫 [ORGANIZE DEBUG] Organize Tools blocked - limit exceeded');
         return res.status(200).json({
           success: false,
           type: "limit_exceeded",
-          title: "Usage Limit Reached",
+          title: limitCheck.title || "Usage Limit Reached",
           message: limitCheck.reason,
           notificationType: "error",
           currentUsage: limitCheck.usage?.organizeTools || 0,
           limit: limitCheck.plan?.organizeToolsLimit || 0,
-          upgradeRequired: true
+          upgradeRequired: limitCheck.upgradeRequired || true,
+          creditsInfo: {
+            planLimit: limitCheck.creditsInfo?.planLimit || 0,
+            planUsed: limitCheck.creditsInfo?.planUsed || 0,
+            planRemaining: limitCheck.creditsInfo?.planRemaining || 0,
+            topupAvailable: limitCheck.creditsInfo?.topupAvailable || 0,
+            totalAvailable: limitCheck.creditsInfo?.totalAvailable || 0,
+            usingTopup: limitCheck.creditsInfo?.usingTopup || false
+          }
         });
       }
     } catch (limitErr) {
+      console.error('❌ [ORGANIZE DEBUG] Limit check error:', limitErr);
       return res.status(200).json({
         success: false,
         type: "limit_exceeded",
@@ -167,14 +191,14 @@ const organizePDF = async (req, res) => {
           });
         }
         
-        console.log(`Starting merge process with ${files.length} files`);
+        console.log(`🔍 [ORGANIZE DEBUG] Starting merge process with ${files.length} files`);
         
         try {
           const mergedPdf = await PDFDocument.create();
           let totalPages = 0;
           
           for (const [index, file] of files.entries()) {
-            console.log(`Processing file ${index + 1}: ${file.originalname}, size: ${file.size} bytes`);
+            console.log(`🔍 [ORGANIZE DEBUG] Processing file ${index + 1}: ${file.originalname}, size: ${file.size} bytes`);
             
             try {
               // Validate PDF file
@@ -184,15 +208,15 @@ const organizePDF = async (req, res) => {
               
               const pdfDoc = await PDFDocument.load(file.buffer);
               const pageIndices = pdfDoc.getPageIndices();
-              console.log(`File ${file.originalname} has ${pageIndices.length} pages`);
+              console.log(`🔍 [ORGANIZE DEBUG] File ${file.originalname} has ${pageIndices.length} pages`);
               
               const copiedPages = await mergedPdf.copyPages(pdfDoc, pageIndices);
               copiedPages.forEach((page) => mergedPdf.addPage(page));
               totalPages += copiedPages.length;
               
-              console.log(`Successfully added ${copiedPages.length} pages from ${file.originalname}`);
+              console.log(`✅ [ORGANIZE DEBUG] Successfully added ${copiedPages.length} pages from ${file.originalname}`);
             } catch (fileError) {
-              console.error(`Error processing file ${file.originalname}:`, fileError);
+              console.error(`❌ [ORGANIZE DEBUG] Error processing file ${file.originalname}:`, fileError);
               return res.status(400).json({
                 success: false,
                 error: `Invalid PDF file: ${file.originalname}. Please ensure it's a valid PDF.`
@@ -210,10 +234,10 @@ const organizePDF = async (req, res) => {
             processedAt: new Date().toISOString()
           };
           
-          console.log(`Merge completed successfully. Total pages: ${totalPages}`);
+          console.log(`✅ [ORGANIZE DEBUG] Merge completed successfully. Total pages: ${totalPages}`);
           
         } catch (mergeError) {
-          console.error('Merge process failed:', mergeError);
+          console.error('❌ [ORGANIZE DEBUG] Merge process failed:', mergeError);
           return res.status(500).json({
             success: false,
             error: `Merge failed: ${mergeError.message}`
@@ -273,8 +297,11 @@ const organizePDF = async (req, res) => {
             pageIndices: pageIndices,
             processedAt: new Date().toISOString()
           };
+          
+          console.log(`✅ [ORGANIZE DEBUG] Split completed successfully. Extracted ${pageIndices.length} pages`);
+          
         } catch (splitError) {
-          console.error('Split process failed:', splitError);
+          console.error('❌ [ORGANIZE DEBUG] Split process failed:', splitError);
           return res.status(400).json({
             success: false,
             error: `Split failed: ${splitError.message}`
@@ -313,8 +340,11 @@ const organizePDF = async (req, res) => {
             totalPages: pagesToRotate.length,
             processedAt: new Date().toISOString()
           };
+          
+          console.log(`✅ [ORGANIZE DEBUG] Rotate completed successfully. Rotated ${pagesToRotate.length} pages by ${rotationAngle}°`);
+          
         } catch (rotateError) {
-          console.error('Rotate process failed:', rotateError);
+          console.error('❌ [ORGANIZE DEBUG] Rotate process failed:', rotateError);
           return res.status(400).json({
             success: false,
             error: `Rotation failed: ${rotateError.message}`
@@ -333,6 +363,8 @@ const organizePDF = async (req, res) => {
 
     // Save to Organize model if user is authenticated
     let organizeRecord = null;
+    let incrementResult = null;
+    
     if (userId) {
       try {
         organizeRecord = await saveToOrganizeModel(
@@ -344,13 +376,43 @@ const organizePDF = async (req, res) => {
           metadata
         );
 
-        // ✅ INCREMENT USAGE FOR ORGANIZE TOOLS
-        await incrementUsage(userId, "organize-tools");
+        // ✅ ENHANCED: Increment usage with topup tracking
+        incrementResult = await incrementUsage(userId, "organize-tools");
+        console.log('✅ [ORGANIZE DEBUG] Usage incremented for organize tools:', {
+          userId: userId,
+          creditsUsed: incrementResult?.creditsUsed,
+          topupRemaining: incrementResult?.creditsUsed?.topupRemaining
+        });
 
       } catch (saveError) {
-        console.error("Failed to save to Organize model:", saveError);
+        console.error("❌ [ORGANIZE DEBUG] Failed to save to Organize model:", saveError);
         // Don't fail the operation if saving fails
       }
+    }
+
+    // ✅ ENHANCED: Create enhanced response
+    const responseData = {
+      success: true,
+      message: `${tool.charAt(0).toUpperCase() + tool.slice(1)} operation completed successfully`,
+      filename: filename,
+      fileSize: fileBuffer.length,
+      organizeId: organizeRecord?._id,
+      downloadUrl: organizeRecord?.downloadUrl
+    };
+
+    // Add credits info if available
+    if (creditsInfo || incrementResult?.creditsUsed) {
+      responseData.creditsInfo = {
+        ...creditsInfo,
+        ...(incrementResult?.creditsUsed && {
+          creditsUsed: incrementResult.creditsUsed.total,
+          fromPlan: incrementResult.creditsUsed.fromPlan,
+          fromTopup: incrementResult.creditsUsed.fromTopup,
+          topupRemaining: incrementResult.creditsUsed.topupRemaining,
+          planRemaining: creditsInfo ? Math.max(0, creditsInfo.planRemaining - (incrementResult.creditsUsed.fromPlan || 0)) : 0,
+          topupAvailable: incrementResult.creditsUsed.topupRemaining || 0
+        })
+      };
     }
 
     // Set response headers
@@ -364,14 +426,26 @@ const organizePDF = async (req, res) => {
       res.setHeader("X-File-Saved", "true");
     }
 
-    res.send(fileBuffer);
+    // Send JSON response with file data
+    res.json({
+      ...responseData,
+      fileData: fileBuffer.toString('base64')
+    });
 
   } catch (error) {
-    console.error("PDF processing failed:", error);
-    res.status(500).json({
+    console.error("❌ [ORGANIZE DEBUG] PDF processing failed:", error);
+    
+    // ✅ ENHANCED: Return credits info even in error if available
+    const errorResponse = {
       success: false,
       error: "Internal Server Error: " + error.message
-    });
+    };
+    
+    if (creditsInfo) {
+      errorResponse.creditsInfo = creditsInfo;
+    }
+    
+    res.status(500).json(errorResponse);
   }
 };
 

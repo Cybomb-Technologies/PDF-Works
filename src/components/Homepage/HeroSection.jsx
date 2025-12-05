@@ -79,7 +79,7 @@ const HeroSection = () => {
         </div>
 
         {/* Preview image */}
-        <motion.div
+        {/* <motion.div
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.3 }}
@@ -92,7 +92,7 @@ const HeroSection = () => {
               className="rounded-xl w-full h-auto"
             />
           </div>
-        </motion.div>
+        </motion.div> */}
       </div>
     </section>
   );

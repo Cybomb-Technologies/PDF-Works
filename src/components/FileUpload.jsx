@@ -15,7 +15,7 @@ const FileUpload = ({ onFileUploaded, multiple = false }) => {
       } else {
         onFileUploaded(selectedFiles[0]);
       }
-    }
+    } 
   };
 
   const handleDrop = (e) => {

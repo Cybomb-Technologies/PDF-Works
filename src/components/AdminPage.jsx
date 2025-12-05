@@ -978,7 +978,7 @@ const AdminPage = () => {
                     </motion.tr>
                   ))}
                 </tbody>
-              </table>
+              </table> 
               {users.length > 10 && (
                 <div className="text-center mt-4">
                   <p className="text-sm text-gray-500">

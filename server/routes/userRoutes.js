@@ -21,6 +21,7 @@ const {
   sendVerificationOTP,
   verifyOTP,
   resendOTP,
+  checkTopupEligibility,
 } = require("../controllers/userController");
 const { verifyToken, verifyAdmin } = require("../middleware/authMiddleware");
 const multer = require("multer");
@@ -81,6 +82,9 @@ router.post("/reset-password", resetPassword);
 // Protected user routes
 router.get("/me", verifyToken, getCurrentUser);
 router.post("/plan/free", verifyToken, updateToFreePlan);
+
+router.get("/topup/eligibility", verifyToken, checkTopupEligibility);
+
 
 // NEW: Profile update route
 router.put("/profile", verifyToken, updateUserProfile);

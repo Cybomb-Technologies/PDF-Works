@@ -1,10 +1,9 @@
-// server/controllers/tool-controller/Advanced/Advanced-Controller.js
 const axios = require("axios");
 const fs = require('fs').promises;
 const path = require('path');
 const Advanced = require("../../../models/tools-models/Advanced/Advanced-Model");
 
-// ✅ FIXED: Import usage tracking functions
+// Import fixed usage tracking functions
 const { checkLimits } = require("../../../utils/checkLimits");
 const { incrementUsage } = require("../../../utils/incrementUsage");
 
@@ -20,7 +19,10 @@ const saveToAdvancedModel = async (operationType, userId, metadata = {}, resultD
       inputData: metadata.inputData || {},
       resultData: resultData,
       operationStatus: "completed",
-      advancedMetadata: metadata
+      advancedMetadata: {
+        ...metadata,
+        timestamp: new Date().toISOString()
+      }
     });
 
     await advancedRecord.save();
@@ -92,58 +94,44 @@ const getAdvancedHistory = async (req, res) => {
   }
 };
 
-// ✅ FIXED: Unified handler for all advanced tools with COMPREHENSIVE DEBUGGING
+// ✅ FIXED: Advanced tool handler with proper topup credit handling
 exports.handleAdvancedTool = async (req, res) => {
   try {
     const { tool } = req.params;
     const { url, method = "GET", body, headers, tasks } = req.body;
     const userId = req.user?.id;
 
-    console.log('\n🔍 [ADVANCED DEBUG] ===== START REQUEST =====');
-    console.log('🔍 [ADVANCED DEBUG] Request received:', {
-      tool: tool,
-      userId: userId,
-      hasUser: !!req.user,
-      userData: req.user
-    });
+    console.log('\n🔍 [ADVANCED TOOL] ===== START =====');
+    console.log('📱 Request:', { tool, userId });
 
     // -------------------------------------------------------
-    // ✅ USAGE LIMIT CHECK - FIXED (Same pattern as OrganizeTools)
+    // ✅ FIXED: ENHANCED LIMIT CHECK WITH TOPUP SUPPORT
     // -------------------------------------------------------
+    let creditsInfo = null;
+    let limitCheck = null;
+    
     if (userId) {
       try {
-        console.log('🔍 [ADVANCED DEBUG] Starting limit check for user:', userId);
-        console.log('🔍 [ADVANCED DEBUG] Feature being checked: "advanced-tools"');
+        console.log('🔍 Checking limits for user:', userId);
         
-        const limitCheck = await checkLimits(userId, "advanced-tools");
+        limitCheck = await checkLimits(userId, "advanced-tools");
         
-        console.log('🔍 [ADVANCED DEBUG] Limit check result:', {
+        // Detailed logging for debugging
+        console.log('📊 Limit check results:', {
           allowed: limitCheck.allowed,
-          reason: limitCheck.reason,
-          currentUsage: limitCheck.usage?.advancedTools,
-          limit: limitCheck.plan?.advancedToolsLimit,
           planName: limitCheck.plan?.name,
-          userPlan: limitCheck.user?.planName
+          planLimit: limitCheck.plan?.advancedToolsLimit,
+          currentUsage: limitCheck.usage?.advancedTools || 0,
+          usingTopup: limitCheck.creditsInfo?.usingTopup || false,
+          topupAvailable: limitCheck.creditsInfo?.topupAvailable || 0,
+          planRemaining: limitCheck.creditsInfo?.planRemaining || 0
         });
-
-        // Log the entire limitCheck object to see everything
-        console.log('🔍 [ADVANCED DEBUG] Full limitCheck object:', JSON.stringify({
-          allowed: limitCheck.allowed,
-          reason: limitCheck.reason,
-          usage: limitCheck.usage,
-          plan: limitCheck.plan ? {
-            name: limitCheck.plan.name,
-            advancedToolsLimit: limitCheck.plan.advancedToolsLimit,
-            planId: limitCheck.plan.planId
-          } : null,
-          user: limitCheck.user ? {
-            planName: limitCheck.user.planName,
-            usage: limitCheck.user.usage
-          } : null
-        }, null, 2));
+        
+        // Store credits info
+        creditsInfo = limitCheck.creditsInfo;
         
         if (!limitCheck.allowed) {
-          console.log('🚫 [ADVANCED DEBUG] Limit exceeded - returning error to frontend');
+          console.log('🚫 Limit exceeded - blocking operation');
           return res.status(200).json({
             success: false,
             type: "limit_exceeded",
@@ -152,24 +140,35 @@ exports.handleAdvancedTool = async (req, res) => {
             notificationType: "error",
             currentUsage: limitCheck.usage?.advancedTools || 0,
             limit: limitCheck.plan?.advancedToolsLimit || 0,
-            upgradeRequired: true
+            upgradeRequired: true,
+            creditsInfo: {
+              planLimit: limitCheck.creditsInfo?.planLimit || 0,
+              planUsed: limitCheck.creditsInfo?.planUsed || 0,
+              planRemaining: limitCheck.creditsInfo?.planRemaining || 0,
+              topupAvailable: limitCheck.creditsInfo?.topupAvailable || 0,
+              totalAvailable: limitCheck.creditsInfo?.totalAvailable || 0,
+              usingTopup: limitCheck.creditsInfo?.usingTopup || false
+            }
           });
         }
-        console.log('✅ [ADVANCED DEBUG] Limits OK - proceeding with operation');
+        console.log('✅ Limits check passed');
       } catch (limitErr) {
-        console.error('❌ [ADVANCED DEBUG] Limit check error:', limitErr);
+        console.error('❌ Limit check error:', limitErr);
         return res.status(200).json({
           success: false,
-          type: "limit_exceeded",
+          type: "limit_check_error",
           title: "Usage Limit Error",
-          message: limitErr.message,
+          message: "Unable to check usage limits. Please try again.",
           notificationType: "error"
         });
       }
     } else {
-      console.log('🔍 [ADVANCED DEBUG] No user ID - skipping limit check');
+      console.log('⚠️ No user ID - skipping limit check');
     }
 
+    // -------------------------------------------------------
+    // PROCESS THE REQUESTED TOOL
+    // -------------------------------------------------------
     let result;
     let operationType;
     let metadata = {};
@@ -183,7 +182,6 @@ exports.handleAdvancedTool = async (req, res) => {
           });
         }
 
-        // Simulate automation tasks
         result = tasks.map(task => `${task} completed at ${new Date().toISOString()}`);
         const automationStats = {
           totalTasks: tasks.length,
@@ -216,7 +214,6 @@ exports.handleAdvancedTool = async (req, res) => {
           });
         }
 
-        // Validate URL format
         try {
           new URL(url);
         } catch (urlError) {
@@ -271,7 +268,17 @@ exports.handleAdvancedTool = async (req, res) => {
         break;
 
       case "analytics":
-        // Get user-specific analytics if authenticated, otherwise general analytics
+        // Analytics might be free - check based on your business logic
+        if (userId && limitCheck && !limitCheck.allowed) {
+          return res.status(200).json({
+            success: false,
+            type: "limit_exceeded",
+            title: "Usage Limit Reached",
+            message: limitCheck.reason,
+            notificationType: "error"
+          });
+        }
+        
         const query = userId ? { userId } : {};
         
         const total = await Advanced.countDocuments(query);
@@ -279,7 +286,6 @@ exports.handleAdvancedTool = async (req, res) => {
         const apiCount = await Advanced.countDocuments({ ...query, featureType: "api-connect" });
         const analyticsCount = await Advanced.countDocuments({ ...query, featureType: "analytics" });
 
-        // Get recent activities
         const recentActivities = await Advanced.find(query)
           .sort({ createdAt: -1 })
           .limit(10)
@@ -313,11 +319,15 @@ exports.handleAdvancedTool = async (req, res) => {
         });
     }
 
-    // Save to Advanced model if user is authenticated
+    // -------------------------------------------------------
+    // ✅ FIXED: SAVE OPERATION AND INCREMENT USAGE
+    // -------------------------------------------------------
     let advancedRecord = null;
+    let incrementResult = null;
+    
     if (userId) {
       try {
-        console.log('🔍 [ADVANCED DEBUG] Saving to Advanced model for user:', userId);
+        // Save to database
         advancedRecord = await saveToAdvancedModel(
           operationType,
           userId,
@@ -325,44 +335,65 @@ exports.handleAdvancedTool = async (req, res) => {
           result
         );
 
-        // ✅ INCREMENT USAGE FOR ADVANCED TOOLS - FIXED
-        console.log('🔍 [ADVANCED DEBUG] Before incrementUsage - user:', userId, 'feature: "advanced-tools"');
+        // ✅ CRITICAL FIX: Only increment usage for tools that consume credits
+        // Analytics might be free, adjust based on your needs
+        const shouldIncrementUsage = tool !== "analytics";
         
-        const incrementResult = await incrementUsage(userId, "advanced-tools");
-        
-        console.log('🔍 [ADVANCED DEBUG] After incrementUsage - result:', {
-          userId: userId,
-          newAdvancedToolsUsage: incrementResult?.usage?.advancedTools,
-          incrementSuccess: !!incrementResult,
-          fullUsageObject: incrementResult?.usage
-        });
+        if (shouldIncrementUsage) {
+          console.log('💰 Incrementing usage for user:', userId);
+          
+          // This is where the fixed incrementUsage logic will properly handle topup credits
+          incrementResult = await incrementUsage(userId, "advanced-tools");
+          
+          console.log('📈 Usage increment result:', {
+            creditsUsed: incrementResult?.creditsUsed?.total || 0,
+            fromPlan: incrementResult?.creditsUsed?.fromPlan || 0,
+            fromTopup: incrementResult?.creditsUsed?.fromTopup || 0,
+            topupRemaining: incrementResult?.creditsUsed?.topupRemaining || 0
+          });
+        } else {
+          console.log('📊 Analytics operation - no usage increment needed');
+        }
 
       } catch (saveError) {
-        console.error("❌ [ADVANCED DEBUG] Failed to save/increment:", saveError);
+        console.error("❌ Error saving/incrementing:", saveError);
+        // Continue even if save fails to return the result
       }
     }
 
+    // -------------------------------------------------------
+    // BUILD RESPONSE WITH CREDITS INFO
+    // -------------------------------------------------------
     const responseData = { 
       success: true, 
       data: result,
       message: `${tool} operation completed successfully`,
-      advancedId: advancedRecord?._id
+      advancedId: advancedRecord?._id,
+      creditsInfo: {
+        ...(creditsInfo || {}),
+        // Add actual usage data if available
+        ...(incrementResult?.creditsUsed && {
+          creditsUsed: incrementResult.creditsUsed.total,
+          fromPlan: incrementResult.creditsUsed.fromPlan,
+          fromTopup: incrementResult.creditsUsed.fromTopup,
+          topupRemaining: incrementResult.creditsUsed.topupRemaining,
+          // Calculate updated values
+          planRemaining: Math.max(0, (creditsInfo?.planRemaining || 0) - (incrementResult.creditsUsed.fromPlan || 0)),
+          topupAvailable: incrementResult.creditsUsed.topupRemaining || 0
+        })
+      }
     };
 
-    console.log('✅ [ADVANCED DEBUG] Advanced tool operation completed:', { 
-      tool, 
-      userId, 
-      advancedId: advancedRecord?._id,
-      currentUsage: userId ? 'incremented' : 'not tracked'
-    });
-    console.log('🔍 [ADVANCED DEBUG] ===== END REQUEST =====\n');
+    console.log('✅ Operation completed successfully');
+    console.log('💰 Final credits info:', responseData.creditsInfo);
+    console.log('🔚 [ADVANCED TOOL] ===== END =====\n');
 
     res.json(responseData);
 
   } catch (err) {
-    console.error('❌ [ADVANCED DEBUG] Advanced tool error:', err);
+    console.error('❌ Advanced tool error:', err);
     
-    // Save failed attempt if user is authenticated
+    // Save failed attempt
     const userId = req.user?.id;
     if (userId) {
       try {
@@ -378,27 +409,58 @@ exports.handleAdvancedTool = async (req, res) => {
             error: true
           },
           {
-            error: err.response?.data || err.message,
-            statusCode: err.response?.status,
+            error: err.message,
             timestamp: new Date().toISOString()
           }
         );
       } catch (saveError) {
-        console.error("❌ [ADVANCED DEBUG] Failed to save failed operation to Advanced model:", saveError);
+        console.error("❌ Failed to save error to database:", saveError);
       }
     }
 
     const errorMessage = err.response?.data 
-      ? `API Error: ${err.response.status} - ${JSON.stringify(err.response.data)}`
-      : err.message || "Unknown error occurred";
+      ? `API Error: ${JSON.stringify(err.response.data)}`
+      : err.message || "Unknown error";
 
     res.status(500).json({ 
       success: false, 
-      message: errorMessage 
+      message: errorMessage,
+      notificationType: "error"
     });
   }
 };
 
-// Export the download and history functions
+// Additional endpoint to check credits without performing operation
+exports.checkAdvancedToolCredits = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: 'User not authenticated'
+      });
+    }
+
+    const limitCheck = await checkLimits(userId, "advanced-tools");
+    
+    return res.json({
+      success: true,
+      allowed: limitCheck.allowed,
+      creditsInfo: limitCheck.creditsInfo,
+      usage: limitCheck.usage?.advancedTools || 0,
+      limit: limitCheck.plan?.advancedToolsLimit || 0
+    });
+
+  } catch (error) {
+    console.error('Check credits error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
+// Export functions
 exports.downloadAdvancedFile = downloadAdvancedFile;
 exports.getAdvancedHistory = getAdvancedHistory;

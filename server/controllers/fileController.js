@@ -5,25 +5,27 @@ const Optimize = require("../models/tools-models/Optimize/Optimize");
 const Edit = require("../models/tools-models/Edit/Edit-Model");
 const Security = require("../models/tools-models/Security/Security-Model");
 const Advanced = require("../models/tools-models/Advanced/Advanced-Model");
+const OCR = require("../models/tools-models/OCR/OCR"); // ADDED OCR IMPORT
 const File = require("../models/FileModel");
 const fs = require("fs-extra");
 const path = require("path");
 
-// Get ALL user files from ALL tools
+// Get ALL user files from ALL tools including OCR
 const getUserFiles = async (req, res) => {
   try {
     const userId = req.user.id;
     
     console.log('🔍 Fetching ALL files for user:', userId);
 
-    // Fetch files from ALL models in parallel
+    // Fetch files from ALL models in parallel including OCR
     const [
       convertFiles,
       organizeFiles, 
       optimizeFiles,
       editFiles,
       securityFiles,
-      advancedFiles
+      advancedFiles,
+      ocrFiles // ADDED OCR
     ] = await Promise.all([
       // Convert tools (FileModel)
       File.find({ uploadedBy: userId })
@@ -53,6 +55,11 @@ const getUserFiles = async (req, res) => {
       // Advanced tools
       Advanced.find({ userId })
         .select('processedName originalName downloadUrl createdAt operationType featureType outputPath')
+        .sort({ createdAt: -1 }),
+      
+      // OCR tools - ADDED
+      OCR.find({ userId })
+        .select('processedFilename originalFilename downloadUrl fileSize createdAt operationType outputPath ocrMetadata')
         .sort({ createdAt: -1 })
     ]);
 
@@ -62,7 +69,8 @@ const getUserFiles = async (req, res) => {
       optimize: optimizeFiles.length,
       edit: editFiles.length,
       security: securityFiles.length,
-      advanced: advancedFiles.length
+      advanced: advancedFiles.length,
+      ocr: ocrFiles.length // ADDED OCR
     });
 
     // Transform all files to consistent format
@@ -165,6 +173,24 @@ const getUserFiles = async (req, res) => {
         toolCategory: 'advanced',
         downloadUrl: `/api/files/download/${file._id}`,
         type: 'file'
+      })),
+      
+      // OCR files - ADDED
+      ...ocrFiles.map(file => ({
+        _id: file._id,
+        source: 'ocr',
+        filename: file.processedFilename,
+        displayName: `${path.parse(file.originalFilename).name} (OCR Text)`,
+        path: file.outputPath || file.downloadUrl,
+        size: file.fileSize || 0,
+        uploadedAt: file.createdAt,
+        category: 'ocr',
+        toolUsed: 'ocr-extraction',
+        toolCategory: 'convert',
+        downloadUrl: `/api/tools/ocr/download/${file.processedFilename}`,
+        previewUrl: `/api/tools/ocr/preview/${file.processedFilename}`,
+        type: 'file',
+        metadata: file.ocrMetadata
       }))
     ];
 
@@ -184,7 +210,7 @@ const getUserFiles = async (req, res) => {
   }
 };
 
-// Enhanced download to handle ALL tools
+// Enhanced download to handle ALL tools including OCR
 const downloadFile = async (req, res) => {
   try {
     const { id } = req.params;
@@ -227,6 +253,10 @@ const downloadFile = async (req, res) => {
     if (!file) {
       file = await Advanced.findById(id);
       source = 'advanced';
+    }
+    if (!file) {
+      file = await OCR.findById(id); // ADDED OCR
+      source = 'ocr';
     }
 
     if (!file) {
@@ -287,7 +317,12 @@ const downloadFile = async (req, res) => {
     if (!filePath) {
       const filename = file.processedFilename || file.filename;
       if (filename) {
-        filePath = path.join('uploads', `${source}_files`, filename);
+        // Handle OCR files specially
+        if (source === 'ocr') {
+          filePath = path.join('uploads', 'ocr_files', filename);
+        } else {
+          filePath = path.join('uploads', `${source}_files`, filename);
+        }
       }
     }
 
@@ -431,7 +466,8 @@ const saveConvertedFile = async (req, res) => {
       originalName,
       fileBuffer,
       mimetype,
-      toolUsed = "convert",
+      toolUsed = "pdf-to-image",
+      toolCategory = "convert"
     } = req.body;
  
     if (!fileBuffer || !originalName) {
@@ -488,6 +524,7 @@ const saveConvertedFile = async (req, res) => {
       uploadedBy: uploadedBy,
       category: "converted",
       toolUsed: toolUsed,
+      toolCategory: toolCategory,
     });
 
     await fileRecord.save();
@@ -512,7 +549,7 @@ const saveConvertedFile = async (req, res) => {
   }
 };
 
-// Enhanced delete to handle ALL tools
+// Enhanced delete to handle ALL tools including OCR
 const deleteFile = async (req, res) => {
   try {
     const fileId = req.params.id;
@@ -549,6 +586,10 @@ const deleteFile = async (req, res) => {
     if (!file) {
       file = await Advanced.findOne({ _id: fileId, userId });
       source = 'advanced';
+    }
+    if (!file) {
+      file = await OCR.findOne({ _id: fileId, userId }); // ADDED OCR
+      source = 'ocr';
     }
 
     if (!file) {
@@ -591,6 +632,9 @@ const deleteFile = async (req, res) => {
       case 'advanced':
         await Advanced.findByIdAndDelete(fileId);
         break;
+      case 'ocr': // ADDED OCR
+        await OCR.findByIdAndDelete(fileId);
+        break;
     }
 
     res.json({
@@ -606,7 +650,7 @@ const deleteFile = async (req, res) => {
   }
 };
 
-// Get file statistics from all tools
+// Get file statistics from all tools including OCR
 const getFileStats = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -617,17 +661,19 @@ const getFileStats = async (req, res) => {
       optimizeCount,
       editCount,
       securityCount,
-      advancedCount
+      advancedCount,
+      ocrCount // ADDED OCR
     ] = await Promise.all([
       File.countDocuments({ uploadedBy: userId }),
       Organize.countDocuments({ userId }),
       Optimize.countDocuments({ userId }),
       Edit.countDocuments({ userId }),
       Security.countDocuments({ userId }),
-      Advanced.countDocuments({ userId })
+      Advanced.countDocuments({ userId }),
+      OCR.countDocuments({ userId }) // ADDED OCR
     ]);
 
-    const totalFiles = convertCount + organizeCount + optimizeCount + editCount + securityCount + advancedCount;
+    const totalFiles = convertCount + organizeCount + optimizeCount + editCount + securityCount + advancedCount + ocrCount;
 
     res.json({
       success: true,
@@ -638,6 +684,7 @@ const getFileStats = async (req, res) => {
         edit: editCount,
         security: securityCount,
         advanced: advancedCount,
+        ocr: ocrCount, // ADDED OCR
         total: totalFiles
       }
     });
@@ -651,10 +698,10 @@ const getFileStats = async (req, res) => {
 };
 
 module.exports = {
-  getUserFiles,     // Now returns ALL tools files
-  downloadFile,     // Enhanced to handle ALL tools
+  getUserFiles,     // Now returns ALL tools files including OCR
+  downloadFile,     // Enhanced to handle ALL tools including OCR
   downloadBatchFiles,
   saveConvertedFile, // For convert tools only
-  deleteFile,       // Enhanced to handle ALL tools
+  deleteFile,       // Enhanced to handle ALL tools including OCR
   getFileStats
 };

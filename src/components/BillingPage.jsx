@@ -12,6 +12,7 @@ import {
   X,
   ChevronDown,
   ChevronUp,
+  BatteryCharging,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
@@ -1198,6 +1199,38 @@ const BillingPage = () => {
             free trial on paid plans • No commitment
           </p>
         </motion.div>
+        {/* Top-up CTA Section */}
+<motion.div
+  initial={{ opacity: 0, y: 20 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={{ delay: 0.7 }}
+  className="text-center py-8 bg-gradient-to-r from-emerald-500 to-green-600 rounded-3xl text-white"
+>
+  <div className="flex justify-center mb-4">
+    <BatteryCharging className="h-10 w-10 text-white opacity-90" />
+  </div>
+  <h2 className="text-2xl font-bold mb-3">Need Extra Credits?</h2>
+  <p className="text-emerald-100 text-sm mb-4 max-w-2xl mx-auto">
+    Never run out of credits! Purchase additional credits anytime without changing your subscription plan.
+  </p>
+  <div className="flex flex-col sm:flex-row gap-3 justify-center">
+    <Button
+      onClick={() => navigate("/topup")}
+      className="bg-white text-emerald-600 hover:bg-emerald-50 px-6 py-2 font-semibold rounded-full"
+    >
+      View Top-up Packages
+    </Button>
+    <Button
+      onClick={() => navigate("/dashboard")}
+      className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-emerald-600 px-6 py-2 font-semibold rounded-full"
+    >
+      Check Your Credits
+    </Button>
+  </div>
+  <p className="text-emerald-200 text-xs mt-3">
+    Top-up credits never expire • Use anytime • Instant activation
+  </p>
+</motion.div>
       </div>
     </>
   );
