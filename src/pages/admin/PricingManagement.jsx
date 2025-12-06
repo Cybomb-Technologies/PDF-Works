@@ -12,7 +12,7 @@ const PricingManagement = () => {
   const [editingPlan, setEditingPlan] = useState(null);
   const [fetchLoading, setFetchLoading] = useState(true);
 
-  // Default plan structure with all features including new tool limits
+  // Default plan structure with all features including convertToolsLimit
   const defaultPlan = {
     name: "",
     planId: "",
@@ -31,15 +31,17 @@ const PricingManagement = () => {
     },
     currency: "USD",
     conversionLimit: 0,
-    // NEW: Tool-specific limits
+    // Tool-specific limits
     editToolsLimit: 0,
     organizeToolsLimit: 0,
     securityToolsLimit: 0,
     optimizeToolsLimit: 0,
     advancedToolsLimit: 0,
+    convertToolsLimit: 0, // ✅ ADDED
     maxFileSize: 0,
     storage: 0,
     supportType: "Community",
+    // Feature toggles
     hasWatermarks: false,
     hasBatchProcessing: false,
     hasOCR: false,
@@ -141,15 +143,17 @@ const PricingManagement = () => {
         },
         currency: plan.currency || "USD",
         conversionLimit: parseInt(plan.conversionLimit) || 0,
-        // NEW: Tool-specific limits
+        // Tool-specific limits
         editToolsLimit: parseInt(plan.editToolsLimit) || 0,
         organizeToolsLimit: parseInt(plan.organizeToolsLimit) || 0,
         securityToolsLimit: parseInt(plan.securityToolsLimit) || 0,
         optimizeToolsLimit: parseInt(plan.optimizeToolsLimit) || 0,
         advancedToolsLimit: parseInt(plan.advancedToolsLimit) || 0,
+        convertToolsLimit: parseInt(plan.convertToolsLimit) || 0, // ✅ ADDED
         maxFileSize: parseInt(plan.maxFileSize) || 0,
         storage: parseInt(plan.storage) || 0,
         supportType: plan.supportType || "Community",
+        // Feature toggles
         hasWatermarks: plan.hasWatermarks || false,
         hasBatchProcessing: plan.hasBatchProcessing || false,
         hasOCR: plan.hasOCR || false,
@@ -594,6 +598,26 @@ const PricingManagement = () => {
                 />
                 <small className="text-gray-500">Advanced PDF tools usage</small>
               </div>
+
+              {/* Convert Tools Limit - ✅ ADDED */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Convert Tools Limit *
+                </label>
+                <input
+                  type="number"
+                  value={editingPlan ? editingPlan.convertToolsLimit : newPlan.convertToolsLimit}
+                  onChange={(e) => editingPlan 
+                    ? setEditingPlan({ ...editingPlan, convertToolsLimit: parseInt(e.target.value) || 0 })
+                    : setNewPlan({ ...newPlan, convertToolsLimit: parseInt(e.target.value) || 0 })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="e.g., 25"
+                  min="0"
+                  required
+                />
+                <small className="text-gray-500">PDF conversion tools usage</small>
+              </div>
             </div>
           </div>
 
@@ -947,6 +971,9 @@ const PricingManagement = () => {
                       <div>
                         <strong>{plan.advancedToolsLimit}</strong> advanced
                       </div>
+                      <div>
+                        <strong>{plan.convertToolsLimit}</strong> convert {/* ✅ ADDED */}
+                      </div>
                     </div>
 
                     {/* Advanced Features Summary */}
@@ -958,7 +985,7 @@ const PricingManagement = () => {
                         {plan.hasBatchProcessing && <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded">Batch</span>}
                         {plan.hasAPIAccess && <span className="px-2 py-1 bg-orange-100 text-orange-800 text-xs rounded">API</span>}
                         {plan.hasTeamCollaboration && <span className="px-2 py-1 bg-indigo-100 text-indigo-800 text-xs rounded">Team</span>}
-                        {!plan.hasWatermarks && <span className="px-2 py-1 bg-gray-100 text-gray-800 text-xs rounded">No Watermarks</span>}
+                        {plan.hasWatermarks && <span className="px-2 py-1 bg-teal-100 text-teal-800 text-xs rounded">Watermarks</span>}
                       </div>
                     </div>
                     

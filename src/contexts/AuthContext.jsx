@@ -35,45 +35,69 @@ export const AuthProvider = ({ children }) => {
             const userInfo = await response.json();
             if (userInfo.success) {
               setUser(userInfo.user);
-              // Update localStorage with fresh user data
-              localStorage.setItem(
-                "pdfpro_user",
-                JSON.stringify(userInfo.user)
-              );
+              localStorage.setItem("pdfpro_user", JSON.stringify(userInfo.user));
             } else {
-              throw new Error("Token invalid");
+              // Token is invalid, but we'll still use stored user for display
+              console.log("Token invalid, using stored user data");
+              if (storedUser) {
+                try {
+                  const parsedUser = JSON.parse(storedUser);
+                  setUser(parsedUser);
+                } catch (parseError) {
+                  console.error("Failed to parse stored user:", parseError);
+                }
+              }
+            }
+          } else if (response.status === 401) {
+            // Token expired or invalid, but we can still use stored user
+            console.log("Token expired, using stored user for display");
+            if (storedUser) {
+              try {
+                const parsedUser = JSON.parse(storedUser);
+                setUser(parsedUser);
+              } catch (parseError) {
+                console.error("Failed to parse stored user:", parseError);
+              }
             }
           } else {
-            throw new Error("Token validation failed");
+            // Other error, still try to use stored user
+            console.log("Auth check failed, using stored user");
+            if (storedUser) {
+              try {
+                const parsedUser = JSON.parse(storedUser);
+                setUser(parsedUser);
+              } catch (parseError) {
+                console.error("Failed to parse stored user:", parseError);
+              }
+            }
           }
         } catch (error) {
-          console.error("Token validation failed:", error);
-          // Don't logout immediately, try to use stored user data
+          console.error("Token validation error:", error);
+          // Network error or other issue, use stored user if available
           if (storedUser) {
             try {
               const parsedUser = JSON.parse(storedUser);
               setUser(parsedUser);
             } catch (parseError) {
               console.error("Failed to parse stored user:", parseError);
-              logout();
             }
-          } else {
-            logout();
           }
         }
       } else if (storedUser && !token) {
-        // If we have user data but no token, try to use the stored user
+        // If we have user data but no token, use the stored user for display
         try {
           const parsedUser = JSON.parse(storedUser);
           setUser(parsedUser);
         } catch (parseError) {
           console.error("Failed to parse stored user:", parseError);
-          logout();
         }
+      } else {
+        // No stored user, set loading to false
+        setUser(null);
       }
     } catch (error) {
       console.error("Auth check error:", error);
-      // Don't logout on general errors, just set loading to false
+      setUser(null);
     } finally {
       setLoading(false);
     }
@@ -119,7 +143,6 @@ export const AuthProvider = ({ children }) => {
     return localStorage.getItem("token");
   };
 
-  // Check if user can perform conversion based on plan limits
   const canPerformConversion = async () => {
     if (!user) return false;
 
@@ -142,15 +165,15 @@ export const AuthProvider = ({ children }) => {
 
           // Check conversion limits
           if (currentUser.planName === "Free") {
-            return currentUser.usage.conversions < 10; // Free plan limit
+            return currentUser.usage?.conversions < 10;
           }
 
           if (currentUser.planName === "Starter") {
-            return currentUser.usage.conversions < 50; // Starter plan limit
+            return currentUser.usage?.conversions < 50;
           }
 
           if (currentUser.planName === "Professional") {
-            return currentUser.usage.conversions < 500; // Professional plan limit
+            return currentUser.usage?.conversions < 500;
           }
 
           // Enterprise or unlimited plans
@@ -164,7 +187,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Increment conversion count
   const incrementConversionCount = async () => {
     if (!user) return;
 
@@ -183,7 +205,7 @@ export const AuthProvider = ({ children }) => {
             ...userInfo.user,
             usage: {
               ...userInfo.user.usage,
-              conversions: userInfo.user.usage.conversions + 1,
+              conversions: (userInfo.user.usage?.conversions || 0) + 1,
             },
           };
 
@@ -208,6 +230,7 @@ export const AuthProvider = ({ children }) => {
         canPerformConversion,
         incrementConversionCount,
         loading,
+        checkAuthStatus, // Added this function
       }}
     >
       {children}

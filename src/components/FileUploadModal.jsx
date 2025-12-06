@@ -218,4 +218,4 @@ const Send = (props) => (
   </svg>
 );
 
-export default FileUploadModal;
+export default FileUploadModal; 

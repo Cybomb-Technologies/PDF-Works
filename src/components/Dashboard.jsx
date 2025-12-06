@@ -195,6 +195,7 @@ const Dashboard = () => {
         securityToolsUsed: userUsage.securityTools || 0,
         optimizeToolsUsed: userUsage.optimizeTools || 0,
         advancedToolsUsed: userUsage.advancedTools || 0,
+         convertToolsUsed: data.toolUsage?.conversions || 0,
       });
 
       setBillingInfo(billingData);

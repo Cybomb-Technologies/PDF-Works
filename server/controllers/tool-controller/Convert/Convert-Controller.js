@@ -48,13 +48,13 @@ const validateFileType = (file, allowedTypes) => {
   return allowedTypes.includes(ext);
 };
 
-// NEW: Function to save converted files to user account
+// UPDATED: Function to save converted files to user account with proper toolCategory
 const saveFileToUserAccount = async (
   fileBuffer,
   originalName,
   mimetype,
   userId,
-  toolUsed = "convert"
+  toolUsed = "pdf-to-image" // Changed default
 ) => {
   try {
     const File = require("../../../models/FileModel");
@@ -71,6 +71,31 @@ const saveFileToUserAccount = async (
 
     await fsExtra.writeFile(filePath, fileBuffer);
 
+    // Determine toolCategory and valid toolUsed based on conversion type
+    let toolCategory = "convert";
+    let validToolUsed = toolUsed;
+    
+    // Map to valid toolUsed values from File model enum
+    const toolUsedMapping = {
+      // Convert tools
+      "pdf-to-image": "pdf-to-image",
+      "image-to-pdf": "image-to-pdf", 
+      "word-to-pdf": "word-to-pdf",
+      "excel-to-pdf": "excel-to-pdf",
+      "ppt-to-pdf": "ppt-to-pdf",
+      "convert-to-pdf": "word-to-pdf", // Map to valid value
+      
+      // Default fallback
+      "convert": "pdf-to-image"
+    };
+
+    if (toolUsedMapping[validToolUsed]) {
+      validToolUsed = toolUsedMapping[validToolUsed];
+    } else {
+      // If not in mapping, default to a valid value
+      validToolUsed = "pdf-to-image";
+    }
+
     const fileRecord = new File({
       filename: filename,
       originalName: originalName,
@@ -79,14 +104,15 @@ const saveFileToUserAccount = async (
       mimetype: mimetype,
       uploadedBy: userId,
       category: "converted",
-      toolUsed: toolUsed,
+      toolUsed: validToolUsed, // Use mapped/validated value
+      toolCategory: toolCategory,
     });
 
     await fileRecord.save();
-    console.log("File saved to user account:", fileRecord._id);
+    console.log("✅ File saved to user account:", fileRecord._id);
     return fileRecord;
   } catch (error) {
-    console.error("Error saving file to user account:", error);
+    console.error("❌ Error saving file to user account:", error);
     throw error;
   }
 };
@@ -489,28 +515,53 @@ const createPdfInfoImage = async (inputPath, outputPath, imageFormat) => {
   }
 };
 
-// PDF to Image conversion - FIXED with notification-style alerts
+// PDF to Image conversion - UPDATED with enhanced usage tracking
 const convertPdfToImage = async (req, res) => {
   try {
+    const userId = req.user?.id;
+    let creditsInfo = null;
+
     // -------------------------------------------------------
-    // Usage limit check BEFORE processing - FIXED
+    // ✅ ENHANCED: Usage limit check WITH TOPUP SUPPORT
     // -------------------------------------------------------
-    if (req.user && req.user.id) {
+    if (userId) {
       try {
-        const limitCheck = await checkLimits(req.user.id, "convert", req.file?.size || 0);
+        console.log('🔍 [CONVERT DEBUG] Checking limits for user:', userId);
+        
+        const limitCheck = await checkLimits(userId, "convert", req.file?.size || 0);
+        creditsInfo = limitCheck.creditsInfo;
+        
+        console.log('🔍 [CONVERT DEBUG] PDF to Image Limit Check:', {
+          allowed: limitCheck.allowed,
+          reason: limitCheck.reason,
+          currentUsage: limitCheck.usage?.conversions,
+          limit: limitCheck.plan?.conversionLimit,
+          usingTopup: limitCheck.creditsInfo?.usingTopup || false,
+          topupAvailable: limitCheck.creditsInfo?.topupAvailable || 0
+        });
+
         if (!limitCheck.allowed) {
           return res.status(200).json({
             success: false,
             type: "limit_exceeded",
-            title: "Usage Limit Reached",
+            title: limitCheck.title || "Usage Limit Reached",
             message: limitCheck.reason,
             notificationType: "error",
             currentUsage: limitCheck.usage?.conversions || 0,
             limit: limitCheck.plan?.conversionLimit || 0,
-            upgradeRequired: true
+            upgradeRequired: limitCheck.upgradeRequired || true,
+            creditsInfo: {
+              planLimit: limitCheck.creditsInfo?.planLimit || 0,
+              planUsed: limitCheck.creditsInfo?.planUsed || 0,
+              planRemaining: limitCheck.creditsInfo?.planRemaining || 0,
+              topupAvailable: limitCheck.creditsInfo?.topupAvailable || 0,
+              totalAvailable: limitCheck.creditsInfo?.totalAvailable || 0,
+              usingTopup: limitCheck.creditsInfo?.usingTopup || false
+            }
           });
         }
       } catch (limitErr) {
+        console.error('❌ [CONVERT DEBUG] Limit check error:', limitErr);
         return res.status(200).json({
           success: false,
           type: "limit_exceeded",
@@ -589,8 +640,9 @@ const convertPdfToImage = async (req, res) => {
       conversion.outputPath = outputPath;
       await conversion.save();
 
-      // Save to user account + increment usage
-      if (req.user && req.user.id) {
+      // ✅ ENHANCED: Save to user account + increment usage with topup tracking
+      let incrementResult = null;
+      if (userId) {
         try {
           const fileBuffer = await fs.readFile(outputPath);
 
@@ -598,17 +650,23 @@ const convertPdfToImage = async (req, res) => {
             fileBuffer,
             outputFilename,
             `image/${imageFormat}`,
-            req.user.id,
+            userId,
             "pdf-to-image"
           );
 
-          await incrementUsage(req.user.id, "convert");
+          incrementResult = await incrementUsage(userId, "convert");
+          console.log('✅ [CONVERT DEBUG] Usage incremented for PDF to Image:', {
+            userId: userId,
+            creditsUsed: incrementResult?.creditsUsed,
+            topupRemaining: incrementResult?.creditsUsed?.topupRemaining
+          });
         } catch (e) {
           console.error("Save to user account failed:", e);
         }
       }
 
-      res.json({
+      // ✅ ENHANCED: Response with credits information
+      const responseData = {
         success: true,
         type: "conversion_success",
         title: "Conversion Successful",
@@ -617,7 +675,24 @@ const convertPdfToImage = async (req, res) => {
         conversionId: conversion._id,
         downloadUrl,
         convertedFilename: conversion.convertedFilename,
-      });
+      };
+
+      // Add credits info if available
+      if (creditsInfo || incrementResult?.creditsUsed) {
+        responseData.creditsInfo = {
+          ...creditsInfo,
+          ...(incrementResult?.creditsUsed && {
+            creditsUsed: incrementResult.creditsUsed.total,
+            fromPlan: incrementResult.creditsUsed.fromPlan,
+            fromTopup: incrementResult.creditsUsed.fromTopup,
+            topupRemaining: incrementResult.creditsUsed.topupRemaining,
+            planRemaining: creditsInfo ? Math.max(0, creditsInfo.planRemaining - (incrementResult.creditsUsed.fromPlan || 0)) : 0,
+            topupAvailable: incrementResult.creditsUsed.topupRemaining || 0
+          })
+        };
+      }
+
+      res.json(responseData);
     } catch (err) {
       console.error("PDF → Image process error:", err);
 
@@ -646,28 +721,53 @@ const convertPdfToImage = async (req, res) => {
   }
 };
 
-// Image to PDF conversion - FIXED with notification-style alerts
+// Image to PDF conversion - UPDATED with enhanced usage tracking
 const convertImageToPdf = async (req, res) => {
   try {
+    const userId = req.user?.id;
+    let creditsInfo = null;
+
     // -------------------------------------------------------
-    // Usage limit check BEFORE processing - FIXED
+    // ✅ ENHANCED: Usage limit check WITH TOPUP SUPPORT
     // -------------------------------------------------------
-    if (req.user && req.user.id) {
+    if (userId) {
       try {
-        const limitCheck = await checkLimits(req.user.id, "convert", req.file?.size || 0);
+        console.log('🔍 [CONVERT DEBUG] Checking limits for user:', userId);
+        
+        const limitCheck = await checkLimits(userId, "convert", req.file?.size || 0);
+        creditsInfo = limitCheck.creditsInfo;
+        
+        console.log('🔍 [CONVERT DEBUG] Image to PDF Limit Check:', {
+          allowed: limitCheck.allowed,
+          reason: limitCheck.reason,
+          currentUsage: limitCheck.usage?.conversions,
+          limit: limitCheck.plan?.conversionLimit,
+          usingTopup: limitCheck.creditsInfo?.usingTopup || false,
+          topupAvailable: limitCheck.creditsInfo?.topupAvailable || 0
+        });
+
         if (!limitCheck.allowed) {
           return res.status(200).json({
             success: false,
             type: "limit_exceeded",
-            title: "Usage Limit Reached",
+            title: limitCheck.title || "Usage Limit Reached",
             message: limitCheck.reason,
             notificationType: "error",
             currentUsage: limitCheck.usage?.conversions || 0,
             limit: limitCheck.plan?.conversionLimit || 0,
-            upgradeRequired: true
+            upgradeRequired: limitCheck.upgradeRequired || true,
+            creditsInfo: {
+              planLimit: limitCheck.creditsInfo?.planLimit || 0,
+              planUsed: limitCheck.creditsInfo?.planUsed || 0,
+              planRemaining: limitCheck.creditsInfo?.planRemaining || 0,
+              topupAvailable: limitCheck.creditsInfo?.topupAvailable || 0,
+              totalAvailable: limitCheck.creditsInfo?.totalAvailable || 0,
+              usingTopup: limitCheck.creditsInfo?.usingTopup || false
+            }
           });
         }
       } catch (limitErr) {
+        console.error('❌ [CONVERT DEBUG] Limit check error:', limitErr);
         return res.status(200).json({
           success: false,
           type: "limit_exceeded",
@@ -732,7 +832,9 @@ const convertImageToPdf = async (req, res) => {
       conversion.outputPath = outputPath;
       await conversion.save();
 
-      if (req.user && req.user.id) {
+      // ✅ ENHANCED: Save to user account + increment usage with topup tracking
+      let incrementResult = null;
+      if (userId) {
         try {
           const fileBuffer = await fs.readFile(outputPath);
 
@@ -740,17 +842,23 @@ const convertImageToPdf = async (req, res) => {
             fileBuffer,
             outputFilename,
             "application/pdf",
-            req.user.id,
+            userId,
             "image-to-pdf"
           );
 
-          await incrementUsage(req.user.id, "convert");
+          incrementResult = await incrementUsage(userId, "convert");
+          console.log('✅ [CONVERT DEBUG] Usage incremented for Image to PDF:', {
+            userId: userId,
+            creditsUsed: incrementResult?.creditsUsed,
+            topupRemaining: incrementResult?.creditsUsed?.topupRemaining
+          });
         } catch (e) {
           console.error("Save to user account failed:", e);
         }
       }
 
-      res.json({
+      // ✅ ENHANCED: Response with credits information
+      const responseData = {
         success: true,
         type: "conversion_success",
         title: "Conversion Successful",
@@ -759,7 +867,24 @@ const convertImageToPdf = async (req, res) => {
         conversionId: conversion._id,
         downloadUrl,
         convertedFilename: conversion.convertedFilename,
-      });
+      };
+
+      // Add credits info if available
+      if (creditsInfo || incrementResult?.creditsUsed) {
+        responseData.creditsInfo = {
+          ...creditsInfo,
+          ...(incrementResult?.creditsUsed && {
+            creditsUsed: incrementResult.creditsUsed.total,
+            fromPlan: incrementResult.creditsUsed.fromPlan,
+            fromTopup: incrementResult.creditsUsed.fromTopup,
+            topupRemaining: incrementResult.creditsUsed.topupRemaining,
+            planRemaining: creditsInfo ? Math.max(0, creditsInfo.planRemaining - (incrementResult.creditsUsed.fromPlan || 0)) : 0,
+            topupAvailable: incrementResult.creditsUsed.topupRemaining || 0
+          })
+        };
+      }
+
+      res.json(responseData);
     } catch (err) {
       console.error("Image → PDF process error:", err);
 
@@ -788,28 +913,53 @@ const convertImageToPdf = async (req, res) => {
   }
 };
 
-// Convert various formats TO PDF (DOCX, XLSX, PPTX, JPG, PNG → PDF) - FIXED with notification-style alerts
+// Convert various formats TO PDF (DOCX, XLSX, PPTX, JPG, PNG → PDF) - UPDATED
 const convertToPdf = async (req, res) => {
   try {
+    const userId = req.user?.id;
+    let creditsInfo = null;
+
     // -------------------------------------------------------
-    // Usage limit check - FIXED
+    // ✅ ENHANCED: Usage limit check WITH TOPUP SUPPORT
     // -------------------------------------------------------
-    if (req.user && req.user.id) {
+    if (userId) {
       try {
-        const limitCheck = await checkLimits(req.user.id, "convert", req.file?.size || 0);
+        console.log('🔍 [CONVERT DEBUG] Checking limits for user:', userId);
+        
+        const limitCheck = await checkLimits(userId, "convert", req.file?.size || 0);
+        creditsInfo = limitCheck.creditsInfo;
+        
+        console.log('🔍 [CONVERT DEBUG] Convert to PDF Limit Check:', {
+          allowed: limitCheck.allowed,
+          reason: limitCheck.reason,
+          currentUsage: limitCheck.usage?.conversions,
+          limit: limitCheck.plan?.conversionLimit,
+          usingTopup: limitCheck.creditsInfo?.usingTopup || false,
+          topupAvailable: limitCheck.creditsInfo?.topupAvailable || 0
+        });
+
         if (!limitCheck.allowed) {
           return res.status(200).json({
             success: false,
             type: "limit_exceeded",
-            title: "Usage Limit Reached",
+            title: limitCheck.title || "Usage Limit Reached",
             message: limitCheck.reason,
             notificationType: "error",
             currentUsage: limitCheck.usage?.conversions || 0,
             limit: limitCheck.plan?.conversionLimit || 0,
-            upgradeRequired: true
+            upgradeRequired: limitCheck.upgradeRequired || true,
+            creditsInfo: {
+              planLimit: limitCheck.creditsInfo?.planLimit || 0,
+              planUsed: limitCheck.creditsInfo?.planUsed || 0,
+              planRemaining: limitCheck.creditsInfo?.planRemaining || 0,
+              topupAvailable: limitCheck.creditsInfo?.topupAvailable || 0,
+              totalAvailable: limitCheck.creditsInfo?.totalAvailable || 0,
+              usingTopup: limitCheck.creditsInfo?.usingTopup || false
+            }
           });
         }
       } catch (limitErr) {
+        console.error('❌ [CONVERT DEBUG] Limit check error:', limitErr);
         return res.status(200).json({
           success: false,
           type: "limit_exceeded",
@@ -903,25 +1053,45 @@ const convertToPdf = async (req, res) => {
       conversion.outputPath = outputPath;
       await conversion.save();
 
-      if (req.user && req.user.id) {
+      // ✅ ENHANCED: Save to user account + increment usage with topup tracking
+      let incrementResult = null;
+      if (userId) {
         try {
           const buffer = await fs.readFile(outputPath);
+          
+          // Determine toolUsed based on file type
+          let toolUsedValue = "word-to-pdf"; // Default
+          if ([".doc", ".docx"].includes(originalExt)) {
+            toolUsedValue = "word-to-pdf";
+          } else if ([".xls", ".xlsx"].includes(originalExt)) {
+            toolUsedValue = "excel-to-pdf";
+          } else if ([".ppt", ".pptx"].includes(originalExt)) {
+            toolUsedValue = "ppt-to-pdf";
+          } else {
+            toolUsedValue = "image-to-pdf"; // For image files
+          }
 
           await saveFileToUserAccount(
             buffer,
             outputFilename,
             "application/pdf",
-            req.user.id,
-            "convert-to-pdf"
+            userId,
+            toolUsedValue
           );
 
-          await incrementUsage(req.user.id, "convert");
+          incrementResult = await incrementUsage(userId, "convert");
+          console.log('✅ [CONVERT DEBUG] Usage incremented for Convert to PDF:', {
+            userId: userId,
+            creditsUsed: incrementResult?.creditsUsed,
+            topupRemaining: incrementResult?.creditsUsed?.topupRemaining
+          });
         } catch (e) {
           console.error("Save to user account failed:", e);
         }
       }
 
-      res.json({
+      // ✅ ENHANCED: Response with credits information
+      const responseData = {
         success: true,
         type: "conversion_success",
         title: "Conversion Successful",
@@ -930,7 +1100,24 @@ const convertToPdf = async (req, res) => {
         conversionId: conversion._id,
         downloadUrl,
         convertedFilename: conversion.convertedFilename,
-      });
+      };
+
+      // Add credits info if available
+      if (creditsInfo || incrementResult?.creditsUsed) {
+        responseData.creditsInfo = {
+          ...creditsInfo,
+          ...(incrementResult?.creditsUsed && {
+            creditsUsed: incrementResult.creditsUsed.total,
+            fromPlan: incrementResult.creditsUsed.fromPlan,
+            fromTopup: incrementResult.creditsUsed.fromTopup,
+            topupRemaining: incrementResult.creditsUsed.topupRemaining,
+            planRemaining: creditsInfo ? Math.max(0, creditsInfo.planRemaining - (incrementResult.creditsUsed.fromPlan || 0)) : 0,
+            topupAvailable: incrementResult.creditsUsed.topupRemaining || 0
+          })
+        };
+      }
+
+      res.json(responseData);
     } catch (err) {
       console.error("File → PDF conversion process error:", err);
 
@@ -1047,7 +1234,7 @@ const getMimeType = (fileType) => {
     doc: "application/msword",
     xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     xls: "application/vnd.ms-excel",
-    pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    pptx: "application/vnd.openxmlformats-officedocument.presentationml.schema",
     ppt: "application/vnd.ms-powerpoint",
   };
 
@@ -1069,7 +1256,7 @@ const getConversionStatus = async (req, res) => {
         notificationType: "error"
       });
     }
- 
+
     res.json({
       success: true,
       conversionId: conversion._id,
@@ -1092,7 +1279,65 @@ const getConversionStatus = async (req, res) => {
   }
 };
 
-// TEST LIMITS FUNCTION - ADD THIS
+// ✅ NEW: Get user's conversion credits info
+const getUserConvertCredits = async (req, res) => {
+  try {
+    if (!req.user || !req.user.id) {
+      return res.status(200).json({
+        success: false,
+        type: "auth_error",
+        title: "Authentication Required",
+        message: "Not authenticated",
+        notificationType: "error"
+      });
+    }
+
+    const userId = req.user.id;
+    const User = require("../../../models/UserModel");
+    const user = await User.findById(userId);
+    const limitCheck = await checkLimits(userId, "convert");
+    
+    const planLimit = limitCheck.plan?.conversionLimit || 0;
+    const currentUsage = limitCheck.usage?.conversions || 0;
+    const topupCredits = user?.topupCredits?.conversion || 0;
+    const planCreditsLeft = Math.max(0, planLimit - currentUsage);
+    const totalAvailable = planLimit + topupCredits;
+    const usingTopup = planCreditsLeft <= 0;
+    
+    res.json({
+      success: true,
+      credits: {
+        plan: {
+          limit: planLimit,
+          used: currentUsage,
+          remaining: planCreditsLeft
+        },
+        topup: {
+          available: topupCredits,
+          used: user?.topupUsage?.conversion || 0
+        },
+        total: {
+          available: totalAvailable,
+          remaining: Math.max(0, totalAvailable - currentUsage)
+        },
+        usingTopup: usingTopup,
+        nextReset: user?.usage?.resetDate || null
+      },
+      canConvert: currentUsage < totalAvailable || totalAvailable === 99999
+    });
+  } catch (error) {
+    console.error('Get user convert credits error:', error);
+    res.status(200).json({
+      success: false,
+      type: "server_error",
+      title: "Failed to load credits",
+      message: error.message,
+      notificationType: "error"
+    });
+  }
+};
+
+// TEST LIMITS FUNCTION
 const testLimits = async (req, res) => {
   try {
     if (!req.user || !req.user.id) {
@@ -1105,11 +1350,19 @@ const testLimits = async (req, res) => {
       });
     }
 
-    const limitCheck = await checkLimits(req.user.id, "convert");
+    const userId = req.user.id;
+    let creditsInfo = null;
+    
+    // Get fresh limit check
+    const limitCheck = await checkLimits(userId, "convert");
+    creditsInfo = limitCheck.creditsInfo;
+    
+    const User = require("../../../models/UserModel");
+    const user = await User.findById(userId);
     
     res.json({
       success: true,
-      userId: req.user.id,
+      userId: userId,
       allowed: limitCheck.allowed,
       reason: limitCheck.reason,
       usage: limitCheck.usage,
@@ -1118,7 +1371,10 @@ const testLimits = async (req, res) => {
         planId: limitCheck.plan.planId,
         conversionLimit: limitCheck.plan.conversionLimit
       } : null,
-      userConversions: limitCheck.usage?.conversions || 0
+      userConversions: limitCheck.usage?.conversions || 0,
+      topupCredits: user?.topupCredits?.conversion || 0,
+      topupUsage: user?.topupUsage?.conversion || 0,
+      creditsInfo: creditsInfo
     });
   } catch (error) {
     console.error("Test limits error:", error);
@@ -1139,5 +1395,6 @@ module.exports = {
   convertImageToPdf,
   downloadConvertedFile,
   getConversionStatus,
+  getUserConvertCredits,
   testLimits
 };

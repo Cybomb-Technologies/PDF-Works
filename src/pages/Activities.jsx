@@ -16,6 +16,7 @@ import {
   Settings,
   RefreshCw,
   BarChart3,
+  Scan, // ADD Scan ICON
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -38,6 +39,7 @@ const Activities = () => {
   const [previewFile, setPreviewFile] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
 
+  // Tool categories - ADD OCR
   const toolCategories = [
     {
       id: "all",
@@ -81,6 +83,12 @@ const Activities = () => {
       icon: Zap,
       color: "bg-cyan-100 text-cyan-600",
     },
+    {
+      id: "ocr",
+      name: "OCR Tools", // ADD OCR
+      icon: Scan,
+      color: "bg-amber-100 text-amber-600",
+    },
   ];
 
   const statusOptions = [
@@ -91,7 +99,6 @@ const Activities = () => {
   ];
 
   useEffect(() => {
-    // Apply initial filters from navigation
     if (location.state) {
       setFilters((prev) => ({
         ...prev,
@@ -102,13 +109,10 @@ const Activities = () => {
     fetchStats();
   }, [location]);
 
-  // Single API call for all activities
   const fetchActivities = async () => {
     try {
       setLoading(true);
       const token = getToken();
-
-      // console.log('🔄 Fetching activities from unified API...');
 
       const response = await fetch(`${API_URL}/api/activities?limit=100`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -116,21 +120,19 @@ const Activities = () => {
 
       if (response.ok) {
         const data = await response.json();
-        // console.log(`✅ Received ${data.activities?.length || 0} activities`);
         setActivities(data.activities || []);
       } else {
-        console.error("❌ Failed to fetch activities");
+        console.error("Failed to fetch activities");
         setActivities([]);
       }
     } catch (error) {
-      console.error("❌ Error fetching activities:", error);
+      console.error("Error fetching activities:", error);
       setActivities([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // Fetch activity statistics
   const fetchStats = async () => {
     try {
       const token = getToken();
@@ -147,70 +149,61 @@ const Activities = () => {
     }
   };
 
-  // Enhanced preview handler
+  // Enhanced preview handler with OCR support
   const handlePreview = async (activity) => {
-    console.group("🔄 File Preview");
-    // console.log("Activity:", activity);
+    console.log("🔄 Preview activity:", activity);
 
     if (!activity.downloadUrl) {
-      console.error("❌ No download URL available");
       alert("This file cannot be previewed (no download URL available)");
-      console.groupEnd();
       return;
     }
 
     try {
       const token = getToken();
       if (!token) {
-        console.error("❌ No authentication token");
         alert("Please log in again");
         navigate("/login");
         return;
       }
 
-      // Use the unified download endpoint
+      // For OCR files, use text preview endpoint
+      if (activity.tool === 'ocr' && activity.metadata?.processedFilename) {
+        const previewResponse = await fetch(
+          `${API_URL}/api/tools/ocr/preview/${activity.metadata.processedFilename}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+
+        if (previewResponse.ok) {
+          const textData = await previewResponse.json();
+          setPreviewFile({
+            name: activity.fileName,
+            type: "text",
+            content: textData.text || "No text extracted",
+            downloadUrl: activity.downloadUrl,
+          });
+          setShowPreview(true);
+          return;
+        }
+      }
+
+      // For other files, use unified download
       const filename = activity.downloadUrl.split("/").pop();
       const fullUrl = `${API_URL}/api/activities/download/${activity.tool}/${filename}`;
 
-      // console.log("📡 Requesting:", fullUrl);
-
       const response = await fetch(fullUrl, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Cache-Control": "no-cache",
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
-      // console.log("📊 Response:", response.status, response.statusText);
-
       if (!response.ok) {
-        let errorMessage = `Server error: ${response.status}`;
-
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.error || errorMessage;
-          console.error("❌ Server error details:", errorData);
-        } catch (e) {
-          const errorText = await response.text();
-          console.error("❌ Server error text:", errorText);
-        }
-
-        alert(`Cannot preview file: ${errorMessage}`);
-        console.groupEnd();
+        const errorData = await response.json().catch(() => ({}));
+        alert(`Cannot preview file: ${errorData.error || "Unknown error"}`);
         return;
       }
 
       const blob = await response.blob();
-      // console.log("📦 Received blob:", blob.size, "bytes, type:", blob.type);
-
-      if (blob.size === 0) {
-        alert("File is empty or corrupted");
-        console.groupEnd();
-        return;
-      }
-
       const fileUrl = URL.createObjectURL(blob);
-      // console.log("🔗 Created object URL");
 
       setPreviewFile({
         url: fileUrl,
@@ -219,67 +212,37 @@ const Activities = () => {
         blobType: blob.type,
       });
       setShowPreview(true);
-
-      // console.log("✅ Preview ready");
-      console.groupEnd();
     } catch (error) {
-      console.error("❌ Network error:", error);
+      console.error("Preview error:", error);
       alert("Network error: " + error.message);
-      console.groupEnd();
     }
   };
 
-  // Enhanced download handler
+  // Enhanced download handler with OCR support
   const handleDownload = async (activity) => {
-    console.group("📥 File Download");
-    // console.log("Activity:", activity);
-
     if (!activity.downloadUrl) {
-      console.error("❌ No download URL available");
       alert("This file cannot be downloaded (no download URL available)");
-      console.groupEnd();
       return;
     }
 
     try {
       const token = getToken();
 
-      // Use the unified download endpoint
+      // For OCR files, use the unified download endpoint
       const filename = activity.downloadUrl.split("/").pop();
       const fullUrl = `${API_URL}/api/activities/download/${activity.tool}/${filename}`;
-
-      // console.log("📡 Downloading from:", fullUrl);
 
       const response = await fetch(fullUrl, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      // console.log("📊 Response:", response.status, response.statusText);
-
       if (!response.ok) {
-        let errorMessage = `Download failed: ${response.status}`;
-
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.error || errorMessage;
-        } catch (e) {
-          // Ignore JSON parse errors
-        }
-
-        alert(errorMessage);
-        console.groupEnd();
+        const errorData = await response.json().catch(() => ({}));
+        alert(`Download failed: ${errorData.error || "Unknown error"}`);
         return;
       }
 
       const blob = await response.blob();
-      // console.log("📦 Blob received:", blob.size, "bytes");
-
-      if (blob.size === 0) {
-        alert("Downloaded file is empty");
-        console.groupEnd();
-        return;
-      }
-
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -288,13 +251,9 @@ const Activities = () => {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-
-      // console.log("✅ Download completed");
-      console.groupEnd();
     } catch (error) {
-      console.error("❌ Download error:", error);
+      console.error("Download error:", error);
       alert("Download failed: " + error.message);
-      console.groupEnd();
     }
   };
 
@@ -327,6 +286,7 @@ const Activities = () => {
     if (["doc", "docx"].includes(ext)) return "document";
     if (["xls", "xlsx"].includes(ext)) return "spreadsheet";
     if (["ppt", "pptx"].includes(ext)) return "presentation";
+    if (["txt"].includes(ext)) return "text"; // ADD TEXT TYPE FOR OCR
     return "file";
   };
 
@@ -356,6 +316,7 @@ const Activities = () => {
       optimize: "Optimize Tools",
       advanced: "Advanced Tools",
       convert: "Conversions",
+      ocr: "OCR Tools", // ADD OCR
     };
     return toolMap[tool] || "Other Tools";
   };
@@ -431,7 +392,7 @@ const Activities = () => {
 
       {/* Statistics */}
       {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 mb-6">
           <div className="bg-white p-4 rounded-2xl border text-center">
             <div className="text-2xl font-bold text-purple-600">
               {stats.total || 0}
@@ -584,6 +545,12 @@ const Activities = () => {
                               {formatFileSize(activity.fileSize)}
                             </span>
                           )}
+                          {/* Show OCR-specific info */}
+                          {activity.tool === 'ocr' && activity.metadata?.extractedTextLength && (
+                            <span className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded">
+                              {activity.metadata.extractedTextLength} chars
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -662,6 +629,13 @@ const Activities = () => {
                   alt="Preview"
                   className="max-w-full max-h-96 mx-auto rounded-lg"
                 />
+              ) : previewFile.type === "text" ? (
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h4 className="font-medium mb-2">Extracted Text:</h4>
+                  <pre className="whitespace-pre-wrap bg-white p-4 rounded border max-h-96 overflow-auto">
+                    {previewFile.content}
+                  </pre>
+                </div>
               ) : (
                 <div className="text-center py-8">
                   <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />
@@ -671,7 +645,7 @@ const Activities = () => {
                   <Button
                     onClick={() =>
                       handleDownload({
-                        downloadUrl: previewFile.url,
+                        downloadUrl: previewFile.downloadUrl || previewFile.url,
                         fileName: previewFile.name,
                         tool: "download",
                       })
@@ -689,7 +663,7 @@ const Activities = () => {
               <Button
                 onClick={() =>
                   handleDownload({
-                    downloadUrl: previewFile.url,
+                    downloadUrl: previewFile.downloadUrl || previewFile.url,
                     fileName: previewFile.name,
                     tool: "download",
                   })

@@ -12,7 +12,8 @@ import {
   MoreHorizontal,
   Search,
   X,
-} from "lucide-react";
+  Scan,
+} from "lucide-react"; // ADD Scan ICON
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -30,7 +31,7 @@ const RecentActivity = ({ recentActivities, fetchUserData, formatDate }) => {
   const [previewFile, setPreviewFile] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
 
-  // Tool categories and their icons
+  // Tool categories and their icons - ADD OCR
   const toolCategories = [
     {
       id: "all",
@@ -39,28 +40,10 @@ const RecentActivity = ({ recentActivities, fetchUserData, formatDate }) => {
       color: "bg-purple-100 text-purple-600",
     },
     {
-      id: "conversion",
-      name: "Conversions",
-      icon: Zap,
-      color: "bg-blue-100 text-blue-600",
-    },
-    {
-      id: "compression",
-      name: "Compressions",
-      icon: Download,
-      color: "bg-green-100 text-green-600",
-    },
-    {
-      id: "signature",
-      name: "Signatures",
-      icon: FileCheck,
-      color: "bg-orange-100 text-orange-600",
-    },
-    {
       id: "edit",
       name: "Edit Tools",
       icon: FileText,
-      color: "bg-cyan-100 text-cyan-600",
+      color: "bg-blue-100 text-blue-600",
     },
     {
       id: "organize",
@@ -86,12 +69,24 @@ const RecentActivity = ({ recentActivities, fetchUserData, formatDate }) => {
       icon: FileText,
       color: "bg-indigo-100 text-indigo-600",
     },
+    {
+      id: "convert",
+      name: "Conversions",
+      icon: Zap,
+      color: "bg-cyan-100 text-cyan-600",
+    },
+    {
+      id: "ocr",
+      name: "OCR Tools", // ADD OCR CATEGORY
+      icon: Scan,
+      color: "bg-amber-100 text-amber-600",
+    },
   ];
 
   // Fetch activities automatically when component mounts
   useEffect(() => {
     fetchRecentActivities();
-  }, []); // Empty dependency array = run once on mount
+  }, []);
 
   // Also update when parent provides new activities
   useEffect(() => {
@@ -106,15 +101,13 @@ const RecentActivity = ({ recentActivities, fetchUserData, formatDate }) => {
       const token = getToken();
 
       if (!token) {
-        // console.log('No token available');
         return;
       }
 
-      // Try multiple endpoints to get activities
+      // Try the unified activities endpoint
       let activitiesData = [];
 
       try {
-        // First try the unified activities endpoint
         const response = await fetch(`${API_URL}/api/activities?limit=5`, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -122,38 +115,10 @@ const RecentActivity = ({ recentActivities, fetchUserData, formatDate }) => {
         if (response.ok) {
           const data = await response.json();
           activitiesData = data.activities || [];
+          // console.log("Fetched activities:", activitiesData);
         }
       } catch (error) {
-        // console.log(
-        //   "Activities endpoint not available, trying files endpoint..."
-        // );
-      }
-
-      // If no activities from activities endpoint, try files endpoint
-      if (activitiesData.length === 0) {
-        try {
-          const filesResponse = await fetch(`${API_URL}/api/files?limit=5`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-
-          if (filesResponse.ok) {
-            const filesData = await filesResponse.json();
-            // Convert files data to activities format
-            activitiesData = filesData.slice(0, 5).map((file) => ({
-              id: file._id,
-              fileName: file.displayName || file.filename,
-              tool: file.toolCategory || "conversion",
-              type: file.toolUsed,
-              fileSize: file.size,
-              status: "completed",
-              date: file.uploadedAt,
-              downloadUrl:
-                file.downloadUrl || `/api/files/download/${file._id}`,
-            }));
-          }
-        } catch (error) {
-          // console.log("Files endpoint also failed");
-        }
+        console.log("Activities endpoint error:", error);
       }
 
       setActivities(activitiesData);
@@ -173,6 +138,7 @@ const RecentActivity = ({ recentActivities, fetchUserData, formatDate }) => {
       optimize: "optimize",
       advanced: "advanced",
       convert: "conversion",
+      ocr: "ocr", // ADD OCR MAPPING
     };
     return toolMap[toolType] || "other";
   };
@@ -226,6 +192,9 @@ const RecentActivity = ({ recentActivities, fetchUserData, formatDate }) => {
         "api-call": "API Connect",
         "analytics-view": "Analytics",
       },
+      ocr: {
+        "text-extraction": "OCR Text Extraction", // ADD OCR TYPE
+      },
     };
 
     return typeMap[tool]?.[type] || type || "Activity";
@@ -233,7 +202,7 @@ const RecentActivity = ({ recentActivities, fetchUserData, formatDate }) => {
 
   const handlePreview = async (activity) => {
     if (!activity.downloadUrl) {
-      // console.log("No preview available for this file");
+      console.log("No preview available for this file");
       return;
     }
 
@@ -260,13 +229,23 @@ const RecentActivity = ({ recentActivities, fetchUserData, formatDate }) => {
 
   const handleDownload = async (activity) => {
     if (!activity.downloadUrl) {
-      // console.log("No download available for this file");
+      console.log("No download available for this file");
       return;
     }
 
     try {
       const token = getToken();
-      const response = await fetch(`${API_URL}${activity.downloadUrl}`, {
+      
+      // For OCR files, we need to use the unified activities download endpoint
+      let downloadUrl;
+      if (activity.tool === 'ocr') {
+        const filename = activity.downloadUrl.split("/").pop();
+        downloadUrl = `${API_URL}/api/activities/download/ocr/${filename}`;
+      } else {
+        downloadUrl = `${API_URL}${activity.downloadUrl}`;
+      }
+
+      const response = await fetch(downloadUrl, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -293,6 +272,7 @@ const RecentActivity = ({ recentActivities, fetchUserData, formatDate }) => {
     if (["doc", "docx"].includes(ext)) return "document";
     if (["xls", "xlsx"].includes(ext)) return "spreadsheet";
     if (["ppt", "pptx"].includes(ext)) return "presentation";
+    if (["txt"].includes(ext)) return "text"; // ADD TEXT TYPE FOR OCR
     return "file";
   };
 
@@ -345,65 +325,19 @@ const RecentActivity = ({ recentActivities, fetchUserData, formatDate }) => {
           )}
         </h2>
         <div className="flex gap-2">
-          {/* <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)}>
-            <Filter className="h-4 w-4 mr-2" />
-            Filter
-          </Button> */}
-          {/* <Button variant="outline" size="sm" onClick={refreshData} disabled={loading}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={refreshData}
+            disabled={loading}
+          >
+            <RefreshCw
+              className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`}
+            />
             Refresh
-          </Button> */}
+          </Button>
         </div>
       </div>
-
-      {/* Filter Section */}
-      {showFilters && (
-        <motion.div
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: "auto" }}
-          exit={{ opacity: 0, height: 0 }}
-          className="mb-6 p-4 bg-gray-50 rounded-lg"
-        >
-          <div className="flex flex-col sm:flex-row gap-4">
-            {/* Search */}
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search activities..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                />
-                {searchTerm && (
-                  <button
-                    onClick={() => setSearchTerm("")}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2"
-                  >
-                    <X className="h-4 w-4 text-gray-400 hover:text-gray-600" />
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Tool Filter */}
-            <div className="sm:w-48">
-              <select
-                value={selectedTool}
-                onChange={(e) => setSelectedTool(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              >
-                {toolCategories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </motion.div>
-      )}
 
       {/* Activities List */}
       {loading ? (
@@ -457,9 +391,14 @@ const RecentActivity = ({ recentActivities, fetchUserData, formatDate }) => {
                     </span>
                   </div>
                   <p className="text-sm text-gray-500 mt-1">
-                    {formatDate
-                      ? formatDate(activity.date)
-                      : new Date(activity.date).toLocaleDateString()}
+                    {activity.date
+                      ? new Date(activity.date).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : "Unknown date"}
                   </p>
                 </div>
 
@@ -469,6 +408,7 @@ const RecentActivity = ({ recentActivities, fetchUserData, formatDate }) => {
                     onClick={() => handlePreview(activity)}
                     className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
                     title="Preview"
+                    disabled={!activity.downloadUrl}
                   >
                     <Eye className="h-4 w-4" />
                   </button>
@@ -476,6 +416,7 @@ const RecentActivity = ({ recentActivities, fetchUserData, formatDate }) => {
                     onClick={() => handleDownload(activity)}
                     className="p-2 text-gray-400 hover:text-green-600 transition-colors"
                     title="Download"
+                    disabled={!activity.downloadUrl}
                   >
                     <Download className="h-4 w-4" />
                   </button>
@@ -541,6 +482,10 @@ const RecentActivity = ({ recentActivities, fetchUserData, formatDate }) => {
                   alt="Preview"
                   className="max-w-full max-h-96 mx-auto rounded-lg"
                 />
+              ) : previewFile.type === "text" ? (
+                <pre className="bg-gray-100 p-4 rounded-lg max-h-96 overflow-auto">
+                  {previewFile.content || "Preview content not available"}
+                </pre>
               ) : (
                 <div className="text-center py-8">
                   <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />

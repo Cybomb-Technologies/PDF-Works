@@ -4,7 +4,7 @@ const fs = require('fs').promises;
 const path = require('path');
 const Optimize = require("../../../models/tools-models/Optimize/Optimize");
 
-// ✅ FIXED: Import usage tracking functions
+// ✅ Import usage tracking functions with TOPUP support
 const { checkLimits } = require("../../../utils/checkLimits");
 const { incrementUsage } = require("../../../utils/incrementUsage");
 
@@ -137,17 +137,17 @@ const minifyCode = (type, code) => {
 };
 
 const OptimizeController = {
-  // Image Optimization - WITH USAGE LIMITS
+  // Image Optimization - WITH TOPUP SUPPORTED USAGE LIMITS
   optimizeImage: async (req, res) => {
     try {
-      console.log('Optimize image request received:', {
+      console.log('🔍 [OPTIMIZE DEBUG] Optimize image request received:', {
         file: req.file ? {
           originalname: req.file.originalname,
           size: req.file.size,
           mimetype: req.file.mimetype
         } : 'No file',
         body: req.body,
-        user: req.user
+        userId: req.user?.id
       });
 
       if (!req.file) {
@@ -161,24 +161,48 @@ const OptimizeController = {
       const { quality = 80, maxWidth = 1920, maxHeight = 1080 } = req.body;
 
       // -------------------------------------------------------
-      // ✅ USAGE LIMIT CHECK - FIXED
+      // ✅ ENHANCED: Usage limit check WITH TOPUP SUPPORT
       // -------------------------------------------------------
+      let creditsInfo = null;
       if (userId) {
         try {
+          console.log('🔍 [OPTIMIZE DEBUG] Checking limits for user:', userId);
+          
           const limitCheck = await checkLimits(userId, "optimize-tools");
+          creditsInfo = limitCheck.creditsInfo;
+          
+          console.log('🔍 [OPTIMIZE DEBUG] Optimize Tools Limit Check:', {
+            allowed: limitCheck.allowed,
+            reason: limitCheck.reason,
+            currentUsage: limitCheck.usage?.optimizeTools || 0,
+            limit: limitCheck.plan?.optimizeToolsLimit || 0,
+            usingTopup: limitCheck.creditsInfo?.usingTopup || false,
+            topupAvailable: limitCheck.creditsInfo?.topupAvailable || 0
+          });
+
           if (!limitCheck.allowed) {
+            console.log('🚫 [OPTIMIZE DEBUG] Image Optimization blocked - limit exceeded');
             return res.status(200).json({
               success: false,
               type: "limit_exceeded",
-              title: "Usage Limit Reached",
+              title: limitCheck.title || "Usage Limit Reached",
               message: limitCheck.reason,
               notificationType: "error",
               currentUsage: limitCheck.usage?.optimizeTools || 0,
               limit: limitCheck.plan?.optimizeToolsLimit || 0,
-              upgradeRequired: true
+              upgradeRequired: limitCheck.upgradeRequired || true,
+              creditsInfo: {
+                planLimit: limitCheck.creditsInfo?.planLimit || 0,
+                planUsed: limitCheck.creditsInfo?.planUsed || 0,
+                planRemaining: limitCheck.creditsInfo?.planRemaining || 0,
+                topupAvailable: limitCheck.creditsInfo?.topupAvailable || 0,
+                totalAvailable: limitCheck.creditsInfo?.totalAvailable || 0,
+                usingTopup: limitCheck.creditsInfo?.usingTopup || false
+              }
             });
           }
         } catch (limitErr) {
+          console.error('❌ [OPTIMIZE DEBUG] Limit check error:', limitErr);
           return res.status(200).json({
             success: false,
             type: "limit_exceeded",
@@ -239,6 +263,8 @@ const OptimizeController = {
 
       // Save to Optimize model if user is authenticated
       let optimizeRecord = null;
+      let incrementResult = null;
+      
       if (userId) {
         try {
           optimizeRecord = await saveToOptimizeModel(
@@ -259,16 +285,21 @@ const OptimizeController = {
             }
           );
 
-          // ✅ INCREMENT USAGE FOR OPTIMIZE TOOLS
-          await incrementUsage(userId, "optimize-tools");
+          // ✅ ENHANCED: Increment usage with topup tracking
+          incrementResult = await incrementUsage(userId, "optimize-tools");
+          console.log('✅ [OPTIMIZE DEBUG] Usage incremented for image optimization:', {
+            userId: userId,
+            creditsUsed: incrementResult?.creditsUsed,
+            topupRemaining: incrementResult?.creditsUsed?.topupRemaining
+          });
 
         } catch (saveError) {
           console.error("Failed to save to Optimize model:", saveError);
         }
       }
 
-      // Send JSON response with stats AND file data
-      res.json({
+      // ✅ ENHANCED: Response with credits information
+      const responseData = {
         success: true,
         stats: {
           originalSize: originalSize,
@@ -281,10 +312,27 @@ const OptimizeController = {
         mimeType: req.file.mimetype,
         optimizeId: optimizeRecord?._id,
         downloadUrl: optimizeRecord?.downloadUrl
-      });
+      };
+
+      // Add credits info if available
+      if (creditsInfo || incrementResult?.creditsUsed) {
+        responseData.creditsInfo = {
+          ...creditsInfo,
+          ...(incrementResult?.creditsUsed && {
+            creditsUsed: incrementResult.creditsUsed.total,
+            fromPlan: incrementResult.creditsUsed.fromPlan,
+            fromTopup: incrementResult.creditsUsed.fromTopup,
+            topupRemaining: incrementResult.creditsUsed.topupRemaining,
+            planRemaining: creditsInfo ? Math.max(0, creditsInfo.planRemaining - (incrementResult.creditsUsed.fromPlan || 0)) : 0,
+            topupAvailable: incrementResult.creditsUsed.topupRemaining || 0
+          })
+        };
+      }
+
+      res.json(responseData);
 
     } catch (error) {
-      console.error('Image optimization error:', error);
+      console.error('❌ [OPTIMIZE DEBUG] Image optimization error:', error);
       res.status(500).json({ 
         success: false,
         error: 'Image optimization failed: ' + error.message 
@@ -292,36 +340,60 @@ const OptimizeController = {
     }
   },
 
-  // Code Minification - WITH USAGE LIMITS
+  // Code Minification - WITH TOPUP SUPPORTED USAGE LIMITS
   minifyCode: async (req, res) => {
     try {
-      console.log('Minify code request received:', {
+      console.log('🔍 [OPTIMIZE DEBUG] Minify code request received:', {
         body: req.body,
-        user: req.user
+        userId: req.user?.id
       });
 
       const { code, type = 'js' } = req.body;
       const userId = req.user?.id;
 
       // -------------------------------------------------------
-      // ✅ USAGE LIMIT CHECK - FIXED
+      // ✅ ENHANCED: Usage limit check WITH TOPUP SUPPORT
       // -------------------------------------------------------
+      let creditsInfo = null;
       if (userId) {
         try {
+          console.log('🔍 [OPTIMIZE DEBUG] Checking limits for user:', userId);
+          
           const limitCheck = await checkLimits(userId, "optimize-tools");
+          creditsInfo = limitCheck.creditsInfo;
+          
+          console.log('🔍 [OPTIMIZE DEBUG] Code Minify Limit Check:', {
+            allowed: limitCheck.allowed,
+            reason: limitCheck.reason,
+            currentUsage: limitCheck.usage?.optimizeTools || 0,
+            limit: limitCheck.plan?.optimizeToolsLimit || 0,
+            usingTopup: limitCheck.creditsInfo?.usingTopup || false,
+            topupAvailable: limitCheck.creditsInfo?.topupAvailable || 0
+          });
+
           if (!limitCheck.allowed) {
+            console.log('🚫 [OPTIMIZE DEBUG] Code Minify blocked - limit exceeded');
             return res.status(200).json({
               success: false,
               type: "limit_exceeded",
-              title: "Usage Limit Reached",
+              title: limitCheck.title || "Usage Limit Reached",
               message: limitCheck.reason,
               notificationType: "error",
               currentUsage: limitCheck.usage?.optimizeTools || 0,
               limit: limitCheck.plan?.optimizeToolsLimit || 0,
-              upgradeRequired: true
+              upgradeRequired: limitCheck.upgradeRequired || true,
+              creditsInfo: {
+                planLimit: limitCheck.creditsInfo?.planLimit || 0,
+                planUsed: limitCheck.creditsInfo?.planUsed || 0,
+                planRemaining: limitCheck.creditsInfo?.planRemaining || 0,
+                topupAvailable: limitCheck.creditsInfo?.topupAvailable || 0,
+                totalAvailable: limitCheck.creditsInfo?.totalAvailable || 0,
+                usingTopup: limitCheck.creditsInfo?.usingTopup || false
+              }
             });
           }
         } catch (limitErr) {
+          console.error('❌ [OPTIMIZE DEBUG] Limit check error:', limitErr);
           return res.status(200).json({
             success: false,
             type: "limit_exceeded",
@@ -353,6 +425,8 @@ const OptimizeController = {
 
       // Save to Optimize model if user is authenticated
       let optimizeRecord = null;
+      let incrementResult = null;
+      
       if (userId) {
         try {
           // Convert code to buffer for storage
@@ -373,15 +447,21 @@ const OptimizeController = {
             }
           );
 
-          // ✅ INCREMENT USAGE FOR OPTIMIZE TOOLS
-          await incrementUsage(userId, "optimize-tools");
+          // ✅ ENHANCED: Increment usage with topup tracking
+          incrementResult = await incrementUsage(userId, "optimize-tools");
+          console.log('✅ [OPTIMIZE DEBUG] Usage incremented for code minify:', {
+            userId: userId,
+            creditsUsed: incrementResult?.creditsUsed,
+            topupRemaining: incrementResult?.creditsUsed?.topupRemaining
+          });
 
         } catch (saveError) {
           console.error("Failed to save to Optimize model:", saveError);
         }
       }
 
-      res.json({
+      // ✅ ENHANCED: Response with credits information
+      const responseData = {
         success: true,
         minifiedCode: minifiedCode,
         stats: {
@@ -391,10 +471,27 @@ const OptimizeController = {
           charactersSaved: originalLength - minifiedLength
         },
         optimizeId: optimizeRecord?._id
-      });
+      };
+
+      // Add credits info if available
+      if (creditsInfo || incrementResult?.creditsUsed) {
+        responseData.creditsInfo = {
+          ...creditsInfo,
+          ...(incrementResult?.creditsUsed && {
+            creditsUsed: incrementResult.creditsUsed.total,
+            fromPlan: incrementResult.creditsUsed.fromPlan,
+            fromTopup: incrementResult.creditsUsed.fromTopup,
+            topupRemaining: incrementResult.creditsUsed.topupRemaining,
+            planRemaining: creditsInfo ? Math.max(0, creditsInfo.planRemaining - (incrementResult.creditsUsed.fromPlan || 0)) : 0,
+            topupAvailable: incrementResult.creditsUsed.topupRemaining || 0
+          })
+        };
+      }
+
+      res.json(responseData);
 
     } catch (error) {
-      console.error('Code minification error:', error);
+      console.error('❌ [OPTIMIZE DEBUG] Code minification error:', error);
       res.status(500).json({ 
         success: false,
         error: 'Code minification failed: ' + error.message 
@@ -402,34 +499,58 @@ const OptimizeController = {
     }
   },
 
-  // Cache Cleaning - WITH USAGE LIMITS
+  // Cache Cleaning - WITH TOPUP SUPPORTED USAGE LIMITS
   cleanCache: async (req, res) => {
     try {
-      console.log('Clean cache request received:', {
-        user: req.user
+      console.log('🔍 [OPTIMIZE DEBUG] Clean cache request received:', {
+        userId: req.user?.id
       });
 
       const userId = req.user?.id;
 
       // -------------------------------------------------------
-      // ✅ USAGE LIMIT CHECK - FIXED
+      // ✅ ENHANCED: Usage limit check WITH TOPUP SUPPORT
       // -------------------------------------------------------
+      let creditsInfo = null;
       if (userId) {
         try {
+          console.log('🔍 [OPTIMIZE DEBUG] Checking limits for user:', userId);
+          
           const limitCheck = await checkLimits(userId, "optimize-tools");
+          creditsInfo = limitCheck.creditsInfo;
+          
+          console.log('🔍 [OPTIMIZE DEBUG] Cache Clean Limit Check:', {
+            allowed: limitCheck.allowed,
+            reason: limitCheck.reason,
+            currentUsage: limitCheck.usage?.optimizeTools || 0,
+            limit: limitCheck.plan?.optimizeToolsLimit || 0,
+            usingTopup: limitCheck.creditsInfo?.usingTopup || false,
+            topupAvailable: limitCheck.creditsInfo?.topupAvailable || 0
+          });
+
           if (!limitCheck.allowed) {
+            console.log('🚫 [OPTIMIZE DEBUG] Cache Clean blocked - limit exceeded');
             return res.status(200).json({
               success: false,
               type: "limit_exceeded",
-              title: "Usage Limit Reached",
+              title: limitCheck.title || "Usage Limit Reached",
               message: limitCheck.reason,
               notificationType: "error",
               currentUsage: limitCheck.usage?.optimizeTools || 0,
               limit: limitCheck.plan?.optimizeToolsLimit || 0,
-              upgradeRequired: true
+              upgradeRequired: limitCheck.upgradeRequired || true,
+              creditsInfo: {
+                planLimit: limitCheck.creditsInfo?.planLimit || 0,
+                planUsed: limitCheck.creditsInfo?.planUsed || 0,
+                planRemaining: limitCheck.creditsInfo?.planRemaining || 0,
+                topupAvailable: limitCheck.creditsInfo?.topupAvailable || 0,
+                totalAvailable: limitCheck.creditsInfo?.totalAvailable || 0,
+                usingTopup: limitCheck.creditsInfo?.usingTopup || false
+              }
             });
           }
         } catch (limitErr) {
+          console.error('❌ [OPTIMIZE DEBUG] Limit check error:', limitErr);
           return res.status(200).json({
             success: false,
             type: "limit_exceeded",
@@ -442,6 +563,8 @@ const OptimizeController = {
 
       // Save to Optimize model if user is authenticated
       let optimizeRecord = null;
+      let incrementResult = null;
+      
       if (userId) {
         try {
           optimizeRecord = await saveToOptimizeModel(
@@ -456,23 +579,46 @@ const OptimizeController = {
             }
           );
 
-          // ✅ INCREMENT USAGE FOR OPTIMIZE TOOLS
-          await incrementUsage(userId, "optimize-tools");
+          // ✅ ENHANCED: Increment usage with topup tracking
+          incrementResult = await incrementUsage(userId, "optimize-tools");
+          console.log('✅ [OPTIMIZE DEBUG] Usage incremented for cache clean:', {
+            userId: userId,
+            creditsUsed: incrementResult?.creditsUsed,
+            topupRemaining: incrementResult?.creditsUsed?.topupRemaining
+          });
 
         } catch (saveError) {
           console.error("Failed to save to Optimize model:", saveError);
         }
       }
 
-      res.json({
+      // ✅ ENHANCED: Response with credits information
+      const responseData = {
         success: true,
         message: 'Cache cleaning operation logged successfully',
         timestamp: new Date().toISOString(),
         optimizeId: optimizeRecord?._id
-      });
+      };
+
+      // Add credits info if available
+      if (creditsInfo || incrementResult?.creditsUsed) {
+        responseData.creditsInfo = {
+          ...creditsInfo,
+          ...(incrementResult?.creditsUsed && {
+            creditsUsed: incrementResult.creditsUsed.total,
+            fromPlan: incrementResult.creditsUsed.fromPlan,
+            fromTopup: incrementResult.creditsUsed.fromTopup,
+            topupRemaining: incrementResult.creditsUsed.topupRemaining,
+            planRemaining: creditsInfo ? Math.max(0, creditsInfo.planRemaining - (incrementResult.creditsUsed.fromPlan || 0)) : 0,
+            topupAvailable: incrementResult.creditsUsed.topupRemaining || 0
+          })
+        };
+      }
+
+      res.json(responseData);
 
     } catch (error) {
-      console.error('Cache cleaning error:', error);
+      console.error('❌ [OPTIMIZE DEBUG] Cache cleaning error:', error);
       res.status(500).json({ 
         success: false,
         error: 'Cache cleaning failed: ' + error.message 

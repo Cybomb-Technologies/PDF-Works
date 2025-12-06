@@ -33,7 +33,15 @@ import EditTools from "./pages/tools/EditTools";
 import PaymentResult from "./pages/PaymentResult";
 import BillingSettings from "./pages/BillingSettings";
 import AuthSuccess from "@/components/AuthSuccess";
-import ProfilePage from "@/components/ProfilePage"; // NEW: Import ProfilePage
+import ProfilePage from "@/components/ProfilePage";
+import PaymentManagement from "@/pages/admin/PaymentManagement";
+
+
+// NEW: Import Topup Components
+import TopupPage from "@/components/TopupPage"; // User-facing page
+import TopupManagement from "@/pages/admin/TopupManagement"; // Admin panel
+import TopupPaymentResult from "@/pages/TopupPaymentResult";
+
 // 👤 User Dashboard
 import UserDashboard from "@/components/Dashboard";
 
@@ -123,7 +131,7 @@ function AppContent() {
           <Route
             path="/admin"
             element={
-              JSON.parse(localStorage.getItem("pdfpro_admin")) ? (
+              localStorage.getItem("pdfpro_admin_token") ? (
                 <Navigate to="/admin/dashboard" replace />
               ) : (
                 <Navigate to="/admin/login" replace />
@@ -134,7 +142,7 @@ function AppContent() {
           <Route
             path="/admin/login"
             element={
-              JSON.parse(localStorage.getItem("pdfpro_admin")) ? (
+              localStorage.getItem("pdfpro_admin_token") ? (
                 <Navigate to="/admin/dashboard" replace />
               ) : (
                 <AdminLoginPage />
@@ -230,6 +238,17 @@ function AppContent() {
             }
           />
 
+          <Route
+            path="/admin/payments"
+            element={
+              <AdminProtectedRoute>
+                <AdminLayout>
+                  <PaymentManagement />
+                </AdminLayout>
+              </AdminProtectedRoute>
+            }
+          />
+
           {/* ✅ PRICING MANAGEMENT ROUTE */}
           <Route
             path="/admin/pricing"
@@ -242,97 +261,286 @@ function AppContent() {
             }
           />
 
-          {/* ================= PUBLIC & USER ROUTES ================= */}
+          {/* ✅ NEW: TOPUP MANAGEMENT ROUTE */}
           <Route
-            path="/*"
+            path="/admin/topup"
             element={
-              <>
-                <Header />
-                <main className="flex-1 pt-20 pb-10 px-6">
-                  <Routes location={location} key={location.pathname}>
-                    {/* Public Pages */}
-                    <Route path="/" element={<HomePage />} />
-                    <Route path="/login" element={<LoginPage />} />
-                    <Route path="/signup" element={<SignUpPage />} />
-                    <Route path="/tools" element={<ToolsPage />} />
-                    <Route path="/pricing" element={<BillingPage />} />
-                    <Route path="/faq" element={<FaqPage />} />
-                    <Route path="/about" element={<AboutPage />} />
-                    <Route path="/contact" element={<ContactPage />} />
-                    <Route path="/blog" element={<BlogPage />} />
-                    <Route path="/blog/:id" element={<BlogDetailPage />} />
-                    <Route path="/press" element={<PressPage />} />
-                    <Route path="/security" element={<SecurityPage />} />
-                    <Route path="/privacy" element={<PrivacyPolicyPage />} />
-                    <Route path="/refund-policy" element={<RefundPolicy />} />
-                    <Route
-                      path="/pricing-policy"
-                      element={<PricingPolicyPage />}
-                    />
-                    <Route
-                      path="/checkout/:planId"
-                      element={<CheckoutPage />}
-                    />
-                    <Route path="/payment/result" element={<PaymentResult />} />
-                    <Route path="/terms" element={<TermsPage />} />
-                    <Route path="/cookies" element={<CookiesPage />} />
-                    <Route
-                      path="/homepress"
-                      element={<HomePressReleaseDetail />}
-                    />
-
-                    {/* Protected User Pages */}
-                    <Route
-                      path="/dashboard"
-                      element={
-                        <ProtectedRoute>
-                          <UserDashboard />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/billing/settings"
-                      element={
-                        <ProtectedRoute>
-                          <BillingSettings />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/tools/edit"
-                      element={
-                        <ProtectedRoute>
-                          <EditTools />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/files"
-                      element={
-                        <ProtectedRoute>
-                          <FilesPage />
-                        </ProtectedRoute>
-                      }
-                    />
-                    {/* NEW: Profile Page Route */}
-                    <Route
-                      path="/profile"
-                      element={
-                        <ProtectedRoute>
-                          <ProfilePage />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route path="/auth/success" element={<AuthSuccess />} />
-
-                    {/* Not Found */}
-                    <Route path="*" element={<NotFoundPage />} />
-                  </Routes>
-                </main>
-                <Footer />
-              </>
+              <AdminProtectedRoute>
+                <AdminLayout>
+                  <TopupManagement />
+                </AdminLayout>
+              </AdminProtectedRoute>
             }
           />
+
+          {/* ================= PUBLIC & USER ROUTES ================= */}
+          
+          {/* Public Pages with Header & Footer */}
+          <Route path="/" element={
+            <>
+              <Header />
+              <main className="flex-1 pt-20 pb-10 px-6">
+                <HomePage />
+              </main>
+              <Footer />
+            </>
+          } />
+          
+          <Route path="/login" element={
+            <>
+              <Header />
+              <main className="flex-1 pt-20 pb-10 px-6">
+                <LoginPage />
+              </main>
+              <Footer />
+            </>
+          } />
+          
+          <Route path="/signup" element={
+            <>
+              <Header />
+              <main className="flex-1 pt-20 pb-10 px-6">
+                <SignUpPage />
+              </main>
+              <Footer />
+            </>
+          } />
+          
+          <Route path="/tools" element={
+            <>
+              <Header />
+              <main className="flex-1 pt-20 pb-10 px-6">
+                <ToolsPage />
+              </main>
+              <Footer />
+            </>
+          } />
+          
+          <Route path="/pricing" element={
+            <>
+              <Header />
+              <main className="flex-1 pt-20 pb-10 px-6">
+                <BillingPage />
+              </main>
+              <Footer />
+            </>
+          } />
+
+          {/* ✅ NEW: SEPARATE TOPUP PAGE */}
+          <Route path="/topup" element={
+            <>
+              <Header />
+              <main className="flex-1 pt-20 pb-10 px-6">
+                <TopupPage />
+              </main>
+              <Footer />
+            </>
+          } />
+          
+          <Route path="/faq" element={
+            <>
+              <Header />
+              <main className="flex-1 pt-20 pb-10 px-6">
+                <FaqPage />
+              </main>
+              <Footer />
+            </>
+          } />
+          
+          <Route path="/about" element={
+            <>
+              <Header />
+              <main className="flex-1 pt-20 pb-10 px-6">
+                <AboutPage />
+              </main>
+              <Footer />
+            </>
+          } />
+          
+          <Route path="/contact" element={
+            <>
+              <Header />
+              <main className="flex-1 pt-20 pb-10 px-6">
+                <ContactPage />
+              </main>
+              <Footer />
+            </>
+          } />
+          
+          <Route path="/blog" element={
+            <>
+              <Header />
+              <main className="flex-1 pt-20 pb-10 px-6">
+                <BlogPage />
+              </main>
+              <Footer />
+            </>
+          } />
+          
+          <Route path="/blog/:id" element={
+            <>
+              <Header />
+              <main className="flex-1 pt-20 pb-10 px-6">
+                <BlogDetailPage />
+              </main>
+              <Footer />
+            </>
+          } />
+          
+          <Route path="/press" element={
+            <>
+              <Header />
+              <main className="flex-1 pt-20 pb-10 px-6">
+                <PressPage />
+              </main>
+              <Footer />
+            </>
+          } />
+          
+          <Route path="/security" element={
+            <>
+              <Header />
+              <main className="flex-1 pt-20 pb-10 px-6">
+                <SecurityPage />
+              </main>
+              <Footer />
+            </>
+          } />
+          
+          <Route path="/privacy" element={
+            <>
+              <Header />
+              <main className="flex-1 pt-20 pb-10 px-6">
+                <PrivacyPolicyPage />
+              </main>
+              <Footer />
+            </>
+          } />
+          
+          <Route path="/refund-policy" element={
+            <>
+              <Header />
+              <main className="flex-1 pt-20 pb-10 px-6">
+                <RefundPolicy />
+              </main>
+              <Footer />
+            </>
+          } />
+          
+          <Route path="/pricing-policy" element={
+            <>
+              <Header />
+              <main className="flex-1 pt-20 pb-10 px-6">
+                <PricingPolicyPage />
+              </main>
+              <Footer />
+            </>
+          } />
+          
+          <Route path="/terms" element={
+            <>
+              <Header />
+              <main className="flex-1 pt-20 pb-10 px-6">
+                <TermsPage />
+              </main>
+              <Footer />
+            </>
+          } />
+          
+          <Route path="/cookies" element={
+            <>
+              <Header />
+              <main className="flex-1 pt-20 pb-10 px-6">
+                <CookiesPage />
+              </main>
+              <Footer />
+            </>
+          } />
+          
+          <Route path="/homepress" element={
+            <>
+              <Header />
+              <main className="flex-1 pt-20 pb-10 px-6">
+                <HomePressReleaseDetail />
+              </main>
+              <Footer />
+            </>
+          } />
+
+          {/* Protected User Pages */}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Header />
+                <main className="flex-1 pt-20 pb-10 px-6">
+                  <UserDashboard />
+                </main>
+                <Footer />
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/billing/settings"
+            element={
+              <ProtectedRoute>
+                <Header />
+                <main className="flex-1 pt-20 pb-10 px-6">
+                  <BillingSettings />
+                </main>
+                <Footer />
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/tools/edit"
+            element={
+              <ProtectedRoute>
+                <Header />
+                <main className="flex-1 pt-20 pb-10 px-6">
+                  <EditTools />
+                </main>
+                <Footer />
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/files"
+            element={
+              <ProtectedRoute>
+                <Header />
+                <main className="flex-1 pt-20 pb-10 px-6">
+                  <FilesPage />
+                </main>
+                <Footer />
+              </ProtectedRoute>
+            }
+          />
+          
+          {/* Profile Page Route */}
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <Header />
+                <main className="flex-1 pt-20 pb-10 px-6">
+                  <ProfilePage />
+                </main>
+                <Footer />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Public routes without Header/Footer */}
+          <Route path="/checkout/:planId" element={<CheckoutPage />} />
+          <Route path="/payment/result" element={<PaymentResult />} />
+          <Route path="/auth/success" element={<AuthSuccess />} />
+            <Route path="/payment/topup-result" element={<TopupPaymentResult />} />
+          {/* Not Found */}
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </AnimatePresence>
 

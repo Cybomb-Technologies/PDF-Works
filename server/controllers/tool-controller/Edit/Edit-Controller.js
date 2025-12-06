@@ -6,7 +6,7 @@ const { createCanvas } = require('canvas');
 const Edit = require("../../../models/tools-models/Edit/Edit-Model");
 const archiver = require('archiver');
 
-// === FIXED USAGE IMPORTS ===
+// ✅ ENHANCED: Import usage tracking functions with TOPUP support
 const { checkLimits } = require("../../../utils/checkLimits");
 const { incrementUsage } = require("../../../utils/incrementUsage");
 
@@ -104,6 +104,59 @@ class EditController {
         });
       }
 
+      // -------------------------------------------------------
+      // ✅ ENHANCED: Usage limit check WITH TOPUP SUPPORT
+      // -------------------------------------------------------
+      let creditsInfo = null;
+      if (userId) {
+        try {
+          console.log('🔍 [EDIT DEBUG] Checking limits for user:', userId);
+          
+          const limitCheck = await checkLimits(userId, "edit-tools");
+          creditsInfo = limitCheck.creditsInfo;
+          
+          console.log('🔍 [EDIT DEBUG] Limit check result:', {
+            allowed: limitCheck.allowed,
+            reason: limitCheck.reason,
+            currentUsage: limitCheck.usage?.editTools,
+            limit: limitCheck.plan?.editToolsLimit,
+            planName: limitCheck.plan?.name,
+            usingTopup: limitCheck.creditsInfo?.usingTopup || false,
+            topupAvailable: limitCheck.creditsInfo?.topupAvailable || 0
+          });
+          
+          if (!limitCheck.allowed) {
+            return res.status(200).json({
+              success: false,
+              type: "limit_exceeded",
+              title: "Usage Limit Reached",
+              message: limitCheck.reason,
+              notificationType: "error",
+              currentUsage: limitCheck.usage?.editTools || 0,
+              limit: limitCheck.plan?.editToolsLimit || 0,
+              upgradeRequired: true,
+              creditsInfo: {
+                planLimit: limitCheck.creditsInfo?.planLimit || 0,
+                planUsed: limitCheck.creditsInfo?.planUsed || 0,
+                planRemaining: limitCheck.creditsInfo?.planRemaining || 0,
+                topupAvailable: limitCheck.creditsInfo?.topupAvailable || 0,
+                totalAvailable: limitCheck.creditsInfo?.totalAvailable || 0,
+                usingTopup: limitCheck.creditsInfo?.usingTopup || false
+              }
+            });
+          }
+        } catch (limitErr) {
+          console.error('❌ [EDIT DEBUG] Limit check error:', limitErr);
+          return res.status(200).json({
+            success: false,
+            type: "limit_exceeded",
+            title: "Usage Limit Error",
+            message: limitErr.message,
+            notificationType: "error"
+          });
+        }
+      }
+
       const editRecord = await this.saveToEditModel(
         file.buffer,
         originalName || 'document.pdf',
@@ -114,12 +167,41 @@ class EditController {
         { sessionId, totalPages: parseInt(totalPages) || 1 }
       );
 
-      res.json({
+      // ✅ ENHANCED: Increment usage with topup tracking
+      let incrementResult = null;
+      if (userId) {
+        incrementResult = await incrementUsage(userId, "edit-tools");
+        console.log('✅ [EDIT DEBUG] Usage incremented:', {
+          userId: userId,
+          creditsUsed: incrementResult?.creditsUsed,
+          topupRemaining: incrementResult?.creditsUsed?.topupRemaining
+        });
+      }
+
+      // ✅ ENHANCED: Response with credits information
+      const responseData = {
         success: true,
         editId: editRecord._id,
         downloadUrl: editRecord.downloadUrl,
         message: 'PDF edit saved successfully'
-      });
+      };
+
+      // Add credits info if available
+      if (creditsInfo || incrementResult?.creditsUsed) {
+        responseData.creditsInfo = {
+          ...creditsInfo,
+          ...(incrementResult?.creditsUsed && {
+            creditsUsed: incrementResult.creditsUsed.total,
+            fromPlan: incrementResult.creditsUsed.fromPlan,
+            fromTopup: incrementResult.creditsUsed.fromTopup,
+            topupRemaining: incrementResult.creditsUsed.topupRemaining,
+            planRemaining: creditsInfo ? Math.max(0, creditsInfo.planRemaining - (incrementResult.creditsUsed.fromPlan || 0)) : 0,
+            topupAvailable: incrementResult.creditsUsed.topupRemaining || 0
+          })
+        };
+      }
+
+      res.json(responseData);
 
     } catch (error) {
       console.error('Save PDF edit error:', error);
@@ -130,120 +212,158 @@ class EditController {
     }
   }
 
-  // Save Image Crop output
-async saveImageCrop(req, res) {
-  try {
-    console.log('Save Image Crop called');
-    console.log('Body:', req.body);
-    console.log('File:', req.file ? `Present - ${req.file.originalname}` : 'Missing');
+  // ✅ ENHANCED: Save Image Crop output with TOPUP SUPPORT
+  async saveImageCrop(req, res) {
+    try {
+      console.log('🔍 [EDIT DEBUG] Save Image Crop called');
+      console.log('🔍 [EDIT DEBUG] Body:', req.body);
+      console.log('🔍 [EDIT DEBUG] File:', req.file ? `Present - ${req.file.originalname}` : 'Missing');
 
-    const { originalName, cropDimensions } = req.body;
-    const file = req.file;
-    const userId = req.user?.id;
+      const { originalName, cropDimensions } = req.body;
+      const file = req.file;
+      const userId = req.user?.id;
 
-    // -------------------------------------------------------
-    // Usage limit check BEFORE processing - EDIT TOOLS
-    // -------------------------------------------------------
-    if (userId) {
-      try {
-        const limitCheck = await checkLimits(userId, "edit-tools");
-        console.log('🔍 Image Crop Limit Check:', {
-          allowed: limitCheck.allowed,
-          reason: limitCheck.reason,
-          currentUsage: limitCheck.usage?.editTools,
-          limit: limitCheck.plan?.editToolsLimit
-        });
+      // -------------------------------------------------------
+      // ✅ ENHANCED: Usage limit check WITH TOPUP SUPPORT
+      // -------------------------------------------------------
+      let creditsInfo = null;
+      if (userId) {
+        try {
+          console.log('🔍 [EDIT DEBUG] Checking limits for user:', userId);
+          
+          const limitCheck = await checkLimits(userId, "edit-tools");
+          creditsInfo = limitCheck.creditsInfo;
+          
+          console.log('🔍 [EDIT DEBUG] Image Crop Limit Check:', {
+            allowed: limitCheck.allowed,
+            reason: limitCheck.reason,
+            currentUsage: limitCheck.usage?.editTools,
+            limit: limitCheck.plan?.editToolsLimit,
+            usingTopup: limitCheck.creditsInfo?.usingTopup || false,
+            topupAvailable: limitCheck.creditsInfo?.topupAvailable || 0
+          });
 
-        if (!limitCheck.allowed) {
-          console.log('🚫 Image Crop blocked - limit exceeded');
+          if (!limitCheck.allowed) {
+            console.log('🚫 [EDIT DEBUG] Image Crop blocked - limit exceeded');
+            return res.status(200).json({
+              success: false,
+              type: "limit_exceeded",
+              title: limitCheck.title || "Usage Limit Reached",
+              message: limitCheck.reason,
+              notificationType: "error",
+              currentUsage: limitCheck.usage?.editTools || 0,
+              limit: limitCheck.plan?.editToolsLimit || 0,
+              upgradeRequired: limitCheck.upgradeRequired || true,
+              creditsInfo: {
+                planLimit: limitCheck.creditsInfo?.planLimit || 0,
+                planUsed: limitCheck.creditsInfo?.planUsed || 0,
+                planRemaining: limitCheck.creditsInfo?.planRemaining || 0,
+                topupAvailable: limitCheck.creditsInfo?.topupAvailable || 0,
+                totalAvailable: limitCheck.creditsInfo?.totalAvailable || 0,
+                usingTopup: limitCheck.creditsInfo?.usingTopup || false
+              }
+            });
+          }
+        } catch (limitErr) {
+          console.error('❌ [EDIT DEBUG] Limit check error:', limitErr);
           return res.status(200).json({
             success: false,
             type: "limit_exceeded",
-            title: limitCheck.title || "Usage Limit Reached",
-            message: limitCheck.reason,
-            notificationType: "error",
-            currentUsage: limitCheck.usage?.editTools || 0,
-            limit: limitCheck.plan?.editToolsLimit || 0,
-            upgradeRequired: limitCheck.upgradeRequired || true
+            title: "Usage Limit Error",
+            message: limitErr.message,
+            notificationType: "error"
           });
         }
-      } catch (limitErr) {
-        console.error('Limit check error:', limitErr);
-        return res.status(200).json({
+      }
+
+      // If we reach here, limit check passed - proceed with processing
+      if (!file) {
+        console.log('❌ [EDIT DEBUG] No file provided in request');
+        return res.status(400).json({
           success: false,
-          type: "limit_exceeded",
-          title: "Usage Limit Error",
-          message: limitErr.message,
-          notificationType: "error"
+          error: 'No file provided'
         });
       }
-    }
 
-    // If we reach here, limit check passed - proceed with processing
-    if (!file) {
-      console.log('No file provided in request');
-      return res.status(400).json({
+      // Handle cropDimensions - it might be string or object
+      let cropData = {};
+      if (cropDimensions) {
+        if (typeof cropDimensions === 'string') {
+          try {
+            cropData = JSON.parse(cropDimensions);
+          } catch (parseError) {
+            console.warn('Failed to parse cropDimensions as JSON:', parseError);
+            // Try to extract basic info
+            cropData = { raw: cropDimensions };
+          }
+        } else if (typeof cropDimensions === 'object') {
+          cropData = cropDimensions;
+        }
+      }
+
+      console.log('🔍 [EDIT DEBUG] Processing crop data:', cropData);
+
+      const editRecord = await this.saveToEditModel(
+        file.buffer,
+        originalName || file.originalname,
+        `cropped-${Date.now()}.png`,
+        'png',
+        'image-crop',
+        userId,
+        { cropDimensions: cropData }
+      );
+
+      console.log('✅ [EDIT DEBUG] Image crop saved successfully:', editRecord._id);
+
+      // ✅ ENHANCED: Increment usage with topup tracking
+      let incrementResult = null;
+      if (userId) {
+        incrementResult = await incrementUsage(userId, "edit-tools");
+        console.log('✅ [EDIT DEBUG] Usage incremented for image crop:', {
+          userId: userId,
+          creditsUsed: incrementResult?.creditsUsed,
+          topupRemaining: incrementResult?.creditsUsed?.topupRemaining
+        });
+      }
+
+      // ✅ ENHANCED: Response with credits information
+      const responseData = {
+        success: true,
+        editId: editRecord._id,
+        downloadUrl: editRecord.downloadUrl,
+        message: 'Image crop saved successfully'
+      };
+
+      // Add credits info if available
+      if (creditsInfo || incrementResult?.creditsUsed) {
+        responseData.creditsInfo = {
+          ...creditsInfo,
+          ...(incrementResult?.creditsUsed && {
+            creditsUsed: incrementResult.creditsUsed.total,
+            fromPlan: incrementResult.creditsUsed.fromPlan,
+            fromTopup: incrementResult.creditsUsed.fromTopup,
+            topupRemaining: incrementResult.creditsUsed.topupRemaining,
+            planRemaining: creditsInfo ? Math.max(0, creditsInfo.planRemaining - (incrementResult.creditsUsed.fromPlan || 0)) : 0,
+            topupAvailable: incrementResult.creditsUsed.topupRemaining || 0
+          })
+        };
+      }
+
+      res.json(responseData);
+
+    } catch (error) {
+      console.error('❌ [EDIT DEBUG] Save image crop error:', error);
+      res.status(500).json({
         success: false,
-        error: 'No file provided'
+        error: error.message
       });
     }
-
-    // Handle cropDimensions - it might be string or object
-    let cropData = {};
-    if (cropDimensions) {
-      if (typeof cropDimensions === 'string') {
-        try {
-          cropData = JSON.parse(cropDimensions);
-        } catch (parseError) {
-          console.warn('Failed to parse cropDimensions as JSON:', parseError);
-          // Try to extract basic info
-          cropData = { raw: cropDimensions };
-        }
-      } else if (typeof cropDimensions === 'object') {
-        cropData = cropDimensions;
-      }
-    }
-
-    console.log('Processing crop data:', cropData);
-
-    const editRecord = await this.saveToEditModel(
-      file.buffer,
-      originalName || file.originalname,
-      `cropped-${Date.now()}.png`,
-      'png',
-      'image-crop',
-      userId,
-      { cropDimensions: cropData }
-    );
-
-    console.log('Image crop saved successfully:', editRecord._id);
-
-    // ✅ Increment usage for edit tools AFTER successful crop
-    if (userId) {
-      await incrementUsage(userId, "edit-tools");
-      console.log('✅ Usage incremented for image crop');
-    }
-
-    res.json({
-      success: true,
-      editId: editRecord._id,
-      downloadUrl: editRecord.downloadUrl,
-      message: 'Image crop saved successfully'
-    });
-
-  } catch (error) {
-    console.error('Save image crop error:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
   }
-}
 
-  // Save File Rename output as BATCH
+  // ✅ ENHANCED: Save File Rename output as BATCH with TOPUP SUPPORT
   async saveFileRename(req, res) {
     try {
-      console.log('🔍 [DEBUG] Save File Rename called with:', {
+      console.log('🔍 [EDIT DEBUG] Save File Rename called with:', {
         body: req.body,
         filesCount: req.files ? req.files.length : 0,
         userId: req.user?.id
@@ -254,22 +374,29 @@ async saveImageCrop(req, res) {
       const userId = req.user?.id;
 
       // -------------------------------------------------------
-      // Usage limit check BEFORE processing - EDIT TOOLS
+      // ✅ ENHANCED: Usage limit check WITH TOPUP SUPPORT
       // -------------------------------------------------------
+      let creditsInfo = null;
       if (userId) {
         try {
+          console.log('🔍 [EDIT DEBUG] Checking limits for user:', userId);
+          
           const limitCheck = await checkLimits(userId, "edit-tools");
-          console.log('🔍 File Rename Limit Check:', {
+          creditsInfo = limitCheck.creditsInfo;
+          
+          console.log('🔍 [EDIT DEBUG] File Rename Limit Check:', {
             allowed: limitCheck.allowed,
             reason: limitCheck.reason,
             currentUsage: limitCheck.usage?.editTools,
-            limit: limitCheck.plan?.editToolsLimit
+            limit: limitCheck.plan?.editToolsLimit,
+            usingTopup: limitCheck.creditsInfo?.usingTopup || false,
+            topupAvailable: limitCheck.creditsInfo?.topupAvailable || 0
           });
 
           if (!limitCheck.allowed) {
             // Delete all uploaded files since we're not processing them
             if (files && files.length > 0) {
-              console.log('🚫 Limit exceeded, discarding uploaded files');
+              console.log('🚫 [EDIT DEBUG] Limit exceeded, discarding uploaded files');
             }
 
             return res.status(200).json({
@@ -280,11 +407,19 @@ async saveImageCrop(req, res) {
               notificationType: "error",
               currentUsage: limitCheck.usage?.editTools || 0,
               limit: limitCheck.plan?.editToolsLimit || 0,
-              upgradeRequired: limitCheck.upgradeRequired || true
+              upgradeRequired: limitCheck.upgradeRequired || true,
+              creditsInfo: {
+                planLimit: limitCheck.creditsInfo?.planLimit || 0,
+                planUsed: limitCheck.creditsInfo?.planUsed || 0,
+                planRemaining: limitCheck.creditsInfo?.planRemaining || 0,
+                topupAvailable: limitCheck.creditsInfo?.topupAvailable || 0,
+                totalAvailable: limitCheck.creditsInfo?.totalAvailable || 0,
+                usingTopup: limitCheck.creditsInfo?.usingTopup || false
+              }
             });
           }
         } catch (limitErr) {
-          console.error('Limit check error:', limitErr);
+          console.error('❌ [EDIT DEBUG] Limit check error:', limitErr);
           return res.status(200).json({
             success: false,
             type: "limit_exceeded",
@@ -296,7 +431,7 @@ async saveImageCrop(req, res) {
       }
 
       if (!files || files.length === 0) {
-        console.log('❌ [DEBUG] No files provided');
+        console.log('❌ [EDIT DEBUG] No files provided');
         return res.status(400).json({
           success: false,
           error: 'No files provided'
@@ -313,7 +448,7 @@ async saveImageCrop(req, res) {
       // Create batch ID for grouping
       const batchId = `batch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
-      console.log('🔍 [DEBUG] Generated batchId:', batchId);
+      console.log('🔍 [EDIT DEBUG] Generated batchId:', batchId);
 
       const savedRecords = [];
       const batchFiles = [];
@@ -352,7 +487,7 @@ async saveImageCrop(req, res) {
           downloadUrl: `/api/tools/pdf-editor/download-edited/${filename}`
         });
 
-        console.log(`✅ [DEBUG] File processed for batch: ${file.originalname} -> ${newFilename}`);
+        console.log(`✅ [EDIT DEBUG] File processed for batch: ${file.originalname} -> ${newFilename}`);
       }
 
       // Create SINGLE batch record in database
@@ -379,29 +514,52 @@ async saveImageCrop(req, res) {
 
       await batchRecord.save();
       
-      console.log('✅ [DEBUG] Batch saved successfully:', {
+      console.log('✅ [EDIT DEBUG] Batch saved successfully:', {
         batchRecordId: batchRecord._id,
         batchId: batchId,
         totalFiles: files.length,
         userId: userId
       });
 
-      // ✅ Increment usage for edit tools AFTER successful batch rename
+      // ✅ ENHANCED: Increment usage with topup tracking
+      let incrementResult = null;
       if (userId) {
-        await incrementUsage(userId, "edit-tools");
-        console.log('✅ Usage incremented for file rename batch');
+        incrementResult = await incrementUsage(userId, "edit-tools");
+        console.log('✅ [EDIT DEBUG] Usage incremented for file rename batch:', {
+          userId: userId,
+          creditsUsed: incrementResult?.creditsUsed,
+          topupRemaining: incrementResult?.creditsUsed?.topupRemaining
+        });
       }
 
-      res.json({
+      // ✅ ENHANCED: Response with credits information
+      const responseData = {
         success: true,
         batchId: batchId,
         editId: batchRecord._id,
         savedRecords: savedRecords,
         message: `Successfully saved ${files.length} files as batch`
-      });
+      };
+
+      // Add credits info if available
+      if (creditsInfo || incrementResult?.creditsUsed) {
+        responseData.creditsInfo = {
+          ...creditsInfo,
+          ...(incrementResult?.creditsUsed && {
+            creditsUsed: incrementResult.creditsUsed.total,
+            fromPlan: incrementResult.creditsUsed.fromPlan,
+            fromTopup: incrementResult.creditsUsed.fromTopup,
+            topupRemaining: incrementResult.creditsUsed.topupRemaining,
+            planRemaining: creditsInfo ? Math.max(0, creditsInfo.planRemaining - (incrementResult.creditsUsed.fromPlan || 0)) : 0,
+            topupAvailable: incrementResult.creditsUsed.topupRemaining || 0
+          })
+        };
+      }
+
+      res.json(responseData);
 
     } catch (error) {
-      console.error('❌ [DEBUG] Save file rename error:', error);
+      console.error('❌ [EDIT DEBUG] Save file rename error:', error);
       res.status(500).json({
         success: false,
         error: error.message
@@ -409,114 +567,152 @@ async saveImageCrop(req, res) {
     }
   }
 
-  // Upload PDF and extract structure
-async uploadPDF(req, res) {
-  console.log('uploadPDF method called');
-  try {
-    const userId = req.user?.id;
-    
-    // -------------------------------------------------------
-    // Usage limit check BEFORE processing - EDIT TOOLS
-    // -------------------------------------------------------
-    if (userId) {
-      try {
-        const limitCheck = await checkLimits(userId, "edit-tools");
-        console.log('🔍 PDF Upload Limit Check:', {
-          allowed: limitCheck.allowed,
-          reason: limitCheck.reason,
-          currentUsage: limitCheck.usage?.editTools,
-          limit: limitCheck.plan?.editToolsLimit
-        });
+  // ✅ ENHANCED: Upload PDF with TOPUP SUPPORT
+  async uploadPDF(req, res) {
+    console.log('🔍 [EDIT DEBUG] uploadPDF method called');
+    try {
+      const userId = req.user?.id;
+      
+      // -------------------------------------------------------
+      // ✅ ENHANCED: Usage limit check WITH TOPUP SUPPORT
+      // -------------------------------------------------------
+      let creditsInfo = null;
+      if (userId) {
+        try {
+          console.log('🔍 [EDIT DEBUG] Checking limits for user:', userId);
+          
+          const limitCheck = await checkLimits(userId, "edit-tools");
+          creditsInfo = limitCheck.creditsInfo;
+          
+          console.log('🔍 [EDIT DEBUG] PDF Upload Limit Check:', {
+            allowed: limitCheck.allowed,
+            reason: limitCheck.reason,
+            currentUsage: limitCheck.usage?.editTools,
+            limit: limitCheck.plan?.editToolsLimit,
+            usingTopup: limitCheck.creditsInfo?.usingTopup || false,
+            topupAvailable: limitCheck.creditsInfo?.topupAvailable || 0
+          });
 
-        if (!limitCheck.allowed) {
-          console.log('🚫 PDF Upload blocked - limit exceeded');
+          if (!limitCheck.allowed) {
+            console.log('🚫 [EDIT DEBUG] PDF Upload blocked - limit exceeded');
+            return res.status(200).json({
+              success: false,
+              type: "limit_exceeded",
+              title: limitCheck.title || "Usage Limit Reached",
+              message: limitCheck.reason,
+              notificationType: "error",
+              currentUsage: limitCheck.usage?.editTools || 0,
+              limit: limitCheck.plan?.editToolsLimit || 0,
+              upgradeRequired: limitCheck.upgradeRequired || true,
+              creditsInfo: {
+                planLimit: limitCheck.creditsInfo?.planLimit || 0,
+                planUsed: limitCheck.creditsInfo?.planUsed || 0,
+                planRemaining: limitCheck.creditsInfo?.planRemaining || 0,
+                topupAvailable: limitCheck.creditsInfo?.topupAvailable || 0,
+                totalAvailable: limitCheck.creditsInfo?.totalAvailable || 0,
+                usingTopup: limitCheck.creditsInfo?.usingTopup || false
+              }
+            });
+          }
+        } catch (limitErr) {
+          console.error('❌ [EDIT DEBUG] Limit check error:', limitErr);
           return res.status(200).json({
             success: false,
             type: "limit_exceeded",
-            title: limitCheck.title || "Usage Limit Reached",
-            message: limitCheck.reason,
-            notificationType: "error",
-            currentUsage: limitCheck.usage?.editTools || 0,
-            limit: limitCheck.plan?.editToolsLimit || 0,
-            upgradeRequired: limitCheck.upgradeRequired || true
+            title: "Usage Limit Error",
+            message: limitErr.message,
+            notificationType: "error"
           });
         }
-      } catch (limitErr) {
-        console.error('Limit check error:', limitErr);
-        return res.status(200).json({
+      }
+
+      if (!req.file) {
+        return res.status(400).json({
           success: false,
-          type: "limit_exceeded",
-          title: "Usage Limit Error",
-          message: limitErr.message,
-          notificationType: "error"
+          error: 'No file uploaded'
         });
       }
-    }
 
-    if (!req.file) {
-      return res.status(400).json({
+      if (req.file.mimetype !== 'application/pdf') {
+        return res.status(400).json({
+          success: false,
+          error: 'Only PDF files are allowed'
+        });
+      }
+
+      console.log('✅ [EDIT DEBUG] PDF file received, size:', req.file.size);
+
+      const sessionId = `edit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const sessionDir = path.join(__dirname, '../../../uploads/sessions', sessionId);
+      
+      await fs.mkdir(sessionDir, { recursive: true });
+      console.log('✅ [EDIT DEBUG] Session directory created:', sessionDir);
+
+      const originalFilePath = path.join(sessionDir, 'original.pdf');
+      await fs.writeFile(originalFilePath, req.file.buffer);
+
+      // Extract PDF structure and render pages to images
+      console.log('🔍 [EDIT DEBUG] Starting PDF processing...');
+      const pdfUint8Array = new Uint8Array(req.file.buffer);
+      const pdfStructure = await this.extractPDFStructure(pdfUint8Array, sessionId);
+      
+      // Save structure to file
+      const structureFile = path.join(sessionDir, 'structure.json');
+      await fs.writeFile(structureFile, JSON.stringify(pdfStructure, null, 2));
+
+      // Render each page to image for background
+      for (let pageNum = 1; pageNum <= pdfStructure.pages.length; pageNum++) {
+        await this.renderPageToImage(pdfUint8Array, pageNum, sessionId);
+      }
+
+      console.log('✅ [EDIT DEBUG] PDF processing completed');
+
+      // ✅ ENHANCED: Increment usage with topup tracking
+      let incrementResult = null;
+      if (userId) {
+        incrementResult = await incrementUsage(userId, "edit-tools");
+        console.log('✅ [EDIT DEBUG] Usage incremented for PDF upload:', {
+          userId: userId,
+          creditsUsed: incrementResult?.creditsUsed,
+          topupRemaining: incrementResult?.creditsUsed?.topupRemaining
+        });
+      }
+
+      // ✅ ENHANCED: Response with credits information
+      const responseData = {
+        success: true,
+        sessionId,
+        totalPages: pdfStructure.pages.length,
+        structure: pdfStructure,
+        message: 'PDF uploaded and processed successfully'
+      };
+
+      // Add credits info if available
+      if (creditsInfo || incrementResult?.creditsUsed) {
+        responseData.creditsInfo = {
+          ...creditsInfo,
+          ...(incrementResult?.creditsUsed && {
+            creditsUsed: incrementResult.creditsUsed.total,
+            fromPlan: incrementResult.creditsUsed.fromPlan,
+            fromTopup: incrementResult.creditsUsed.fromTopup,
+            topupRemaining: incrementResult.creditsUsed.topupRemaining,
+            planRemaining: creditsInfo ? Math.max(0, creditsInfo.planRemaining - (incrementResult.creditsUsed.fromPlan || 0)) : 0,
+            topupAvailable: incrementResult.creditsUsed.topupRemaining || 0
+          })
+        };
+      }
+
+      res.json(responseData);
+
+    } catch (error) {
+      console.error('❌ [EDIT DEBUG] Upload error:', error);
+      res.status(500).json({
         success: false,
-        error: 'No file uploaded'
+        error: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
       });
     }
-
-    if (req.file.mimetype !== 'application/pdf') {
-      return res.status(400).json({
-        success: false,
-        error: 'Only PDF files are allowed'
-      });
-    }
-
-    console.log('PDF file received, size:', req.file.size);
-
-    const sessionId = `edit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const sessionDir = path.join(__dirname, '../../../uploads/sessions', sessionId);
-    
-    await fs.mkdir(sessionDir, { recursive: true });
-    console.log('Session directory created:', sessionDir);
-
-    const originalFilePath = path.join(sessionDir, 'original.pdf');
-    await fs.writeFile(originalFilePath, req.file.buffer);
-
-    // Extract PDF structure and render pages to images
-    console.log('Starting PDF processing...');
-    const pdfUint8Array = new Uint8Array(req.file.buffer);
-    const pdfStructure = await this.extractPDFStructure(pdfUint8Array, sessionId);
-    
-    // Save structure to file
-    const structureFile = path.join(sessionDir, 'structure.json');
-    await fs.writeFile(structureFile, JSON.stringify(pdfStructure, null, 2));
-
-    // Render each page to image for background
-    for (let pageNum = 1; pageNum <= pdfStructure.pages.length; pageNum++) {
-      await this.renderPageToImage(pdfUint8Array, pageNum, sessionId);
-    }
-
-    console.log('PDF processing completed');
-
-    // ✅ Increment usage for edit tools AFTER successful upload
-    if (userId) {
-      await incrementUsage(userId, "edit-tools");
-      console.log('✅ Usage incremented for PDF upload');
-    }
-
-    res.json({
-      success: true,
-      sessionId,
-      totalPages: pdfStructure.pages.length,
-      structure: pdfStructure,
-      message: 'PDF uploaded and processed successfully'
-    });
-
-  } catch (error) {
-    console.error('Upload error:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    });
   }
-}
 
   // Download entire batch as ZIP
   async downloadBatch(req, res) {
@@ -524,7 +720,7 @@ async uploadPDF(req, res) {
       const { batchId } = req.params;
       const userId = req.user?.id;
       
-      console.log('🔍 [DEBUG] Download batch requested:', {
+      console.log('🔍 [EDIT DEBUG] Download batch requested:', {
         batchId,
         userId,
         timestamp: new Date().toISOString()
@@ -536,7 +732,7 @@ async uploadPDF(req, res) {
         editType: 'file-rename'
       });
 
-      console.log('🔍 [DEBUG] Batch record search result:', {
+      console.log('🔍 [EDIT DEBUG] Batch record search result:', {
         found: !!batchRecord,
         batchIdSearched: batchId,
         recordId: batchRecord?._id,
@@ -552,7 +748,7 @@ async uploadPDF(req, res) {
           editType: 'file-rename' 
         });
         
-        console.log('🔍 [DEBUG] All batches for user:', {
+        console.log('🔍 [EDIT DEBUG] All batches for user:', {
           userId,
           totalBatches: userBatches.length,
           batches: userBatches.map(b => ({
@@ -577,7 +773,7 @@ async uploadPDF(req, res) {
 
       // Check if user owns this batch
       if (batchRecord.userId.toString() !== userId.toString()) {
-        console.log('🚫 [DEBUG] User unauthorized for batch:', {
+        console.log('🚫 [EDIT DEBUG] User unauthorized for batch:', {
           batchUserId: batchRecord.userId.toString(),
           requestUserId: userId.toString()
         });
@@ -596,12 +792,12 @@ async uploadPDF(req, res) {
           await fs.access(fileInfo.outputPath);
           existingFiles.push(fileInfo);
         } catch (error) {
-          console.warn(`❌ [DEBUG] File not found: ${fileInfo.outputPath}`);
+          console.warn(`❌ [EDIT DEBUG] File not found: ${fileInfo.outputPath}`);
           missingFiles.push(fileInfo.outputPath);
         }
       }
 
-      console.log('🔍 [DEBUG] File check results:', {
+      console.log('🔍 [EDIT DEBUG] File check results:', {
         totalFiles: batchRecord.editMetadata.files.length,
         existingFiles: existingFiles.length,
         missingFiles: missingFiles.length,
@@ -631,12 +827,12 @@ async uploadPDF(req, res) {
 
       // Add each file to the ZIP
       for (const fileInfo of existingFiles) {
-        console.log(`📦 [DEBUG] Adding to ZIP: ${fileInfo.newName} -> ${fileInfo.outputPath}`);
+        console.log(`📦 [EDIT DEBUG] Adding to ZIP: ${fileInfo.newName} -> ${fileInfo.outputPath}`);
         zip.file(fileInfo.outputPath, { name: fileInfo.newName });
       }
 
       zip.on('error', (err) => {
-        console.error('❌ [DEBUG] ZIP creation error:', err);
+        console.error('❌ [EDIT DEBUG] ZIP creation error:', err);
         res.status(500).json({
           success: false,
           error: 'Failed to create ZIP file'
@@ -644,15 +840,15 @@ async uploadPDF(req, res) {
       });
 
       zip.on('end', () => {
-        console.log('✅ [DEBUG] ZIP creation completed successfully');
+        console.log('✅ [EDIT DEBUG] ZIP creation completed successfully');
       });
 
       await zip.finalize();
 
-      console.log(`✅ [DEBUG] Batch ZIP downloaded: ${batchId} with ${existingFiles.length} files`);
+      console.log(`✅ [EDIT DEBUG] Batch ZIP downloaded: ${batchId} with ${existingFiles.length} files`);
 
     } catch (error) {
-      console.error('❌ [DEBUG] Download batch error:', error);
+      console.error('❌ [EDIT DEBUG] Download batch error:', error);
       res.status(500).json({
         success: false,
         error: error.message
@@ -1353,6 +1549,64 @@ async uploadPDF(req, res) {
     } catch (error) {
       console.error('Serve image error:', error);
       res.status(500).send('Error serving image');
+    }
+  }
+
+  // ✅ NEW: Get user's edit credits info
+  async getUserEditCredits(req, res) {
+    try {
+      if (!req.user || !req.user.id) {
+        return res.status(200).json({
+          success: false,
+          type: "auth_error",
+          title: "Authentication Required",
+          message: "Not authenticated",
+          notificationType: "error"
+        });
+      }
+
+      const userId = req.user.id;
+      const User = require("../../../models/UserModel");
+      const user = await User.findById(userId);
+      const limitCheck = await checkLimits(userId, "edit-tools");
+      
+      const planLimit = limitCheck.plan?.editToolsLimit || 0;
+      const currentUsage = limitCheck.usage?.editTools || 0;
+      const topupCredits = user?.topupCredits?.editTools || 0;
+      const planCreditsLeft = Math.max(0, planLimit - currentUsage);
+      const totalAvailable = planLimit + topupCredits;
+      const usingTopup = planCreditsLeft <= 0;
+      
+      res.json({
+        success: true,
+        credits: {
+          plan: {
+            limit: planLimit,
+            used: currentUsage,
+            remaining: planCreditsLeft
+          },
+          topup: {
+            available: topupCredits,
+            used: user?.topupUsage?.editTools || 0
+          },
+          total: {
+            available: totalAvailable,
+            remaining: Math.max(0, totalAvailable - currentUsage)
+          },
+          usingTopup: usingTopup,
+          nextReset: user?.usage?.resetDate || null
+        },
+        canEdit: currentUsage < totalAvailable || totalAvailable === 99999
+      });
+    } catch (error) {
+      console.error('Get user edit credits error:', error);
+      res.status(200).json({
+        success: false,
+        type: "server_error",
+        title: "Failed to load credits",
+        message: error.message,
+        notificationType: "error"
+      });
     }
   }
 }

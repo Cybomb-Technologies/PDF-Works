@@ -5,7 +5,7 @@ import PDFEditor from "./Edit-tools/TextEditor";
 import ImageCrop from "./Edit-tools/ImageCrop";
 import FileRename from "./Edit-tools/FileRename";
 import ESignature from "./Edit-tools/ESignature";
-import OCR from "./Edit-tools/OCR";
+import OCR from "./OCR";
 import Metatags from "../../SEO/metatags";
 
 const tools = [
@@ -32,14 +32,6 @@ const tools = [
     icon: Edit3,
     color: "from-purple-500 to-indigo-500",
     component: FileRename,
-  },
-  {
-    id: "ocr",
-    name: "OCR - Text Extractor",
-    description: "Extract text from images using OCR",
-    icon: ScanText,
-    color: "from-orange-500 to-red-500",
-    component: OCR,
   },
   // {
   //   id: "esignature",

@@ -7,6 +7,10 @@ import {
   CreditCard,
   History,
   ArrowLeft,
+  BatteryCharging,
+  Package,
+  Zap,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
@@ -20,36 +24,66 @@ const BillingSettings = () => {
   const { user, updateUser } = useAuth();
   const navigate = useNavigate();
   const [billingHistory, setBillingHistory] = useState([]);
+  const [topupHistory, setTopupHistory] = useState([]);
+  const [combinedHistory, setCombinedHistory] = useState([]);
   const [autoRenewal, setAutoRenewal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState("all"); // "all", "subscription", "topup"
 
   useEffect(() => {
     fetchBillingData();
   }, []);
 
+  useEffect(() => {
+    // Combine and sort histories by date
+    const combined = [...billingHistory, ...topupHistory]
+      .sort((a, b) => new Date(b.createdAt || b.paidAt || b.purchaseDate) - new Date(a.createdAt || a.paidAt || a.purchaseDate))
+      .map(item => ({
+        ...item,
+        _type: item.planName ? 'subscription' : 'topup',
+        displayDate: item.paidAt || item.createdAt || item.purchaseDate
+      }));
+    
+    setCombinedHistory(combined);
+  }, [billingHistory, topupHistory]);
+
   const fetchBillingData = async () => {
     setRefreshing(true);
     try {
       const token = localStorage.getItem("token");
-      const [historyRes, renewalRes] = await Promise.all([
-        fetch(`${API_URL}/api/payments/history`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }),
-        fetch(`${API_URL}/api/payments/auto-renewal/status`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }),
-      ]);
+      
+      // Fetch subscription billing history
+      const historyRes = await fetch(`${API_URL}/api/payments/history`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      // Fetch topup history
+      const topupRes = await fetch(`${API_URL}/api/payments/topup/history`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      // Fetch auto-renewal status
+      const renewalRes = await fetch(`${API_URL}/api/payments/auto-renewal/status`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       if (historyRes.ok) {
         const historyData = await historyRes.json();
         setBillingHistory(historyData.payments || []);
       } else {
         throw new Error("Failed to fetch billing history");
+      }
+
+      if (topupRes.ok) {
+        const topupData = await topupRes.json();
+        setTopupHistory(topupData.payments || []);
       }
 
       if (renewalRes.ok) {
@@ -108,24 +142,27 @@ const BillingSettings = () => {
     }
   };
 
-  const downloadInvoice = async (transactionId) => {
+  const downloadInvoice = async (transactionId, type = "subscription") => {
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(
-        `${API_URL}/api/payments/invoice/${transactionId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const endpoint = type === "subscription" 
+        ? `${API_URL}/api/payments/invoice/${transactionId}`
+        : `${API_URL}/api/payments/topup/invoice/${transactionId}`;
+      
+      const response = await fetch(endpoint, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       if (response.ok) {
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `invoice-${transactionId}.pdf`;
+        a.download = type === "subscription" 
+          ? `invoice-${transactionId}.pdf`
+          : `topup-invoice-${transactionId}.pdf`;
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
@@ -151,7 +188,7 @@ const BillingSettings = () => {
 
   const formatCurrency = (amount, currency) => {
     if (!amount) return "N/A";
-    return currency === "INR" ? `₹${amount}` : `$${amount}`;
+    return currency === "INR" ? `₹${amount.toLocaleString("en-IN")}` : `$${amount.toFixed(2)}`;
   };
 
   const formatDate = (dateString) => {
@@ -161,6 +198,38 @@ const BillingSettings = () => {
       month: "short",
       day: "numeric",
     });
+  };
+
+  const getStatusColor = (status) => {
+    switch (status?.toLowerCase()) {
+      case "success": return "bg-green-500";
+      case "failed": return "bg-red-500";
+      case "pending": return "bg-yellow-500";
+      default: return "bg-gray-500";
+    }
+  };
+
+  const getPaymentTypeIcon = (type) => {
+    if (type === "topup") {
+      return <BatteryCharging className="h-4 w-4" />;
+    } else {
+      return <CreditCard className="h-4 w-4" />;
+    }
+  };
+
+  const getPaymentTypeLabel = (type, item) => {
+    if (type === "topup") {
+      return `Top-up: ${item.creditsAllocated?.total || 0} credits`;
+    } else {
+      return `Subscription: ${item.planName || "Plan"}`;
+    }
+  };
+
+  const filteredHistory = () => {
+    if (activeTab === "all") return combinedHistory;
+    if (activeTab === "subscription") return combinedHistory.filter(item => item._type === 'subscription');
+    if (activeTab === "topup") return combinedHistory.filter(item => item._type === 'topup');
+    return combinedHistory;
   };
 
   const metaPropsData = {
@@ -270,7 +339,7 @@ const BillingSettings = () => {
           </div>
         </motion.div>
 
-        {/* Billing History */}
+        {/* Combined Billing History */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -278,10 +347,15 @@ const BillingSettings = () => {
           className="bg-white rounded-2xl p-6 shadow-sm border"
         >
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold flex items-center gap-2">
-              <History className="h-6 w-6" />
-              Billing History
-            </h2>
+            <div>
+              <h2 className="text-2xl font-bold flex items-center gap-2">
+                <History className="h-6 w-6" />
+                Payment History
+              </h2>
+              <p className="text-gray-600 text-sm mt-1">
+                View all your subscription and top-up payments
+              </p>
+            </div>
             <Button
               onClick={fetchBillingData}
               variant="outline"
@@ -295,40 +369,79 @@ const BillingSettings = () => {
             </Button>
           </div>
 
-          {billingHistory.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <History className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p>No billing history found</p>
+          {/* Tabs */}
+          <div className="flex space-x-2 mb-6 border-b">
+            <button
+              onClick={() => setActiveTab("all")}
+              className={`pb-2 px-4 font-medium text-sm ${
+                activeTab === "all"
+                  ? "border-b-2 border-blue-600 text-blue-600"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              All Payments
+            </button>
+            <button
+              onClick={() => setActiveTab("subscription")}
+              className={`pb-2 px-4 font-medium text-sm ${
+                activeTab === "subscription"
+                  ? "border-b-2 border-purple-600 text-purple-600"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              Subscriptions
+            </button>
+            <button
+              onClick={() => setActiveTab("topup")}
+              className={`pb-2 px-4 font-medium text-sm ${
+                activeTab === "topup"
+                  ? "border-b-2 border-emerald-600 text-emerald-600"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              Top-ups
+            </button>
+          </div>
+
+          {filteredHistory().length === 0 ? (
+            <div className="text-center py-12 text-gray-500">
+              <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+              <p>No payment history found</p>
               <p className="text-sm mt-1">
                 Your payment history will appear here
               </p>
             </div>
           ) : (
             <div className="space-y-4">
-              {billingHistory.map((payment) => (
+              {filteredHistory().map((payment) => (
                 <div
-                  key={payment._id}
+                  key={payment._id || payment.transactionId}
                   className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   <div className="flex-1">
                     <div className="flex items-center gap-4">
                       <div
-                        className={`w-3 h-3 rounded-full ${
-                          payment.status === "success"
-                            ? "bg-green-500"
-                            : payment.status === "failed"
-                            ? "bg-red-500"
-                            : "bg-yellow-500"
-                        }`}
+                        className={`w-3 h-3 rounded-full ${getStatusColor(payment.status)}`}
                       ></div>
-                      <div>
-                        <h3 className="font-semibold">{payment.planName}</h3>
-                        <p className="text-sm text-gray-500">
-                          {formatDate(payment.createdAt)} •{" "}
-                          {payment.billingCycle}
-                          {payment.paymentMethod &&
-                            ` • ${payment.paymentMethod}`}
-                        </p>
+                      <div className="flex items-center gap-2">
+                        {getPaymentTypeIcon(payment._type)}
+                        <div>
+                          <h3 className="font-semibold">
+                            {getPaymentTypeLabel(payment._type, payment)}
+                          </h3>
+                          <p className="text-sm text-gray-500">
+                            {formatDate(payment.displayDate)} • 
+                            {payment._type === 'topup' 
+                              ? ` ${payment.creditsAllocated?.total || 0} credits`
+                              : ` ${payment.billingCycle || ''}`}
+                            {payment.paymentMethod && ` • ${payment.paymentMethod}`}
+                          </p>
+                          {payment._type === 'topup' && payment.topupPackageId?.name && (
+                            <p className="text-xs text-gray-400 mt-1">
+                              {payment.topupPackageId.name}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -348,11 +461,14 @@ const BillingSettings = () => {
                     <div className="text-sm text-gray-500 capitalize">
                       {payment.status}
                     </div>
+                    <div className="text-xs text-gray-400 mt-1">
+                      {payment.transactionId?.substring(0, 10)}...
+                    </div>
                   </div>
 
                   {payment.status === "success" && (
                     <Button
-                      onClick={() => downloadInvoice(payment.transactionId)}
+                      onClick={() => downloadInvoice(payment.transactionId, payment._type)}
                       variant="outline"
                       size="sm"
                       className="ml-4"
@@ -365,6 +481,70 @@ const BillingSettings = () => {
               ))}
             </div>
           )}
+
+          {/* Summary Stats */}
+          {combinedHistory.length > 0 && (
+            <div className="mt-8 pt-6 border-t grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="text-center p-4 bg-blue-50 rounded-lg">
+                <div className="text-2xl font-bold text-blue-700">
+                  {combinedHistory.length}
+                </div>
+                <div className="text-sm text-blue-600">Total Payments</div>
+              </div>
+              <div className="text-center p-4 bg-purple-50 rounded-lg">
+                <div className="text-2xl font-bold text-purple-700">
+                  {combinedHistory.filter(p => p._type === 'subscription').length}
+                </div>
+                <div className="text-sm text-purple-600">Subscriptions</div>
+              </div>
+              <div className="text-center p-4 bg-emerald-50 rounded-lg">
+                <div className="text-2xl font-bold text-emerald-700">
+                  {combinedHistory.filter(p => p._type === 'topup').length}
+                </div>
+                <div className="text-sm text-emerald-600">Top-ups</div>
+              </div>
+            </div>
+          )}
+        </motion.div>
+
+        {/* Quick Actions */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="grid grid-cols-1 md:grid-cols-2 gap-6"
+        >
+          <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-2xl p-6 border border-blue-100">
+            <h3 className="font-bold text-lg mb-3 flex items-center gap-2">
+              <CreditCard className="h-5 w-5" />
+              Manage Subscription
+            </h3>
+            <p className="text-gray-600 text-sm mb-4">
+              Upgrade, downgrade, or change your subscription plan
+            </p>
+            <Button
+              onClick={() => navigate("/pricing")}
+              className="w-full bg-blue-600 hover:bg-blue-700"
+            >
+              View Plans
+            </Button>
+          </div>
+
+          <div className="bg-gradient-to-r from-emerald-50 to-green-50 rounded-2xl p-6 border border-emerald-100">
+            <h3 className="font-bold text-lg mb-3 flex items-center gap-2">
+              <BatteryCharging className="h-5 w-5" />
+              Buy More Credits
+            </h3>
+            <p className="text-gray-600 text-sm mb-4">
+              Purchase additional credits without changing your plan
+            </p>
+            <Button
+              onClick={() => navigate("/topup")}
+              className="w-full bg-emerald-600 hover:bg-emerald-700"
+            >
+              Top-up Credits
+            </Button>
+          </div>
         </motion.div>
       </div>
     </>

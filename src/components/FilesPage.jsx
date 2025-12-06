@@ -1,4 +1,4 @@
-// FilesPage.jsx - ENHANCED WITH PROFESSIONAL DELETE MODAL & TOAST NOTIFICATIONS
+// FilesPage.jsx - Updated to disable preview/download for security files
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -32,6 +32,9 @@ import {
   CheckCircle,
   AlertCircle,
   Info,
+  FileType,
+  Lock,
+  AlertCircle as AlertCircleIcon,
 } from "lucide-react";
 const API_URL = import.meta.env.VITE_API_URL;
 import Metatags from "../SEO/metatags";
@@ -234,10 +237,11 @@ const FilesPage = () => {
   // Toast states
   const [toasts, setToasts] = useState([]);
 
-  // Categories with icons
+  // Categories with icons - UPDATED with OCR
   const categories = [
     { value: "all", label: "All Files", icon: FolderOpen, color: "gray" },
     { value: "converted", label: "Converted", icon: Settings, color: "blue" },
+    { value: "ocr", label: "OCR Text", icon: FileType, color: "teal" },
     { value: "organized", label: "Organized", icon: Merge, color: "green" },
     {
       value: "optimized",
@@ -250,9 +254,10 @@ const FilesPage = () => {
     { value: "advanced", label: "Advanced", icon: Zap, color: "indigo" },
   ];
 
-  // Tool types
+  // Tool types - UPDATED with OCR
   const toolTypes = [
     { value: "all", label: "All Tools" },
+    { value: "ocr-extraction", label: "OCR Text Extraction" },
     { value: "convert", label: "Convert Tools" },
     { value: "merge", label: "Merge PDF" },
     { value: "split", label: "Split PDF" },
@@ -332,7 +337,7 @@ const FilesPage = () => {
 
       const data = await res.json();
       setFiles(data);
-      // console.log("📁 Files loaded from ALL tools:", data.length);
+      console.log("📁 Files loaded from ALL tools including OCR:", data.length);
     } catch (err) {
       console.error("Fetch files error:", err);
       setError(
@@ -473,15 +478,30 @@ const FilesPage = () => {
     }
 
     try {
+      // Filter out security files from bulk download
+      const nonSecurityFiles = Array.from(selectedFiles).filter(fileId => {
+        const file = files.find(f => f._id === fileId);
+        return file?.category !== 'secured';
+      });
+
+      if (nonSecurityFiles.length === 0) {
+        showToast("Security files cannot be downloaded", "warning");
+        return;
+      }
+
+      if (nonSecurityFiles.length !== selectedFiles.size) {
+        showToast("Skipping security files from download", "info");
+      }
+
       // Download each selected file individually
-      for (const fileId of selectedFiles) {
+      for (const fileId of nonSecurityFiles) {
         const file = files.find((f) => f._id === fileId);
         if (file) {
           await downloadSingleFile(file, token);
         }
       }
       showToast(
-        `${selectedFiles.size} files downloaded successfully`,
+        `${nonSecurityFiles.length} files downloaded successfully`,
         "success"
       );
     } catch (error) {
@@ -604,10 +624,19 @@ const FilesPage = () => {
 
   const downloadSingleFile = async (file, token) => {
     try {
+      // Check if file is security category
+      if (file.category === 'secured') {
+        showToast("Security files cannot be downloaded", "warning");
+        return;
+      }
+
       let downloadUrl;
 
       if (file.type === "batch" && file.batchInfo?.batchId) {
         downloadUrl = `${API_URL}/api/files/download-batch/${file.batchInfo.batchId}`;
+      } else if (file.source === 'ocr') {
+        // Handle OCR files specially
+        downloadUrl = `${API_URL}${file.downloadUrl}`;
       } else {
         downloadUrl = `${API_URL}/api/files/download/${file._id}`;
       }
@@ -639,6 +668,7 @@ const FilesPage = () => {
     }
   };
 
+  // FilesPage.jsx - Simplified handlePreview function with security check
   const handlePreview = async (file) => {
     const token = getToken();
 
@@ -652,8 +682,257 @@ const FilesPage = () => {
       return;
     }
 
+    // Check if file is security category - DISABLE PREVIEW
+    if (file.category === 'secured') {
+      showToast("Security files cannot be previewed for safety reasons", "warning");
+      return;
+    }
+
+    // Handle OCR files differently
+    if (file.source === 'ocr') {
+      try {
+        // Use the previewUrl if it exists
+        const previewUrl = file.previewUrl;
+        
+        if (!previewUrl) {
+          showToast("Preview not available for this file", "warning");
+          return;
+        }
+
+        console.log('🔍 Fetching OCR preview:', `${API_URL}${previewUrl}`);
+        
+        const response = await fetch(`${API_URL}${previewUrl}`, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        console.log('📄 Preview response status:', response.status);
+        
+        if (!response.ok) {
+          if (response.status === 401) {
+            showToast("Session expired. Please log in again.", "error");
+            localStorage.removeItem("token");
+            return;
+          }
+          throw new Error(`OCR preview failed: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        if (!data.success) {
+          throw new Error(data.error || 'Preview failed');
+        }
+        
+        // Create a nice preview window for OCR text
+        const previewWindow = window.open('', '_blank', 'width=900,height=700,scrollbars=yes');
+        if (previewWindow) {
+          previewWindow.document.write(`
+            <html>
+              <head>
+                <title>OCR Text Preview - ${file.displayName}</title>
+                <style>
+                  * { margin: 0; padding: 0; box-sizing: border-box; }
+                  body { 
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+                    padding: 20px; 
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    min-height: 100vh;
+                  }
+                  .container {
+                    max-width: 900px;
+                    margin: 0 auto;
+                    background: white;
+                    border-radius: 15px;
+                    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+                    overflow: hidden;
+                  }
+                  .header {
+                    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+                    color: white;
+                    padding: 25px;
+                    text-align: center;
+                  }
+                  .header h2 {
+                    font-size: 24px;
+                    margin-bottom: 10px;
+                  }
+                  .file-info {
+                    background: #f8f9fa;
+                    padding: 20px;
+                    border-bottom: 1px solid #dee2e6;
+                  }
+                  .file-info p {
+                    margin: 5px 0;
+                    color: #495057;
+                    font-size: 14px;
+                  }
+                  .file-info strong {
+                    color: #212529;
+                  }
+                  .text-content {
+                    padding: 30px;
+                    white-space: pre-wrap;
+                    line-height: 1.8;
+                    font-size: 15px;
+                    max-height: 500px;
+                    overflow-y: auto;
+                    background: #fafafa;
+                    border: 1px solid #e9ecef;
+                    border-radius: 8px;
+                    margin: 20px;
+                    font-family: 'Courier New', monospace;
+                  }
+                  .stats {
+                    display: flex;
+                    gap: 20px;
+                    justify-content: center;
+                    padding: 15px;
+                    background: #e3f2fd;
+                    margin: 20px;
+                    border-radius: 8px;
+                    flex-wrap: wrap;
+                  }
+                  .stat-item {
+                    text-align: center;
+                    min-width: 120px;
+                  }
+                  .stat-label {
+                    font-size: 12px;
+                    color: #666;
+                    text-transform: uppercase;
+                    letter-spacing: 1px;
+                  }
+                  .stat-value {
+                    font-size: 18px;
+                    font-weight: bold;
+                    color: #1976d2;
+                    margin-top: 5px;
+                  }
+                  .ocr-confidence {
+                    display: inline-block;
+                    padding: 4px 12px;
+                    background: ${file.metadata?.confidence > 80 ? '#d4edda' : file.metadata?.confidence > 60 ? '#fff3cd' : '#f8d7da'};
+                    color: ${file.metadata?.confidence > 80 ? '#155724' : file.metadata?.confidence > 60 ? '#856404' : '#721c24'};
+                    border-radius: 20px;
+                    font-size: 12px;
+                    font-weight: bold;
+                  }
+                  .actions {
+                    padding: 15px;
+                    text-align: center;
+                    border-top: 1px solid #dee2e6;
+                  }
+                  .download-btn {
+                    padding: 10px 20px;
+                    background: #007bff;
+                    color: white;
+                    border: none;
+                    border-radius: 5px;
+                    cursor: pointer;
+                    font-size: 14px;
+                    text-decoration: none;
+                    display: inline-block;
+                    margin: 0 10px;
+                  }
+                  .download-btn:hover {
+                    background: #0056b3;
+                  }
+                  .copy-btn {
+                    padding: 10px 20px;
+                    background: #28a745;
+                    color: white;
+                    border: none;
+                    border-radius: 5px;
+                    cursor: pointer;
+                    font-size: 14px;
+                  }
+                  .copy-btn:hover {
+                    background: #218838;
+                  }
+                </style>
+              </head>
+              <body>
+                <div class="container">
+                  <div class="header">
+                    <h2>📄 OCR Text Preview</h2>
+                    <p>Extracted from: ${file.displayName}</p>
+                  </div>
+                  
+                  <div class="file-info">
+                    <p><strong>Original File:</strong> ${file.filename}</p>
+                    <p><strong>Extracted On:</strong> ${formatDate(file.uploadedAt)}</p>
+                    ${file.metadata?.confidence ? `<p><strong>OCR Confidence:</strong> <span class="ocr-confidence">${file.metadata.confidence.toFixed(2)}%</span></p>` : ''}
+                  </div>
+                  
+                  <div class="stats">
+                    <div class="stat-item">
+                      <div class="stat-label">Text Length</div>
+                      <div class="stat-value">${data.length} chars</div>
+                    </div>
+                    <div class="stat-item">
+                      <div class="stat-label">File Size</div>
+                      <div class="stat-value">${formatFileSize(file.size)}</div>
+                    </div>
+                    ${file.metadata?.language ? `
+                    <div class="stat-item">
+                      <div class="stat-label">Language</div>
+                      <div class="stat-value">${file.metadata.language}</div>
+                    </div>
+                    ` : ''}
+                    <div class="stat-item">
+                      <div class="stat-label">Lines</div>
+                      <div class="stat-value">${data.text?.split('\\n').length || 0}</div>
+                    </div>
+                  </div>
+                  
+                  <div class="text-content" id="textContent">${data.text?.replace(/</g, '&lt;').replace(/>/g, '&gt;') || 'No text content found'}</div>
+                  
+                  <div class="actions">
+                    <a href="${API_URL}${file.downloadUrl}" class="download-btn" target="_blank">📥 Download Text File</a>
+                    <button class="download-btn" onclick="window.print()">🖨️ Print</button>
+                    <button class="copy-btn" onclick="copyToClipboard()">📋 Copy Text</button>
+                  </div>
+                </div>
+                
+                <script>
+                  function copyToClipboard() {
+                    const textContent = document.getElementById('textContent').innerText;
+                    navigator.clipboard.writeText(textContent).then(() => {
+                      alert('Text copied to clipboard!');
+                    }).catch(err => {
+                      console.error('Failed to copy text: ', err);
+                      alert('Failed to copy text');
+                    });
+                  }
+                  
+                  // Auto-scroll to top
+                  window.scrollTo(0, 0);
+                </script>
+              </body>
+            </html>
+          `);
+          previewWindow.document.close();
+        } else {
+          // Fallback to simple alert if popup blocked
+          const truncatedText = data.text?.length > 1000 
+            ? data.text.substring(0, 1000) + '...' 
+            : data.text;
+          alert(`OCR Text Preview:\n\nFile: ${file.displayName}\n\n${truncatedText || 'No text content'}`);
+        }
+
+      } catch (error) {
+        console.error("❌ OCR Preview error:", error);
+        showToast("OCR preview failed. Please try again.", "error");
+      }
+      return;
+    }
+
+    // Regular file preview for other files (PDF, images, etc.)
     try {
       const previewUrl = `${API_URL}/api/files/download/${file._id}`;
+      console.log('📄 Regular file preview URL:', previewUrl);
 
       const response = await fetch(previewUrl, {
         method: "GET",
@@ -673,18 +952,49 @@ const FilesPage = () => {
 
       const blob = await response.blob();
       const objectUrl = window.URL.createObjectURL(blob);
-      const newTab = window.open(objectUrl, "_blank");
-
-      if (newTab) {
-        newTab.onload = () => {
-          window.URL.revokeObjectURL(objectUrl);
-        };
+      
+      // Check if it's a PDF or image
+      if (blob.type.includes('pdf') || blob.type.includes('image')) {
+        const newTab = window.open(objectUrl, "_blank");
+        if (newTab) {
+          newTab.onload = () => {
+            window.URL.revokeObjectURL(objectUrl);
+          };
+        } else {
+          const a = document.createElement("a");
+          a.href = objectUrl;
+          a.target = "_blank";
+          a.click();
+          setTimeout(() => window.URL.revokeObjectURL(objectUrl), 1000);
+        }
       } else {
-        const a = document.createElement("a");
-        a.href = objectUrl;
-        a.target = "_blank";
-        a.click();
-        setTimeout(() => window.URL.revokeObjectURL(objectUrl), 1000);
+        // For text files, show in preview window
+        const text = await blob.text();
+        const previewWindow = window.open('', '_blank', 'width=900,height=700,scrollbars=yes');
+        if (previewWindow) {
+          const escapedText = text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+          
+          previewWindow.document.write(`
+            <html>
+              <head>
+                <title>Text Preview - ${file.displayName}</title>
+                <style>
+                  body { font-family: Arial, sans-serif; padding: 20px; }
+                  .text-content { white-space: pre-wrap; line-height: 1.6; }
+                </style>
+              </head>
+              <body>
+                <h2>Text Preview</h2>
+                <p><strong>File:</strong> ${file.displayName}</p>
+                <div class="text-content">${escapedText}</div>
+              </body>
+            </html>
+          `);
+          previewWindow.document.close();
+        }
       }
     } catch (error) {
       console.error("❌ Preview error:", error);
@@ -694,6 +1004,13 @@ const FilesPage = () => {
 
   const handleDownload = async (file, e) => {
     e.preventDefault();
+    
+    // Check if file is security category - DISABLE DOWNLOAD
+    if (file.category === 'secured') {
+      showToast("Security files cannot be downloaded for safety reasons", "warning");
+      return;
+    }
+
     const token = getToken();
 
     if (!token) {
@@ -731,14 +1048,26 @@ const FilesPage = () => {
   const getCategoryIcon = (category) => {
     const cat = categories.find((c) => c.value === category) || categories[0];
     const IconComponent = cat.icon;
-    return <IconComponent className={`h-4 w-4 text-${cat.color}-500`} />;
+    const colorClasses = {
+      gray: "text-gray-500",
+      blue: "text-blue-500",
+      teal: "text-teal-500",
+      green: "text-green-500",
+      purple: "text-purple-500",
+      orange: "text-orange-500",
+      red: "text-red-500",
+      indigo: "text-indigo-500",
+    };
+    return <IconComponent className={`h-4 w-4 ${colorClasses[cat.color] || colorClasses.gray}`} />;
   };
 
+  // UPDATED getToolBadgeColor with OCR
   const getToolBadgeColor = (tool) => {
     const colors = {
       convert: "blue",
       "pdf-to-image": "blue",
       "image-to-pdf": "green",
+      "ocr-extraction": "teal",
       merge: "purple",
       split: "orange",
       rotate: "pink",
@@ -755,10 +1084,12 @@ const FilesPage = () => {
     return colors[tool] || "gray";
   };
 
+  // UPDATED getToolDisplayName with OCR
   const getToolDisplayName = (tool) => {
     const names = {
       "pdf-to-image": "PDF to Image",
       "image-to-pdf": "Image to PDF",
+      "ocr-extraction": "OCR Text Extraction",
       merge: "Merge PDF",
       split: "Split PDF",
       rotate: "Rotate PDF",
@@ -789,9 +1120,9 @@ const FilesPage = () => {
   const metaPropsData = {
     title: "My Files - All Processed Files | PDF Works",
     description:
-      "Access and manage all your processed files from all tools. View, download, and organize your converted, organized, optimized, edited, and secured files in one place.",
+      "Access and manage all your processed files from all tools including OCR. View, download, and organize your converted, OCR text, organized, optimized, edited, and secured files in one place.",
     keyword:
-      "all files, file management, processed files, tool files, download files, file organizer",
+      "all files, file management, processed files, OCR files, text extraction, download files, file organizer",
     image:
       "https://res.cloudinary.com/dcfjt8shw/image/upload/v1761288318/wn8m8g8skdpl6iz2rwoa.svg",
     url: "https://pdfworks.in/files",
@@ -834,14 +1165,14 @@ const FilesPage = () => {
             <div>
               <h1 className="text-4xl font-bold gradient-text">My Files 📁</h1>
               <p className="text-muted-foreground">
-                Manage all your processed files from ALL tools
+                Manage all your processed files from ALL tools including OCR text extraction
               </p>
             </div>
           </div>
 
-          {/* Stats Overview */}
+          {/* Stats Overview - UPDATED with OCR */}
           {stats && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
               <div className="glass-effect rounded-xl p-4 text-center">
                 <div className="text-2xl font-bold text-blue-600">
                   {stats.stats?.total || 0}
@@ -855,16 +1186,34 @@ const FilesPage = () => {
                 <div className="text-sm text-muted-foreground">Converted</div>
               </div>
               <div className="glass-effect rounded-xl p-4 text-center">
+                <div className="text-2xl font-bold text-teal-600">
+                  {stats.stats?.ocr || 0}
+                </div>
+                <div className="text-sm text-muted-foreground">OCR Text</div>
+              </div>
+              <div className="glass-effect rounded-xl p-4 text-center">
                 <div className="text-2xl font-bold text-purple-600">
                   {stats.stats?.organize || 0}
                 </div>
                 <div className="text-sm text-muted-foreground">Organized</div>
               </div>
               <div className="glass-effect rounded-xl p-4 text-center">
+                <div className="text-2xl font-bold text-yellow-600">
+                  {stats.stats?.optimize || 0}
+                </div>
+                <div className="text-sm text-muted-foreground">Optimized</div>
+              </div>
+              <div className="glass-effect rounded-xl p-4 text-center">
                 <div className="text-2xl font-bold text-orange-600">
                   {stats.stats?.edit || 0}
                 </div>
                 <div className="text-sm text-muted-foreground">Edited</div>
+              </div>
+              <div className="glass-effect rounded-xl p-4 text-center">
+                <div className="text-2xl font-bold text-red-600">
+                  {stats.stats?.security || 0}
+                </div>
+                <div className="text-sm text-muted-foreground">Secured</div>
               </div>
             </div>
           )}
@@ -1087,105 +1436,156 @@ const FilesPage = () => {
 
               {/* File List */}
               <div className="grid grid-cols-1 gap-3">
-                {currentFiles.map((file, index) => (
-                  <motion.div
-                    key={file._id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.02 }}
-                    className={`glass-effect rounded-xl p-4 hover-lift transition-all duration-200 ${
-                      selectedFiles.has(file._id)
-                        ? "ring-2 ring-blue-500 bg-blue-50"
-                        : ""
-                    }`}
-                  >
-                    <div className="flex items-center gap-4">
-                      {/* Checkbox for selection */}
-                      <button
-                        onClick={() => handleSelectFile(file._id)}
-                        className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
-                          selectedFiles.has(file._id)
-                            ? "bg-blue-600 border-blue-600 text-white"
-                            : "border-gray-300 hover:border-blue-500"
-                        }`}
-                      >
-                        {selectedFiles.has(file._id) && (
-                          <Check className="h-3 w-3" />
-                        )}
-                      </button>
+                {currentFiles.map((file, index) => {
+                  const toolColor = getToolBadgeColor(file.toolUsed);
+                  const colorClasses = {
+                    blue: "bg-blue-100 text-blue-800",
+                    green: "bg-green-100 text-green-800",
+                    teal: "bg-teal-100 text-teal-800",
+                    purple: "bg-purple-100 text-purple-800",
+                    orange: "bg-orange-100 text-orange-800",
+                    pink: "bg-pink-100 text-pink-800",
+                    indigo: "bg-indigo-100 text-indigo-800",
+                    amber: "bg-amber-100 text-amber-800",
+                    cyan: "bg-cyan-100 text-cyan-800",
+                    red: "bg-red-100 text-red-800",
+                    violet: "bg-violet-100 text-violet-800",
+                    gray: "bg-gray-100 text-gray-800",
+                  };
 
-                      {/* File Icon */}
-                      <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
-                        {file.type === "batch" ? (
-                          <Archive className="h-6 w-6 text-white" />
-                        ) : (
-                          <FileText className="h-6 w-6 text-white" />
-                        )}
-                      </div>
+                  const isSecurityFile = file.category === 'secured';
+                  const isBatchFile = file.type === "batch";
 
-                      {/* File Info */}
-                      <div className="flex-1 overflow-hidden">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-semibold truncate text-foreground">
-                            {file.displayName || file.filename}
-                          </h3>
-                          {file.type === "batch" && (
-                            <span className="px-2 py-1 bg-cyan-100 text-cyan-800 text-xs rounded-full">
-                              Batch ({file.batchInfo?.totalFiles || 0} files)
-                            </span>
+                  return (
+                    <motion.div
+                      key={file._id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.02 }}
+                      className={`glass-effect rounded-xl p-4 hover-lift transition-all duration-200 ${
+                        selectedFiles.has(file._id)
+                          ? "ring-2 ring-blue-500 bg-blue-50"
+                          : ""
+                      } ${isSecurityFile ? 'border-l-4 border-red-500' : ''}`}
+                    >
+                      <div className="flex items-center gap-4">
+                        {/* Checkbox for selection */}
+                        <button
+                          onClick={() => handleSelectFile(file._id)}
+                          className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                            selectedFiles.has(file._id)
+                              ? "bg-blue-600 border-blue-600 text-white"
+                              : "border-gray-300 hover:border-blue-500"
+                          }`}
+                        >
+                          {selectedFiles.has(file._id) && (
+                            <Check className="h-3 w-3" />
+                          )}
+                        </button>
+
+                        {/* File Icon */}
+                        <div className={`w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                          isSecurityFile 
+                            ? 'bg-gradient-to-br from-red-500 to-red-700' 
+                            : 'bg-gradient-to-br from-blue-500 to-purple-600'
+                        }`}>
+                          {file.type === "batch" ? (
+                            <Archive className="h-6 w-6 text-white" />
+                          ) : file.source === "ocr" ? (
+                            <FileType className="h-6 w-6 text-white" />
+                          ) : isSecurityFile ? (
+                            <Lock className="h-6 w-6 text-white" />
+                          ) : (
+                            <FileText className="h-6 w-6 text-white" />
                           )}
                         </div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
-                          <span>{formatFileSize(file.size)}</span>
-                          <span>•</span>
-                          <Calendar className="h-3 w-3" />
-                          <span>{formatDate(file.uploadedAt)}</span>
-                          <span>•</span>
-                          <span
-                            className={`px-2 py-1 rounded-full text-xs bg-${getToolBadgeColor(
-                              file.toolUsed
-                            )}-100 text-${getToolBadgeColor(
-                              file.toolUsed
-                            )}-800`}
+
+                        {/* File Info */}
+                        <div className="flex-1 overflow-hidden">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="font-semibold truncate text-foreground">
+                              {file.displayName || file.filename}
+                            </h3>
+                            {isBatchFile && (
+                              <span className="px-2 py-1 bg-cyan-100 text-cyan-800 text-xs rounded-full">
+                                Batch ({file.batchInfo?.totalFiles || 0} files)
+                              </span>
+                            )}
+                            {isSecurityFile && (
+                              <span className="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full flex items-center gap-1">
+                                <Lock className="h-3 w-3" />
+                                Secured
+                              </span>
+                            )}
+                            {file.source === "ocr" && file.metadata?.confidence && (
+                              <span className={`px-2 py-1 ${file.metadata.confidence > 80 ? 'bg-green-100 text-green-800' : file.metadata.confidence > 60 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'} text-xs rounded-full`}>
+                                {file.metadata.confidence.toFixed(1)}% confidence
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
+                            <span>{formatFileSize(file.size)}</span>
+                            <span>•</span>
+                            <Calendar className="h-3 w-3" />
+                            <span>{formatDate(file.uploadedAt)}</span>
+                            <span>•</span>
+                            <span className={`px-2 py-1 rounded-full text-xs ${colorClasses[toolColor] || colorClasses.gray}`}>
+                              {getToolDisplayName(file.toolUsed)}
+                            </span>
+                            <span>•</span>
+                            <span className="flex items-center gap-1 capitalize">
+                              {getCategoryIcon(file.category)}
+                              {file.category}
+                            </span>
+                            {isSecurityFile && (
+                              <span className="flex items-center gap-1 text-red-600 text-xs">
+                                <AlertCircleIcon className="h-3 w-3" />
+                                No preview/download
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => handlePreview(file)}
+                            className={`p-2 rounded-lg transition-colors ${
+                              isSecurityFile || isBatchFile
+                                ? "text-gray-400 cursor-not-allowed opacity-50"
+                                : "text-muted-foreground hover:text-blue-600 hover:bg-blue-50"
+                            }`}
+                            title={isSecurityFile ? "Security files cannot be previewed" : 
+                                   isBatchFile ? "Batch files need to be downloaded as ZIP" : "Preview"}
+                            disabled={isSecurityFile || isBatchFile}
                           >
-                            {getToolDisplayName(file.toolUsed)}
-                          </span>
-                          <span>•</span>
-                          <span className="flex items-center gap-1 capitalize">
-                            {getCategoryIcon(file.category)}
-                            {file.category}
-                          </span>
+                            <Eye className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={(e) => handleDownload(file, e)}
+                            className={`p-2 rounded-lg transition-colors ${
+                              isSecurityFile || isBatchFile
+                                ? "text-gray-400 cursor-not-allowed opacity-50"
+                                : "text-muted-foreground hover:text-green-600 hover:bg-green-50"
+                            }`}
+                            title={isSecurityFile ? "Security files cannot be downloaded" : 
+                                   isBatchFile ? "Batch files need to be downloaded as ZIP" : "Download"}
+                            disabled={isSecurityFile || isBatchFile}
+                          >
+                            <Download className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => openDeleteModal(file)}
+                            className="p-2 text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Delete"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
                         </div>
                       </div>
-
-                      {/* Action Buttons */}
-                      <div className="flex gap-1">
-                        <button
-                          onClick={() => handlePreview(file)}
-                          className="p-2 text-muted-foreground hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Preview"
-                          disabled={file.type === "batch"}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={(e) => handleDownload(file, e)}
-                          className="p-2 text-muted-foreground hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                          title="Download"
-                        >
-                          <Download className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => openDeleteModal(file)}
-                          className="p-2 text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Delete"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
+                    </motion.div>
+                  );
+                })}
               </div>
 
               {/* Pagination */}

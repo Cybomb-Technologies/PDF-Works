@@ -44,6 +44,7 @@ const pricingPlanSchema = new mongoose.Schema(
     securityToolsLimit: { type: Number, default: 0 },
     optimizeToolsLimit: { type: Number, default: 0 },
     advancedToolsLimit: { type: Number, default: 0 },
+    convertToolsLimit: { type: Number, default: 0 }, // ✅ ADDED: Convert tools limit
 
     // Advanced toggles
     supportType: {

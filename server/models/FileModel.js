@@ -1,4 +1,4 @@
-// models/FileModel.js
+// models/FileModel.js - COMPLETE REPLACEMENT
 const mongoose = require("mongoose");
 
 const fileSchema = new mongoose.Schema({
@@ -36,7 +36,8 @@ const fileSchema = new mongoose.Schema({
       "edited", 
       "secured",
       "advanced",
-      "uploaded"
+      "uploaded",
+      "ocr"
     ],
     default: "converted",
   },
@@ -44,19 +45,27 @@ const fileSchema = new mongoose.Schema({
     type: String,
     enum: [
       // Convert tools
-      "pdf-to-image", "image-to-pdf", "word-to-pdf", "excel-to-pdf", "ppt-to-pdf",
+      "pdf-to-image", "image-to-pdf", "word-to-pdf", "excel-to-pdf", "ppt-to-pdf", "convert",
+      
+      // OCR tool
+      "ocr-extraction",
+      
       // Organize tools
       "merge", "split", "rotate",
+      
       // Optimize tools
       "image-optimization", "code-minification", "cache-cleaning",
+      
       // Edit tools
       "pdf-edit", "image-crop", "file-rename", "e-signature",
+      
       // Security tools
       "encryption", "decryption", "2fa-protection", "file-sharing",
+      
       // Advanced tools
       "automation", "api-connect", "analytics"
     ],
-    default: "convert",
+    default: "pdf-to-image",
   },
   toolCategory: {
     type: String,

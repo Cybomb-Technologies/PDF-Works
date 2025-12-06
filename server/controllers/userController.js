@@ -884,7 +884,7 @@ const downloadUserTemplate = async (req, res) => {
         role: "user",
         planName: "Free",
       },
-      {
+      { 
         name: "Jane Smith",
         email: "jane.smith@example.com",
         role: "admin",
@@ -932,7 +932,7 @@ const downloadUserTemplate = async (req, res) => {
     res.setHeader(
       "Content-Disposition",
       "attachment; filename=user-import-template.xlsx"
-    );
+    ); 
 
     // Send file
     await workbook.xlsx.write(res);
@@ -1314,6 +1314,90 @@ const getUserLimits = async (req, res) => {
   }
 };
 
+// CHECK TOP-UP ELIGIBILITY (UPDATED - DYNAMIC PLAN CHECK)
+const checkTopupEligibility = async (req, res) => {
+  try {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Get the actual plan details from PricingPlan
+    let planDetails = null;
+    
+    // If user has plan ObjectId, fetch the pricing plan
+    if (user.plan) {
+      planDetails = await PricingPlan.findById(user.plan);
+    }
+    
+    // If no plan found by ID, try to find by planName
+    if (!planDetails && user.planName) {
+      planDetails = await PricingPlan.findOne({
+        $or: [
+          { planId: user.planName.toLowerCase() },
+          { name: user.planName }
+        ]
+      });
+    }
+
+    // Check if it's a free plan
+    const isFreePlan = planDetails ? 
+      planDetails.planId === "free" || planDetails.price === 0 : 
+      (user.planName || "").toLowerCase() === "free";
+    
+    // Check subscription status
+    const hasActiveSubscription = user.subscriptionStatus === "active";
+    
+    // User is eligible if:
+    // 1. Has active subscription
+    // 2. NOT on a free plan
+    // 3. Plan has a price > 0 (paid plan)
+    const isEligible = hasActiveSubscription && 
+                      !isFreePlan && 
+                      (planDetails ? planDetails.price > 0 : true);
+
+    return res.json({
+      success: true,
+      eligible: isEligible,
+      userPlan: planDetails ? planDetails.planId : null,
+      planName: planDetails ? planDetails.name : user.planName || "Unknown",
+      subscriptionStatus: user.subscriptionStatus,
+      message: isEligible 
+        ? "You are eligible to purchase top-up credits"
+        : !hasActiveSubscription
+          ? "Your subscription is not active"
+          : isFreePlan
+            ? "Top-up credits are only available for paid subscriptions"
+            : "You are not eligible for top-up credits",
+      debug: {
+        userPlanId: user.plan,
+        userPlanName: user.planName,
+        foundPlanId: planDetails?.planId,
+        foundPlanName: planDetails?.name,
+        planPrice: planDetails?.price,
+        isFreePlan,
+        hasActiveSubscription
+      }
+    });
+  } catch (error) {
+    console.error("Check topup eligibility error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to check eligibility",
+    });
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
@@ -1335,4 +1419,5 @@ module.exports = {
   sendVerificationOTP,
   verifyOTP,
   resendOTP,
+  checkTopupEligibility,
 };

@@ -16,7 +16,7 @@ const ToolsGrid = () => {
       description: 'Edit, merge, split, and compress PDF files',
       color: 'from-red-500 to-pink-500',
       tools: ['Edit PDF', 'Merge PDF', 'Split PDF', 'Compress PDF'],
-      link: '/pdf-tools'
+      link: '/tools'
     },
     {
       icon: Image,
@@ -24,7 +24,7 @@ const ToolsGrid = () => {
       description: 'Convert, resize, and edit images online',
       color: 'from-green-500 to-teal-500',
       tools: ['Convert Image', 'Resize Image', 'Crop Image', 'Compress Image'],
-      link: '/image-tools'
+      link: '/tools'
     },
     {
       icon: FileType,
@@ -32,7 +32,7 @@ const ToolsGrid = () => {
       description: 'Convert between different file formats',
       color: 'from-blue-500 to-cyan-500',
       tools: ['PDF to Word', 'PDF to JPG', 'Word to PDF', 'Excel to PDF'],
-      link: '/convert'
+      link: '/tools'
     },
     {
       icon: Lock,
@@ -40,7 +40,7 @@ const ToolsGrid = () => {
       description: 'Protect and secure your documents',
       color: 'from-purple-500 to-indigo-500',
       tools: ['Protect PDF', 'Remove Password', 'Digital Sign', 'Watermark'],
-      link: '/security'
+      link: '/tools'
     }
   ];
 

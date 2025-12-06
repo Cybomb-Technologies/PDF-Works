@@ -44,17 +44,19 @@ const formatPlan = (plan) => ({
   maxFileSize: plan.maxFileSize,
   storage: plan.storage,
 
-  // NEW: Tool-specific limits
-  editToolsLimit: plan.editToolsLimit || 0,        // Edit tools usage
-  organizeToolsLimit: plan.organizeToolsLimit || 0, // Organize tools usage
-  securityToolsLimit: plan.securityToolsLimit || 0, // Security tools usage
-  optimizeToolsLimit: plan.optimizeToolsLimit || 0, // Optimize tools usage
-  advancedToolsLimit: plan.advancedToolsLimit || 0, // Advanced tools usage
+  // ALL Tool-specific limits - INCLUDING convertToolsLimit
+  editToolsLimit: plan.editToolsLimit || 0,
+  organizeToolsLimit: plan.organizeToolsLimit || 0,
+  securityToolsLimit: plan.securityToolsLimit || 0,
+  optimizeToolsLimit: plan.optimizeToolsLimit || 0,
+  advancedToolsLimit: plan.advancedToolsLimit || 0,
+  convertToolsLimit: plan.convertToolsLimit || 0, // ✅ FIXED: Added convertToolsLimit
 
   // Features
   features: plan.features,
   supportType: plan.supportType,
 
+  // Feature toggles
   hasWatermarks: plan.hasWatermarks,
   hasBatchProcessing: plan.hasBatchProcessing,
   hasOCR: plan.hasOCR,
@@ -287,15 +289,23 @@ const initializeDefaultPlans = asyncHandler(async (req, res) => {
         securityToolsLimit: 3,
         optimizeToolsLimit: 3,
         advancedToolsLimit: 0,
+        convertToolsLimit: 5, // ✅ ADDED
         maxFileSize: 5,
         storage: 1,
         supportType: "Community",
+        hasOCR: false,
+        hasWatermarks: false,
+        hasBatchProcessing: false,
+        hasDigitalSignatures: false,
+        hasAPIAccess: false,
+        hasTeamCollaboration: false,
         features: [
           "10 PDF conversions per month",
           "5 Edit tools usage",
           "5 Organize tools usage", 
           "3 Security tools usage",
           "3 Optimize tools usage",
+          "5 Convert tools usage", // ✅ UPDATED
           "5 MB max file size",
           "Basic PDF to Word",
           "Community support",
@@ -316,6 +326,7 @@ const initializeDefaultPlans = asyncHandler(async (req, res) => {
           "25 Organize tools usage",
           "15 Security tools usage",
           "15 Optimize tools usage",
+          "25 Convert tools usage", // ✅ UPDATED
           "5 Advanced tools usage",
           "10 MB max file size",
           "Email support"
@@ -326,9 +337,16 @@ const initializeDefaultPlans = asyncHandler(async (req, res) => {
         securityToolsLimit: 15,
         optimizeToolsLimit: 15,
         advancedToolsLimit: 5,
+        convertToolsLimit: 25, // ✅ ADDED
         maxFileSize: 10,
         storage: 5,
         supportType: "Email",
+        hasOCR: false,
+        hasWatermarks: true,
+        hasBatchProcessing: false,
+        hasDigitalSignatures: false,
+        hasAPIAccess: false,
+        hasTeamCollaboration: false,
         icon: "FileText",
         color: "from-blue-500 to-cyan-600",
         order: 1,
@@ -345,10 +363,13 @@ const initializeDefaultPlans = asyncHandler(async (req, res) => {
           "200 Organize tools usage",
           "100 Security tools usage", 
           "100 Optimize tools usage",
+          "200 Convert tools usage", // ✅ UPDATED
           "50 Advanced tools usage",
           "100 MB file limit",
           "Priority support",
-          "OCR",
+          "OCR Text Recognition",
+          "Batch Processing",
+          "Digital Signatures",
         ],
         conversionLimit: 500,
         editToolsLimit: 200,
@@ -356,9 +377,16 @@ const initializeDefaultPlans = asyncHandler(async (req, res) => {
         securityToolsLimit: 100,
         optimizeToolsLimit: 100,
         advancedToolsLimit: 50,
+        convertToolsLimit: 200, // ✅ ADDED
         maxFileSize: 100,
         storage: 100,
         supportType: "Priority",
+        hasOCR: true,
+        hasWatermarks: true,
+        hasBatchProcessing: true,
+        hasDigitalSignatures: true,
+        hasAPIAccess: false,
+        hasTeamCollaboration: false,
         icon: "Crown",
         color: "from-purple-500 to-pink-500",
         order: 2,
@@ -375,9 +403,12 @@ const initializeDefaultPlans = asyncHandler(async (req, res) => {
           "Unlimited Organize tools", 
           "Unlimited Security tools",
           "Unlimited Optimize tools",
+          "Unlimited Convert tools", // ✅ UPDATED
           "Unlimited Advanced tools",
           "Team collaboration", 
-          "API Access"
+          "API Access",
+          "OCR Text Recognition",
+          "24/7 Dedicated Support"
         ],
         conversionLimit: 0,
         editToolsLimit: 0,
@@ -385,9 +416,16 @@ const initializeDefaultPlans = asyncHandler(async (req, res) => {
         securityToolsLimit: 0,
         optimizeToolsLimit: 0,
         advancedToolsLimit: 0,
+        convertToolsLimit: 0, // ✅ ADDED
         maxFileSize: 0,
         storage: 1000,
         supportType: "24/7 Dedicated",
+        hasOCR: true,
+        hasWatermarks: true,
+        hasBatchProcessing: true,
+        hasDigitalSignatures: true,
+        hasAPIAccess: true,
+        hasTeamCollaboration: true,
         icon: "Building2",
         color: "from-indigo-600 to-purple-600",
         order: 3,
