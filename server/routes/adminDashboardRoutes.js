@@ -27,7 +27,7 @@ router.get("/files", getFiles);
 // Stats routes
 router.get("/stats", getStats);
 
-// Payment routes
+// Payment routes (Combined: Subscription + Topup)
 router.get("/payments", getPayments);
 router.get("/payment-stats", getPaymentStats);
 router.get("/payments/:id", getPaymentById);

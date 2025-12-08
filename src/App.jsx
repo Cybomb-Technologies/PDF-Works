@@ -35,9 +35,9 @@ import BillingSettings from "./pages/BillingSettings";
 import AuthSuccess from "@/components/AuthSuccess";
 import ProfilePage from "@/components/ProfilePage";
 import PaymentManagement from "@/pages/admin/PaymentManagement";
+import Activities from "./pages/Activities";
 
 
-// NEW: Import Topup Components
 import TopupPage from "@/components/TopupPage"; // User-facing page
 import TopupManagement from "@/pages/admin/TopupManagement"; // Admin panel
 import TopupPaymentResult from "@/pages/TopupPaymentResult";
@@ -57,6 +57,7 @@ import PressReleaseAdmin from "./pages/admin/PressReleaseAdmin";
 import CreatePressRelease from "./pages/admin/CreatePressRelease";
 import EditPressRelease from "./pages/admin/EditPressRelease";
 import PricingManagement from "./pages/admin/PricingManagement";
+
 
 // 🔐 Auth & Route Guards
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -514,6 +515,19 @@ function AppContent() {
                 <Header />
                 <main className="flex-1 pt-20 pb-10 px-6">
                   <FilesPage />
+                </main>
+                <Footer />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/activities"
+            element={
+              <ProtectedRoute>
+                <Header />
+                <main className="flex-1 pt-20 pb-10 px-6">
+                  <Activities />
                 </main>
                 <Footer />
               </ProtectedRoute>

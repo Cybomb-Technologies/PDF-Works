@@ -9,7 +9,7 @@ exports.getToolUsageStats = async (req, res) => {
   try {
     const userId = req.user.id;
     
-    console.log('🔍 [USAGE DEBUG] Fetching tool usage for user:', userId);
+   // console.log('🔍 [USAGE DEBUG] Fetching tool usage for user:', userId);
     
     // Find user with all necessary data
     const user = await User.findById(userId)
@@ -89,17 +89,17 @@ exports.getToolUsageStats = async (req, res) => {
       storage: plan?.storage || 1
     };
 
-    console.log('📊 [USAGE DEBUG] Usage data:', {
-      conversions: usage.conversions,
-      editTools: usage.editTools,
-      organizeTools: usage.organizeTools,
-      securityTools: usage.securityTools,
-      optimizeTools: usage.optimizeTools,
-      advancedTools: usage.advancedTools,
-      planLimits,
-      topupCredits,
-      topupUsage
-    });
+    // console.log('📊 [USAGE DEBUG] Usage data:', {
+    //   conversions: usage.conversions,
+    //   editTools: usage.editTools,
+    //   organizeTools: usage.organizeTools,
+    //   securityTools: usage.securityTools,
+    //   optimizeTools: usage.optimizeTools,
+    //   advancedTools: usage.advancedTools,
+    //   planLimits,
+    //   topupCredits,
+    //   topupUsage
+    // });
 
     // Build comprehensive stats object
     const stats = {
@@ -198,7 +198,7 @@ exports.getToolUsageStats = async (req, res) => {
       }
     };
 
-    console.log('✅ [USAGE DEBUG] Stats prepared successfully');
+   // console.log('✅ [USAGE DEBUG] Stats prepared successfully');
 
     res.json({
       success: true,

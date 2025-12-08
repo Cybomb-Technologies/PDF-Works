@@ -6,7 +6,7 @@ const OCR = require("../../models/tools-models/OCR/OCR");
 
 class OCRController {
   constructor() {
-    console.log("OCRController initialized");
+   // console.log("OCRController initialized");
     this.extractText = this.extractText.bind(this);
     this.downloadOCRFile = this.downloadOCRFile.bind(this);
     this.getOCRHistory = this.getOCRHistory.bind(this);
@@ -49,7 +49,7 @@ class OCRController {
       });
 
       await ocrRecord.save();
-      console.log("✅ OCR file saved:", ocrRecord._id);
+     // console.log("✅ OCR file saved:", ocrRecord._id);
       
       // Also save to the unified File model for the Files page
       try {
@@ -67,7 +67,7 @@ class OCRController {
         });
         
         await fileRecord.save();
-        console.log("✅ OCR file added to unified File model:", fileRecord._id);
+       // console.log("✅ OCR file added to unified File model:", fileRecord._id);
       } catch (fileError) {
         console.warn("⚠️ Could not save to File model:", fileError.message);
       }
@@ -211,7 +211,7 @@ class OCRController {
         }
       }
 
-      console.log("OCR processing started for file:", req.file.originalname);
+     // console.log("OCR processing started for file:", req.file.originalname);
 
       // Create Tesseract worker
       const worker = await createWorker("eng");
@@ -223,11 +223,11 @@ class OCRController {
 
         await worker.terminate();
 
-        console.log("OCR completed:", {
-          textLength: text?.length || 0,
-          confidence: confidence,
-          fileName: req.file.originalname,
-        });
+        // console.log("OCR completed:", {
+        //   textLength: text?.length || 0,
+        //   confidence: confidence,
+        //   fileName: req.file.originalname,
+        // });
 
         // ✅ Save OCR text as a file
         let ocrRecord = null;

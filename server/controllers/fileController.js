@@ -15,7 +15,7 @@ const getUserFiles = async (req, res) => {
   try {
     const userId = req.user.id;
     
-    console.log('🔍 Fetching ALL files for user:', userId);
+   // console.log('🔍 Fetching ALL files for user:', userId);
 
     // Fetch files from ALL models in parallel including OCR
     const [
@@ -63,15 +63,15 @@ const getUserFiles = async (req, res) => {
         .sort({ createdAt: -1 })
     ]);
 
-    console.log('📊 Files found from all tools:', {
-      convert: convertFiles.length,
-      organize: organizeFiles.length,
-      optimize: optimizeFiles.length,
-      edit: editFiles.length,
-      security: securityFiles.length,
-      advanced: advancedFiles.length,
-      ocr: ocrFiles.length // ADDED OCR
-    });
+    // console.log('📊 Files found from all tools:', {
+    //   convert: convertFiles.length,
+    //   organize: organizeFiles.length,
+    //   optimize: optimizeFiles.length,
+    //   edit: editFiles.length,
+    //   security: securityFiles.length,
+    //   advanced: advancedFiles.length,
+    //   ocr: ocrFiles.length // ADDED OCR
+    // });
 
     // Transform all files to consistent format
     const allFiles = [
@@ -197,7 +197,7 @@ const getUserFiles = async (req, res) => {
     // Sort all files by date (newest first)
     allFiles.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
 
-    console.log('✅ Total files to return:', allFiles.length);
+   // console.log('✅ Total files to return:', allFiles.length);
 
     res.json(allFiles);
 
@@ -215,8 +215,8 @@ const downloadFile = async (req, res) => {
   try {
     const { id } = req.params;
     
-    console.log('📥 Download request for file ID:', id);
-    console.log('🔐 User authenticated:', !!req.user);
+    // console.log('📥 Download request for file ID:', id);
+    // console.log('🔐 User authenticated:', !!req.user);
 
     // Check authentication FIRST
     if (!req.user || !req.user.id) {
@@ -228,7 +228,7 @@ const downloadFile = async (req, res) => {
     }
 
     const userId = req.user.id.toString();
-    console.log('👤 Request user ID:', userId);
+   // console.log('👤 Request user ID:', userId);
 
     // Try to find file in ALL models
     let file = await File.findById(id);
@@ -266,30 +266,30 @@ const downloadFile = async (req, res) => {
       });
     }
 
-    console.log('📄 File found:', {
-      source: source,
-      id: file._id,
-      filename: file.filename || file.processedFilename,
-      userId: file.userId,
-      uploadedBy: file.uploadedBy
-    });
+    // console.log('📄 File found:', {
+    //   source: source,
+    //   id: file._id,
+    //   filename: file.filename || file.processedFilename,
+    //   userId: file.userId,
+    //   uploadedBy: file.uploadedBy
+    // });
 
     // Check if user owns this file
     if (file.userId && file.userId.toString() !== userId) {
-      console.log('🚫 User ID mismatch:', {
-        fileUserId: file.userId?.toString(),
-        requestUserId: userId
-      });
+      // console.log('🚫 User ID mismatch:', {
+      //   fileUserId: file.userId?.toString(),
+      //   requestUserId: userId
+      // });
       return res.status(403).json({ 
         success: false,
         error: 'Access denied' 
       });
     }
     if (file.uploadedBy && file.uploadedBy.toString() !== userId) {
-      console.log('🚫 UploadedBy mismatch:', {
-        fileUploadedBy: file.uploadedBy?.toString(),
-        requestUserId: userId
-      });
+      // console.log('🚫 UploadedBy mismatch:', {
+      //   fileUploadedBy: file.uploadedBy?.toString(),
+      //   requestUserId: userId
+      // });
       return res.status(403).json({ 
         success: false,
         error: 'Access denied' 
@@ -299,7 +299,7 @@ const downloadFile = async (req, res) => {
     // Determine file path
     let filePath = file.outputPath || file.path || file.downloadUrl;
     
-    console.log('📍 Original file path:', filePath);
+   // console.log('📍 Original file path:', filePath);
 
     // Remove API prefix if present
     if (filePath && filePath.startsWith('/api/')) {
@@ -326,7 +326,7 @@ const downloadFile = async (req, res) => {
       }
     }
 
-    console.log('📁 Final file path:', filePath);
+   // console.log('📁 Final file path:', filePath);
 
     if (!filePath) {
       return res.status(404).json({ 
@@ -338,9 +338,9 @@ const downloadFile = async (req, res) => {
     // Check if file exists
     try {
       await fs.access(filePath);
-      console.log('✅ File exists at path');
+     // console.log('✅ File exists at path');
     } catch {
-      console.log('❌ Physical file not found at:', filePath);
+     // console.log('❌ Physical file not found at:', filePath);
       
       // Try alternative paths
       const alternativePaths = [
@@ -354,7 +354,7 @@ const downloadFile = async (req, res) => {
         try {
           await fs.access(altPath);
           foundPath = altPath;
-          console.log('✅ File found at alternative path:', altPath);
+         // console.log('✅ File found at alternative path:', altPath);
           break;
         } catch (e) {
           // Continue to next path
@@ -405,7 +405,7 @@ const downloadFile = async (req, res) => {
     
     fileStream.pipe(res);
 
-    console.log('✅ File download successful:', filename);
+   // console.log('✅ File download successful:', filename);
 
   } catch (error) {
     console.error('❌ Download file error:', error);
@@ -423,8 +423,8 @@ const downloadBatchFiles = async (req, res) => {
   try {
     const { batchId } = req.params;
     
-    console.log('📦 Download batch request:', batchId);
-    console.log('🔐 User authenticated:', !!req.user);
+    // console.log('📦 Download batch request:', batchId);
+    // console.log('🔐 User authenticated:', !!req.user);
 
     // Check authentication FIRST
     if (!req.user || !req.user.id) {
@@ -605,7 +605,7 @@ const deleteFile = async (req, res) => {
       try {
         if (await fs.pathExists(filePath)) {
           await fs.unlink(filePath);
-          console.log('✅ Physical file deleted:', filePath);
+         // console.log('✅ Physical file deleted:', filePath);
         }
       } catch (error) {
         console.warn('⚠️ Could not delete physical file:', error.message);

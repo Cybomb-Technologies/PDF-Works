@@ -42,24 +42,35 @@ const BillingPage = () => {
   const fetchPricingPlans = async () => {
     try {
       setLoading(true);
+      console.log("🔄 Fetching pricing plans from:", `${API_URL}/api/pricing`);
+      
       const res = await fetch(`${API_URL}/api/pricing`);
+      
+      console.log("📡 Response status:", res.status);
+      
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+      
       const data = await res.json();
+      console.log("📦 Pricing data:", data);
 
       if (data.success) {
-        setPricingPlans(data.plans);
+        setPricingPlans(data.plans || []);
+        console.log("✅ Plans loaded:", data.plans?.length || 0);
       } else {
         toast({
           title: "Error",
-          description: "Failed to load pricing plans",
+          description: data.message || "Failed to load pricing plans",
           variant: "destructive",
         });
         setPricingPlans([]);
       }
     } catch (error) {
-      console.error("Error fetching pricing plans:", error);
+      console.error("❌ Error fetching pricing plans:", error);
       toast({
         title: "Error",
-        description: "Failed to load pricing plans",
+        description: error.message || "Failed to load pricing plans",
         variant: "destructive",
       });
       setPricingPlans([]);
@@ -79,17 +90,18 @@ const BillingPage = () => {
   };
 
   const formatPeriod = (plan, isCustom = false) => {
-    if (isCustom || plan.id === "enterprise") return "Tailored to your needs";
+    if (isCustom || isEnterprisePlan(plan)) return "Tailored to your needs";
 
+    const planPrice = plan.usdPrice || plan.price || 0;
     const monthlyPrice =
       billingCycle === "annual"
-        ? plan.billingCycles?.annual / 12 || plan.usdPrice * 0.75
-        : plan.usdPrice;
+        ? plan.billingCycles?.annual / 12 || planPrice * 0.75
+        : planPrice;
 
     if (currency === "INR") {
       const inrMonthlyPrice = Math.round(monthlyPrice * exchangeRate);
       const annualPrice = Math.round(
-        (plan.billingCycles?.annual || plan.usdPrice * 12 * 0.75) * exchangeRate
+        (plan.billingCycles?.annual || planPrice * 12 * 0.75) * exchangeRate
       );
 
       if (billingCycle === "annual") {
@@ -99,20 +111,20 @@ const BillingPage = () => {
     }
 
     if (billingCycle === "annual") {
-      const annualPrice =
-        plan.billingCycles?.annual || plan.usdPrice * 12 * 0.75;
+      const annualPrice = plan.billingCycles?.annual || planPrice * 12 * 0.75;
       return `Billed annually ($${annualPrice})`;
     }
     return `Billed monthly`;
   };
 
   const getPlanPrice = (plan) => {
-    if (plan.id === "enterprise") return formatPrice(0, true);
+    if (isEnterprisePlan(plan)) return formatPrice(0, true);
 
+    const planPrice = plan.usdPrice || plan.price || 0;
     const monthlyPrice =
       billingCycle === "annual"
-        ? plan.billingCycles?.annual / 12 || plan.usdPrice * 0.75
-        : plan.usdPrice;
+        ? plan.billingCycles?.annual / 12 || planPrice * 0.75
+        : planPrice;
 
     return formatPrice(monthlyPrice);
   };
@@ -123,6 +135,26 @@ const BillingPage = () => {
     FileText: FileText,
     Crown: Crown,
     Building2: Building2,
+  };
+
+  // DYNAMIC PLAN DETECTION FUNCTIONS
+  const isFreePlan = (plan) => {
+    return (
+      (plan.planId?.toLowerCase().includes('free') || 
+       plan.name?.toLowerCase().includes('free')) ||
+      plan.price === 0
+    );
+  };
+
+  const isEnterprisePlan = (plan) => {
+    return (
+      plan.planId?.toLowerCase().includes('enterprise') || 
+      plan.name?.toLowerCase().includes('enterprise')
+    );
+  };
+
+  const isCurrentPlan = (plan) => {
+    return user?.plan === plan.id || user?.plan === plan.planId;
   };
 
   // Generate ALL features list for each plan DYNAMICALLY
@@ -274,162 +306,74 @@ const BillingPage = () => {
   const generateFeatureComparison = () => {
     if (pricingPlans.length === 0) return [];
 
-    const freePlan =
-      pricingPlans.find((p) => p.id === "free") || pricingPlans[0];
-    const starterPlan =
-      pricingPlans.find((p) => p.id === "starter") || pricingPlans[1];
-    const professionalPlan =
-      pricingPlans.find((p) => p.id === "professional") || pricingPlans[2];
-    const enterprisePlan =
-      pricingPlans.find((p) => p.id === "enterprise") || pricingPlans[3];
+    // Sort plans by price to get free, starter, professional, enterprise
+    const sortedPlans = [...pricingPlans].sort((a, b) => {
+      const priceA = a.usdPrice || a.price || 0;
+      const priceB = b.usdPrice || b.price || 0;
+      return priceA - priceB;
+    });
+
+    const freePlan = sortedPlans[0] || {};
+    const starterPlan = sortedPlans[1] || {};
+    const professionalPlan = sortedPlans[2] || {};
+    const enterprisePlan = sortedPlans[3] || {};
 
     const comparison = [
       {
         feature: "Monthly PDF Conversions",
-        free:
-          freePlan?.conversionLimit > 0
-            ? `${freePlan.conversionLimit} files`
-            : "Unlimited",
-        starter:
-          starterPlan?.conversionLimit > 0
-            ? `${starterPlan.conversionLimit} files`
-            : "Unlimited",
-        professional:
-          professionalPlan?.conversionLimit > 0
-            ? `${professionalPlan.conversionLimit} files`
-            : "Unlimited",
-        enterprise:
-          enterprisePlan?.conversionLimit > 0
-            ? `${enterprisePlan.conversionLimit} files`
-            : "Unlimited",
+        free: freePlan?.conversionLimit > 0 ? `${freePlan.conversionLimit} files` : "Unlimited",
+        starter: starterPlan?.conversionLimit > 0 ? `${starterPlan.conversionLimit} files` : "Unlimited",
+        professional: professionalPlan?.conversionLimit > 0 ? `${professionalPlan.conversionLimit} files` : "Unlimited",
+        enterprise: enterprisePlan?.conversionLimit > 0 ? `${enterprisePlan.conversionLimit} files` : "Unlimited",
       },
       {
         feature: "Edit Tools Usage",
-        free:
-          freePlan?.editToolsLimit > 0
-            ? `${freePlan.editToolsLimit} uses`
-            : "Unlimited",
-        starter:
-          starterPlan?.editToolsLimit > 0
-            ? `${starterPlan.editToolsLimit} uses`
-            : "Unlimited",
-        professional:
-          professionalPlan?.editToolsLimit > 0
-            ? `${professionalPlan.editToolsLimit} uses`
-            : "Unlimited",
-        enterprise:
-          enterprisePlan?.editToolsLimit > 0
-            ? `${enterprisePlan.editToolsLimit} uses`
-            : "Unlimited",
+        free: freePlan?.editToolsLimit > 0 ? `${freePlan.editToolsLimit} uses` : "Unlimited",
+        starter: starterPlan?.editToolsLimit > 0 ? `${starterPlan.editToolsLimit} uses` : "Unlimited",
+        professional: professionalPlan?.editToolsLimit > 0 ? `${professionalPlan.editToolsLimit} uses` : "Unlimited",
+        enterprise: enterprisePlan?.editToolsLimit > 0 ? `${enterprisePlan.editToolsLimit} uses` : "Unlimited",
       },
       {
         feature: "Organize Tools Usage",
-        free:
-          freePlan?.organizeToolsLimit > 0
-            ? `${freePlan.organizeToolsLimit} uses`
-            : "Unlimited",
-        starter:
-          starterPlan?.organizeToolsLimit > 0
-            ? `${starterPlan.organizeToolsLimit} uses`
-            : "Unlimited",
-        professional:
-          professionalPlan?.organizeToolsLimit > 0
-            ? `${professionalPlan.organizeToolsLimit} uses`
-            : "Unlimited",
-        enterprise:
-          enterprisePlan?.organizeToolsLimit > 0
-            ? `${enterprisePlan.organizeToolsLimit} uses`
-            : "Unlimited",
+        free: freePlan?.organizeToolsLimit > 0 ? `${freePlan.organizeToolsLimit} uses` : "Unlimited",
+        starter: starterPlan?.organizeToolsLimit > 0 ? `${starterPlan.organizeToolsLimit} uses` : "Unlimited",
+        professional: professionalPlan?.organizeToolsLimit > 0 ? `${professionalPlan.organizeToolsLimit} uses` : "Unlimited",
+        enterprise: enterprisePlan?.organizeToolsLimit > 0 ? `${enterprisePlan.organizeToolsLimit} uses` : "Unlimited",
       },
       {
         feature: "Security Tools Usage",
-        free:
-          freePlan?.securityToolsLimit > 0
-            ? `${freePlan.securityToolsLimit} uses`
-            : "Unlimited",
-        starter:
-          starterPlan?.securityToolsLimit > 0
-            ? `${starterPlan.securityToolsLimit} uses`
-            : "Unlimited",
-        professional:
-          professionalPlan?.securityToolsLimit > 0
-            ? `${professionalPlan.securityToolsLimit} uses`
-            : "Unlimited",
-        enterprise:
-          enterprisePlan?.securityToolsLimit > 0
-            ? `${enterprisePlan.securityToolsLimit} uses`
-            : "Unlimited",
+        free: freePlan?.securityToolsLimit > 0 ? `${freePlan.securityToolsLimit} uses` : "Unlimited",
+        starter: starterPlan?.securityToolsLimit > 0 ? `${starterPlan.securityToolsLimit} uses` : "Unlimited",
+        professional: professionalPlan?.securityToolsLimit > 0 ? `${professionalPlan.securityToolsLimit} uses` : "Unlimited",
+        enterprise: enterprisePlan?.securityToolsLimit > 0 ? `${enterprisePlan.securityToolsLimit} uses` : "Unlimited",
       },
       {
         feature: "Optimize Tools Usage",
-        free:
-          freePlan?.optimizeToolsLimit > 0
-            ? `${freePlan.optimizeToolsLimit} uses`
-            : "Unlimited",
-        starter:
-          starterPlan?.optimizeToolsLimit > 0
-            ? `${starterPlan.optimizeToolsLimit} uses`
-            : "Unlimited",
-        professional:
-          professionalPlan?.optimizeToolsLimit > 0
-            ? `${professionalPlan.optimizeToolsLimit} uses`
-            : "Unlimited",
-        enterprise:
-          enterprisePlan?.optimizeToolsLimit > 0
-            ? `${enterprisePlan.optimizeToolsLimit} uses`
-            : "Unlimited",
+        free: freePlan?.optimizeToolsLimit > 0 ? `${freePlan.optimizeToolsLimit} uses` : "Unlimited",
+        starter: starterPlan?.optimizeToolsLimit > 0 ? `${starterPlan.optimizeToolsLimit} uses` : "Unlimited",
+        professional: professionalPlan?.optimizeToolsLimit > 0 ? `${professionalPlan.optimizeToolsLimit} uses` : "Unlimited",
+        enterprise: enterprisePlan?.optimizeToolsLimit > 0 ? `${enterprisePlan.optimizeToolsLimit} uses` : "Unlimited",
       },
       {
         feature: "Advanced Tools Usage",
-        free:
-          freePlan?.advancedToolsLimit > 0
-            ? `${freePlan.advancedToolsLimit} uses`
-            : "Unlimited",
-        starter:
-          starterPlan?.advancedToolsLimit > 0
-            ? `${starterPlan.advancedToolsLimit} uses`
-            : "Unlimited",
-        professional:
-          professionalPlan?.advancedToolsLimit > 0
-            ? `${professionalPlan.advancedToolsLimit} uses`
-            : "Unlimited",
-        enterprise:
-          enterprisePlan?.advancedToolsLimit > 0
-            ? `${enterprisePlan.advancedToolsLimit} uses`
-            : "Unlimited",
+        free: freePlan?.advancedToolsLimit > 0 ? `${freePlan.advancedToolsLimit} uses` : "Unlimited",
+        starter: starterPlan?.advancedToolsLimit > 0 ? `${starterPlan.advancedToolsLimit} uses` : "Unlimited",
+        professional: professionalPlan?.advancedToolsLimit > 0 ? `${professionalPlan.advancedToolsLimit} uses` : "Unlimited",
+        enterprise: enterprisePlan?.advancedToolsLimit > 0 ? `${enterprisePlan.advancedToolsLimit} uses` : "Unlimited",
       },
       {
         feature: "Max File Size",
-        free:
-          freePlan?.maxFileSize > 0
-            ? `${freePlan.maxFileSize} MB`
-            : "Unlimited",
-        starter:
-          starterPlan?.maxFileSize > 0
-            ? `${starterPlan.maxFileSize} MB`
-            : "Unlimited",
-        professional:
-          professionalPlan?.maxFileSize > 0
-            ? `${professionalPlan.maxFileSize} MB`
-            : "Unlimited",
-        enterprise:
-          enterprisePlan?.maxFileSize > 0
-            ? `${enterprisePlan.maxFileSize} MB`
-            : "Unlimited",
+        free: freePlan?.maxFileSize > 0 ? `${freePlan.maxFileSize} MB` : "Unlimited",
+        starter: starterPlan?.maxFileSize > 0 ? `${starterPlan.maxFileSize} MB` : "Unlimited",
+        professional: professionalPlan?.maxFileSize > 0 ? `${professionalPlan.maxFileSize} MB` : "Unlimited",
+        enterprise: enterprisePlan?.maxFileSize > 0 ? `${enterprisePlan.maxFileSize} MB` : "Unlimited",
       },
       {
         feature: "Cloud Storage",
         free: freePlan?.storage > 0 ? `${freePlan.storage} GB` : "Unlimited",
-        starter:
-          starterPlan?.storage > 0 ? `${starterPlan.storage} GB` : "Unlimited",
-        professional:
-          professionalPlan?.storage > 0
-            ? `${professionalPlan.storage} GB`
-            : "Unlimited",
-        enterprise:
-          enterprisePlan?.storage > 0
-            ? `${enterprisePlan.storage} GB`
-            : "Unlimited",
+        starter: starterPlan?.storage > 0 ? `${starterPlan.storage} GB` : "Unlimited",
+        professional: professionalPlan?.storage > 0 ? `${professionalPlan.storage} GB` : "Unlimited",
+        enterprise: enterprisePlan?.storage > 0 ? `${enterprisePlan.storage} GB` : "Unlimited",
       },
     ];
 
@@ -446,18 +390,10 @@ const BillingPage = () => {
     advancedFeatures.forEach((feature) => {
       comparison.push({
         feature: feature.label,
-        free: feature.invert
-          ? !freePlan?.[feature.key]
-          : freePlan?.[feature.key],
-        starter: feature.invert
-          ? !starterPlan?.[feature.key]
-          : starterPlan?.[feature.key],
-        professional: feature.invert
-          ? !professionalPlan?.[feature.key]
-          : professionalPlan?.[feature.key],
-        enterprise: feature.invert
-          ? !enterprisePlan?.[feature.key]
-          : enterprisePlan?.[feature.key],
+        free: feature.invert ? !freePlan?.[feature.key] : freePlan?.[feature.key],
+        starter: feature.invert ? !starterPlan?.[feature.key] : starterPlan?.[feature.key],
+        professional: feature.invert ? !professionalPlan?.[feature.key] : professionalPlan?.[feature.key],
+        enterprise: feature.invert ? !enterprisePlan?.[feature.key] : enterprisePlan?.[feature.key],
       });
     });
 
@@ -541,9 +477,12 @@ const BillingPage = () => {
       return;
     }
 
-    // Free plan selection (no payment)
-    if (planId === "free") {
-      updateUserPlanToFree();
+    // Find the plan by ID
+    const plan = pricingPlans.find(p => p.id === planId || p.planId === planId);
+    
+    // Check if it's a free plan
+    if (plan && isFreePlan(plan)) {
+      updateUserPlanToFree(planId);
       return;
     }
 
@@ -551,7 +490,7 @@ const BillingPage = () => {
     navigate(`/checkout/${planId}`);
   };
 
-  const updateUserPlanToFree = async () => {
+  const updateUserPlanToFree = async (planId) => {
     try {
       const token = localStorage.getItem("token");
       const response = await fetch(`${API_URL}/api/auth/plan/free`, {
@@ -560,13 +499,14 @@ const BillingPage = () => {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
+        body: JSON.stringify({ planId }),
       });
 
       const data = await response.json();
 
       if (data.success) {
         updateUser({
-          plan: "free",
+          plan: planId,
           planName: "Free",
           subscriptionStatus: "active",
         });
@@ -595,7 +535,7 @@ const BillingPage = () => {
   };
 
   const getCurrentUsage = () => {
-    const plan = pricingPlans.find((p) => p.id === user?.plan);
+    const plan = pricingPlans.find((p) => p.id === user?.plan || p.planId === user?.plan);
     const used = user?.usage?.conversions || 0;
     const limit = plan?.conversionLimit || 10;
     const percentage = (used / limit) * 100;
@@ -754,9 +694,9 @@ const BillingPage = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6">
           {pricingPlans.map((plan, index) => {
             const Icon = iconMap[plan.icon] || FileText;
-            const isCurrentPlan = user?.plan === plan.id;
-            const isFreePlan = plan.id === "free";
-            const isEnterprise = plan.id === "enterprise";
+            const freePlan = isFreePlan(plan);
+            const enterprisePlan = isEnterprisePlan(plan);
+            const currentPlan = isCurrentPlan(plan);
             const detailedFeatures = generateDetailedFeatures(plan);
             const isExpanded = expandedPlan === plan.id;
 
@@ -770,7 +710,7 @@ const BillingPage = () => {
                   plan.popular
                     ? "ring-2 ring-purple-500 shadow-lg scale-105"
                     : ""
-                } ${isFreePlan ? "border-2 border-green-200" : ""}`}
+                } ${freePlan ? "border-2 border-green-200" : ""}`}
               >
                 {plan.popular && (
                   <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
@@ -780,7 +720,7 @@ const BillingPage = () => {
                   </div>
                 )}
 
-                {isFreePlan && (
+                {freePlan && (
                   <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
                     <span className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-1 rounded-full text-sm font-semibold flex items-center gap-1">
                       <Star className="h-3 w-3" />
@@ -802,14 +742,14 @@ const BillingPage = () => {
                   <span className="text-3xl font-bold text-gray-900">
                     {getPlanPrice(plan)}
                   </span>
-                  {!isFreePlan && !isEnterprise && (
+                  {!freePlan && !enterprisePlan && (
                     <span className="text-gray-500 text-lg ml-1">
                       {currency === "INR" ? "/mo" : "/mo"}
                     </span>
                   )}
                 </div>
                 <p className="text-gray-600 text-sm mb-4">
-                  {formatPeriod(plan, isEnterprise)}
+                  {formatPeriod(plan, enterprisePlan)}
                 </p>
                 <p className="text-gray-700 text-sm mb-4">{plan.description}</p>
 
@@ -849,11 +789,11 @@ const BillingPage = () => {
                       <div>🚀 {plan.advancedToolsLimit} advanced</div>
                     )}
                   </div>
-                  {!isFreePlan && !isEnterprise && currency === "INR" && (
+                  {!freePlan && !enterprisePlan && currency === "INR" && (
                     <div className="text-xs text-gray-500 mt-1">
                       ≈{" "}
                       {formatPrice(
-                        plan.usdPrice / (billingCycle === "annual" ? 12 : 1)
+                        (plan.usdPrice || plan.price || 0) / (billingCycle === "annual" ? 12 : 1)
                       )}
                       /conversion
                     </div>
@@ -942,31 +882,36 @@ const BillingPage = () => {
                   </ul>
                 </div>
 
-                <Button
-                  onClick={() => handleUpgrade(plan.id)}
-                  disabled={isCurrentPlan}
-                  className={`w-full ${
-                    isCurrentPlan
-                      ? "bg-gray-300 cursor-not-allowed"
-                      : isFreePlan
-                      ? "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
-                      : `bg-gradient-to-r ${plan.color} hover:opacity-90`
-                  }`}
-                >
-                  {isCurrentPlan ? "Current Plan" : plan.ctaText}
-                </Button>
+                {/* CTA Button */}
+                {freePlan ? (
+                  <div className="mt-4 p-3 bg-gray-100 rounded-lg text-center">
+                    <span className="text-gray-600 text-sm font-medium">
+                      Enjoy all features for free! No credit card required.
+                    </span>
+                  </div>
+                ) : (
+                  <Button
+                    onClick={() => handleUpgrade(plan.id)}
+                    disabled={currentPlan}
+                    className={`w-full mt-4 ${
+                      currentPlan
+                        ? "bg-gray-300 cursor-not-allowed"
+                        : `bg-gradient-to-r ${plan.color} hover:opacity-90`
+                    }`}
+                  >
+                    {currentPlan ? "Current Plan" : plan.ctaText || "Get Started"}
+                  </Button>
+                )}
 
-                {!isFreePlan && !isEnterprise && (
+                {!freePlan && !enterprisePlan && (
                   <div className="text-center mt-3">
                     <p className="text-xs text-gray-500">
                       {billingCycle === "annual"
                         ? currency === "INR"
                           ? `Equivalent to ${formatPrice(
-                              plan.usdPrice / 12
+                              (plan.usdPrice || plan.price || 0) / 12
                             )}/month`
-                          : `Equivalent to $${(plan.usdPrice / 12).toFixed(
-                              2
-                            )}/month`
+                          : `Equivalent to $${((plan.usdPrice || plan.price || 0) / 12).toFixed(2)}/month`
                         : "Cancel anytime"}
                     </p>
                   </div>
@@ -976,7 +921,6 @@ const BillingPage = () => {
           })}
         </div>
 
-        {/* Rest of the component remains the same... */}
         {/* Feature Comparison Table */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -1098,9 +1042,9 @@ const BillingPage = () => {
                 </div>
                 <p className="text-xs text-gray-500 mt-2">
                   {percentage >= 90
-                    ? "You ve reached your limit. Upgrade to continue converting."
+                    ? "You've reached your limit. Upgrade to continue converting."
                     : percentage >= 75
-                    ? "Youre approaching your limit. Consider upgrading for more conversions."
+                    ? "You're approaching your limit. Consider upgrading for more conversions."
                     : `You're on the ${planName} plan.`}
                 </p>
               </div>
@@ -1182,13 +1126,37 @@ const BillingPage = () => {
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Button
-              onClick={() => handleUpgrade("free")}
+              onClick={() => {
+                if (!user) {
+                  navigate("/login", { state: { from: "/pricing" } });
+                  return;
+                }
+                // Find the first paid plan
+                const paidPlan = pricingPlans.find(p => !isFreePlan(p));
+                if (paidPlan) {
+                  navigate(`/checkout/${paidPlan.id}`);
+                }
+              }}
               className="bg-white text-blue-600 hover:bg-blue-50 px-6 py-2 font-semibold rounded-full"
             >
-              Start Free Plan
+              Start Free Trial
             </Button>
             <Button
-              onClick={() => handleUpgrade("professional")}
+              onClick={() => {
+                if (!user) {
+                  navigate("/login", { state: { from: "/pricing" } });
+                  return;
+                }
+                // Find a professional plan or the second paid plan
+                const professionalPlan = pricingPlans.find(p => 
+                  p.planId?.toLowerCase().includes('professional') || 
+                  p.name?.toLowerCase().includes('professional')
+                ) || pricingPlans[2];
+                
+                if (professionalPlan) {
+                  navigate(`/checkout/${professionalPlan.id}`);
+                }
+              }}
               className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-blue-600 px-6 py-2 font-semibold rounded-full"
             >
               Try Professional Free
@@ -1199,38 +1167,39 @@ const BillingPage = () => {
             free trial on paid plans • No commitment
           </p>
         </motion.div>
+        
         {/* Top-up CTA Section */}
-<motion.div
-  initial={{ opacity: 0, y: 20 }}
-  animate={{ opacity: 1, y: 0 }}
-  transition={{ delay: 0.7 }}
-  className="text-center py-8 bg-gradient-to-r from-emerald-500 to-green-600 rounded-3xl text-white"
->
-  <div className="flex justify-center mb-4">
-    <BatteryCharging className="h-10 w-10 text-white opacity-90" />
-  </div>
-  <h2 className="text-2xl font-bold mb-3">Need Extra Credits?</h2>
-  <p className="text-emerald-100 text-sm mb-4 max-w-2xl mx-auto">
-    Never run out of credits! Purchase additional credits anytime without changing your subscription plan.
-  </p>
-  <div className="flex flex-col sm:flex-row gap-3 justify-center">
-    <Button
-      onClick={() => navigate("/topup")}
-      className="bg-white text-emerald-600 hover:bg-emerald-50 px-6 py-2 font-semibold rounded-full"
-    >
-      View Top-up Packages
-    </Button>
-    <Button
-      onClick={() => navigate("/dashboard")}
-      className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-emerald-600 px-6 py-2 font-semibold rounded-full"
-    >
-      Check Your Credits
-    </Button>
-  </div>
-  <p className="text-emerald-200 text-xs mt-3">
-    Top-up credits never expire • Use anytime • Instant activation
-  </p>
-</motion.div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.7 }}
+          className="text-center py-8 bg-gradient-to-r from-emerald-500 to-green-600 rounded-3xl text-white"
+        >
+          <div className="flex justify-center mb-4">
+            <BatteryCharging className="h-10 w-10 text-white opacity-90" />
+          </div>
+          <h2 className="text-2xl font-bold mb-3">Need Extra Credits?</h2>
+          <p className="text-emerald-100 text-sm mb-4 max-w-2xl mx-auto">
+            Never run out of credits! Purchase additional credits anytime without changing your subscription plan.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Button
+              onClick={() => navigate("/topup")}
+              className="bg-white text-emerald-600 hover:bg-emerald-50 px-6 py-2 font-semibold rounded-full"
+            >
+              View Top-up Packages
+            </Button>
+            <Button
+              onClick={() => navigate("/dashboard")}
+              className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-emerald-600 px-6 py-2 font-semibold rounded-full"
+            >
+              Check Your Credits
+            </Button>
+          </div>
+          <p className="text-emerald-200 text-xs mt-3">
+            Top-up credits never expire • Use anytime • Instant activation
+          </p>
+        </motion.div>
       </div>
     </>
   );

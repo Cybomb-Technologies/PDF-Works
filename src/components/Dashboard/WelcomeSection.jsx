@@ -1,38 +1,43 @@
-import React from 'react';
+import React, { useMemo } from "react";
 import { motion } from "framer-motion";
-import { Crown, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
+import { Crown, AlertTriangle } from "lucide-react";  // ❌ Removed CheckCircle
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
-const WelcomeSection = ({ user, navigate, billingInfo, formatDate, formatCurrency }) => {
-  const getDaysUntilExpiry = () => {
+const WelcomeSection = ({ billingInfo, formatDate, formatCurrency }) => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  // 🔥 ALWAYS RECALCULATE WHEN USER CHANGES
+  const daysUntilExpiry = useMemo(() => {
     if (!user?.planExpiry) return null;
     const expiry = new Date(user.planExpiry);
     const today = new Date();
-    const diffTime = expiry - today;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
-  };
-
-  const daysUntilExpiry = getDaysUntilExpiry();
+    return Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
+  }, [user?.planExpiry]);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }} 
+      animate={{ opacity: 1, y: 0 }} 
       className="space-y-4"
     >
+      {/* Top Greeting */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
         <div className="space-y-2">
           <h1 className="text-4xl font-bold gradient-text">
             Welcome back, {user?.name || "User"}! 👋
           </h1>
+
           <p className="text-gray-600 text-lg">
             {user?.subscriptionStatus === "active"
               ? `You're on the ${user?.planName} plan`
-              : "You're on the Free plan - upgrade to unlock more features"}
+              : "You're on the Free plan — upgrade to unlock more features"}
           </p>
         </div>
 
+        {/* Upgrade Button */}
         {user?.subscriptionStatus !== "active" && (
           <Button
             onClick={() => navigate("/pricing")}
@@ -44,11 +49,11 @@ const WelcomeSection = ({ user, navigate, billingInfo, formatDate, formatCurrenc
         )}
       </div>
 
-      {/* Plan Status Alert */}
+      {/* Active Plan Notice */}
       {user?.subscriptionStatus === "active" && daysUntilExpiry !== null && (
         <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
           className={`p-4 rounded-xl border ${
             daysUntilExpiry <= 7
               ? "bg-orange-50 border-orange-200"
@@ -58,21 +63,23 @@ const WelcomeSection = ({ user, navigate, billingInfo, formatDate, formatCurrenc
           }`}
         >
           <div className="flex items-center gap-3">
-            {daysUntilExpiry <= 7 ? (
-              <AlertTriangle className="h-5 w-5 text-orange-600" />
-            ) : daysUntilExpiry <= 30 ? (
-              <AlertTriangle className="h-5 w-5 text-yellow-600" />
-            ) : (
-              <CheckCircle className="h-5 w-5 text-green-600" />
-            )}
+            <AlertTriangle
+              className={`h-5 w-5 ${
+                daysUntilExpiry <= 7
+                  ? "text-orange-600"
+                  : daysUntilExpiry <= 30
+                  ? "text-yellow-600"
+                  : "text-green-600"
+              }`}
+            />
+
             <div>
               <p className="font-medium">
-                {daysUntilExpiry <= 7
-                  ? `Your plan expires in ${daysUntilExpiry} days`
-                  : daysUntilExpiry <= 30
+                {daysUntilExpiry <= 30
                   ? `Your plan expires in ${daysUntilExpiry} days`
                   : `Your plan is active - expires in ${daysUntilExpiry} days`}
               </p>
+
               <p className="text-sm text-gray-600">
                 Next billing: {formatDate(user?.planExpiry)} •{" "}
                 {user?.billingCycle === "annual" ? "Annual" : "Monthly"} billing

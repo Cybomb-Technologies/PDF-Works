@@ -48,6 +48,41 @@ const validateFileType = (file, allowedTypes) => {
   return allowedTypes.includes(ext);
 };
 
+// Helper function to handle conversion limit errors
+const handleConversionLimitError = (limitCheck, req) => {
+  const isFileSizeError = limitCheck.reason?.includes("upload limit") || 
+                         limitCheck.reason?.includes("Max upload") ||
+                         limitCheck.reason?.toLowerCase().includes("mb") ||
+                         limitCheck.reason?.includes("file size");
+  
+  const isUsageError = limitCheck.reason?.includes("monthly") || 
+                      limitCheck.reason?.includes("limit reached") ||
+                      limitCheck.reason?.includes("Conversion limit");
+
+  if (isFileSizeError) {
+    return {
+      success: false,
+      type: "file_size_error",
+      title: "File Too Large",
+      message: limitCheck.reason,
+      notificationType: "error",
+      upgradeRequired: limitCheck.upgradeRequired || true,
+    };
+  }
+  
+  // Usage error
+  return {
+    success: false,
+    type: "limit_exceeded",
+    title: "Usage Limit Reached",
+    message: limitCheck.reason,
+    notificationType: "error",
+    currentUsage: limitCheck.usage?.conversions || 0,
+    limit: limitCheck.plan?.conversionLimit || 0,
+    upgradeRequired: limitCheck.upgradeRequired || true,
+  };
+};
+
 // UPDATED: Function to save converted files to user account with proper toolCategory
 const saveFileToUserAccount = async (
   fileBuffer,
@@ -109,7 +144,7 @@ const saveFileToUserAccount = async (
     });
 
     await fileRecord.save();
-    console.log("✅ File saved to user account:", fileRecord._id);
+   // console.log("✅ File saved to user account:", fileRecord._id);
     return fileRecord;
   } catch (error) {
     console.error("❌ Error saving file to user account:", error);
@@ -120,21 +155,21 @@ const saveFileToUserAccount = async (
 // Real conversion function using LibreOffice for documents
 const convertWithLibreOffice = async (inputPath, outputPath, originalExt) => {
   try {
-    console.log(`Converting ${originalExt} to PDF using LibreOffice...`);
+    // console.log(`Converting ${originalExt} to PDF using LibreOffice...`);
 
     const escapedInputPath = `"${inputPath}"`;
     const escapedOutputDir = `"${path.dirname(outputPath)}"`;
 
     const command = `"${LIBREOFFICE_PATH}" --headless --convert-to pdf --outdir ${escapedOutputDir} ${escapedInputPath}`;
 
-    console.log("Executing command:", command);
+   // console.log("Executing command:", command);
 
     const { stdout, stderr } = await execAsync(command, { timeout: 30000 });
 
     if (stderr) {
       console.warn("LibreOffice stderr:", stderr);
     }
-    console.log("LibreOffice stdout:", stdout);
+   // console.log("LibreOffice stdout:", stdout);
 
     const inputFilename = path.basename(inputPath, originalExt);
     const convertedFilePath = path.join(
@@ -142,8 +177,8 @@ const convertWithLibreOffice = async (inputPath, outputPath, originalExt) => {
       inputFilename + ".pdf"
     );
 
-    console.log("Expected converted file:", convertedFilePath);
-    console.log("Target output path:", outputPath);
+   // console.log("Expected converted file:", convertedFilePath);
+   // console.log("Target output path:", outputPath);
 
     try {
       await fs.access(convertedFilePath);
@@ -152,14 +187,14 @@ const convertWithLibreOffice = async (inputPath, outputPath, originalExt) => {
         await fs.rename(convertedFilePath, outputPath);
       }
 
-      console.log("LibreOffice conversion successful!");
+     // console.log("LibreOffice conversion successful!");
       return true;
     } catch (accessError) {
       console.error("Converted file not found at:", convertedFilePath);
 
       const files = await fs.readdir(path.dirname(outputPath));
       const pdfFiles = files.filter((f) => f.endsWith(".pdf"));
-      console.log("Available PDF files:", pdfFiles);
+     // console.log("Available PDF files:", pdfFiles);
 
       if (pdfFiles.length > 0) {
         const actualConvertedPath = path.join(
@@ -167,7 +202,7 @@ const convertWithLibreOffice = async (inputPath, outputPath, originalExt) => {
           pdfFiles[0]
         );
         await fs.rename(actualConvertedPath, outputPath);
-        console.log("Found and moved converted file:", pdfFiles[0]);
+       // console.log("Found and moved converted file:", pdfFiles[0]);
         return true;
       }
 
@@ -215,7 +250,7 @@ const convertImageToPdfReal = async (
         const pdfBytes = await pdfDoc.save();
         await fs.writeFile(outputPath, pdfBytes);
 
-        console.log("Image to PDF conversion successful with embedded image!");
+      //  console.log("Image to PDF conversion successful with embedded image!");
         return true;
       }
     } catch (embedError) {
@@ -285,7 +320,7 @@ const createImageInfoPdf = async (inputPath, outputPath, originalFilename) => {
     const pdfBytes = await pdfDoc.save();
     await fs.writeFile(outputPath, pdfBytes);
 
-    console.log("Created PDF with image information");
+   // console.log("Created PDF with image information");
     return true;
   } catch (error) {
     console.error("Fallback PDF creation failed:", error);
@@ -296,18 +331,18 @@ const createImageInfoPdf = async (inputPath, outputPath, originalFilename) => {
 // REAL PDF to Image conversion - FIXED VERSION
 const convertPdfToImageReal = async (inputPath, outputPath, imageFormat) => {
   try {
-    console.log(`Starting PDF to ${imageFormat} conversion...`);
+   // console.log(`Starting PDF to ${imageFormat} conversion...`);
 
     // Method 1: Try using pdf-poppler
     try {
-      console.log("Attempting Method 1: pdf-poppler...");
+     // console.log("Attempting Method 1: pdf-poppler...");
       const result = await convertWithPdfPoppler(
         inputPath,
         outputPath,
         imageFormat
       );
       if (result) {
-        console.log("PDF to Image conversion successful using pdf-poppler!");
+     //   console.log("PDF to Image conversion successful using pdf-poppler!");
         return true;
       }
     } catch (popplerError) {
@@ -316,14 +351,14 @@ const convertPdfToImageReal = async (inputPath, outputPath, imageFormat) => {
 
     // Method 2: Try Ghostscript
     try {
-      console.log("Attempting Method 2: Ghostscript...");
+     // console.log("Attempting Method 2: Ghostscript...");
       const result = await convertWithGhostscript(
         inputPath,
         outputPath,
         imageFormat
       );
       if (result) {
-        console.log("PDF to Image conversion successful using Ghostscript!");
+       // console.log("PDF to Image conversion successful using Ghostscript!");
         return true;
       }
     } catch (gsError) {
@@ -332,14 +367,14 @@ const convertPdfToImageReal = async (inputPath, outputPath, imageFormat) => {
 
     // Method 3: Canvas fallback
     try {
-      console.log("Attempting Method 3: Canvas fallback...");
+     // console.log("Attempting Method 3: Canvas fallback...");
       const result = await createPdfInfoImage(
         inputPath,
         outputPath,
         imageFormat
       );
       if (result) {
-        console.log("Created informative image using canvas");
+       // console.log("Created informative image using canvas");
         return true;
       }
     } catch (canvasError) {
@@ -426,7 +461,7 @@ const convertWithGhostscript = async (inputPath, outputPath, imageFormat) => {
 
     const command = `"${gsCommand}" -dNOPAUSE -dBATCH -sDEVICE=${device} -r${resolution} -sOutputFile="${tempOutput}" "${inputPath}"`;
 
-    console.log("Executing Ghostscript:", command);
+   // console.log("Executing Ghostscript:", command);
 
     const { stderr } = await execAsync(command, { timeout: 30000 });
 
@@ -519,46 +554,39 @@ const createPdfInfoImage = async (inputPath, outputPath, imageFormat) => {
 const convertPdfToImage = async (req, res) => {
   try {
     const userId = req.user?.id;
-    let creditsInfo = null;
 
+    if (!req.file) {
+      return res.status(200).json({
+        success: false,
+        type: "validation_error",
+        title: "File Required",
+        message: "No file uploaded",
+        notificationType: "warning"
+      });
+    }
+
+    const fileSize = req.file.size || 0;
+    
     // -------------------------------------------------------
-    // ✅ ENHANCED: Usage limit check WITH TOPUP SUPPORT
+    // ✅ ENHANCED: Usage limit check WITH FILE SIZE
     // -------------------------------------------------------
     if (userId) {
       try {
-        console.log('🔍 [CONVERT DEBUG] Checking limits for user:', userId);
+       // console.log('🔍 [CONVERT DEBUG] Checking limits for user:', userId);
+       // console.log('🔍 [CONVERT DEBUG] File size:', fileSize, 'bytes');
         
-        const limitCheck = await checkLimits(userId, "convert", req.file?.size || 0);
-        creditsInfo = limitCheck.creditsInfo;
+        const limitCheck = await checkLimits(userId, "convert", fileSize);
         
-        console.log('🔍 [CONVERT DEBUG] PDF to Image Limit Check:', {
-          allowed: limitCheck.allowed,
-          reason: limitCheck.reason,
-          currentUsage: limitCheck.usage?.conversions,
-          limit: limitCheck.plan?.conversionLimit,
-          usingTopup: limitCheck.creditsInfo?.usingTopup || false,
-          topupAvailable: limitCheck.creditsInfo?.topupAvailable || 0
-        });
+        // console.log('🔍 [CONVERT DEBUG] PDF to Image Limit Check:', {
+        //   allowed: limitCheck.allowed,
+        //   reason: limitCheck.reason,
+        //   currentUsage: limitCheck.usage?.conversions,
+        //   limit: limitCheck.plan?.conversionLimit,
+        // });
 
         if (!limitCheck.allowed) {
-          return res.status(200).json({
-            success: false,
-            type: "limit_exceeded",
-            title: limitCheck.title || "Usage Limit Reached",
-            message: limitCheck.reason,
-            notificationType: "error",
-            currentUsage: limitCheck.usage?.conversions || 0,
-            limit: limitCheck.plan?.conversionLimit || 0,
-            upgradeRequired: limitCheck.upgradeRequired || true,
-            creditsInfo: {
-              planLimit: limitCheck.creditsInfo?.planLimit || 0,
-              planUsed: limitCheck.creditsInfo?.planUsed || 0,
-              planRemaining: limitCheck.creditsInfo?.planRemaining || 0,
-              topupAvailable: limitCheck.creditsInfo?.topupAvailable || 0,
-              totalAvailable: limitCheck.creditsInfo?.totalAvailable || 0,
-              usingTopup: limitCheck.creditsInfo?.usingTopup || false
-            }
-          });
+          //console.log('🚫 [CONVERT DEBUG] Conversion blocked - limit exceeded');
+          return res.status(200).json(handleConversionLimitError(limitCheck, req));
         }
       } catch (limitErr) {
         console.error('❌ [CONVERT DEBUG] Limit check error:', limitErr);
@@ -570,16 +598,6 @@ const convertPdfToImage = async (req, res) => {
           notificationType: "error"
         });
       }
-    }
-
-    if (!req.file) {
-      return res.status(200).json({
-        success: false,
-        type: "validation_error",
-        title: "File Required",
-        message: "No file uploaded",
-        notificationType: "warning"
-      });
     }
 
     const { imageFormat = "jpg" } = req.body;
@@ -655,11 +673,10 @@ const convertPdfToImage = async (req, res) => {
           );
 
           incrementResult = await incrementUsage(userId, "convert");
-          console.log('✅ [CONVERT DEBUG] Usage incremented for PDF to Image:', {
-            userId: userId,
-            creditsUsed: incrementResult?.creditsUsed,
-            topupRemaining: incrementResult?.creditsUsed?.topupRemaining
-          });
+          // console.log('✅ [CONVERT DEBUG] Usage incremented for PDF to Image:', {
+          //   userId: userId,
+          //   creditsUsed: incrementResult?.creditsUsed,
+          // });
         } catch (e) {
           console.error("Save to user account failed:", e);
         }
@@ -678,17 +695,11 @@ const convertPdfToImage = async (req, res) => {
       };
 
       // Add credits info if available
-      if (creditsInfo || incrementResult?.creditsUsed) {
+      if (incrementResult?.creditsUsed) {
         responseData.creditsInfo = {
-          ...creditsInfo,
-          ...(incrementResult?.creditsUsed && {
-            creditsUsed: incrementResult.creditsUsed.total,
-            fromPlan: incrementResult.creditsUsed.fromPlan,
-            fromTopup: incrementResult.creditsUsed.fromTopup,
-            topupRemaining: incrementResult.creditsUsed.topupRemaining,
-            planRemaining: creditsInfo ? Math.max(0, creditsInfo.planRemaining - (incrementResult.creditsUsed.fromPlan || 0)) : 0,
-            topupAvailable: incrementResult.creditsUsed.topupRemaining || 0
-          })
+          fromPlan: incrementResult.creditsUsed.fromPlan,
+          fromTopup: incrementResult.creditsUsed.fromTopup,
+          topupRemaining: incrementResult.creditsUsed.topupRemaining,
         };
       }
 
@@ -715,7 +726,6 @@ const convertPdfToImage = async (req, res) => {
       type: "server_error",
       title: "Conversion Error",
       message: "PDF to Image conversion failed",
-      details: error.message,
       notificationType: "error"
     });
   }
@@ -725,46 +735,39 @@ const convertPdfToImage = async (req, res) => {
 const convertImageToPdf = async (req, res) => {
   try {
     const userId = req.user?.id;
-    let creditsInfo = null;
 
+    if (!req.file) {
+      return res.status(200).json({
+        success: false,
+        type: "validation_error",
+        title: "File Required",
+        message: "No file uploaded",
+        notificationType: "warning"
+      });
+    }
+
+    const fileSize = req.file.size || 0;
+    
     // -------------------------------------------------------
-    // ✅ ENHANCED: Usage limit check WITH TOPUP SUPPORT
+    // ✅ ENHANCED: Usage limit check WITH FILE SIZE
     // -------------------------------------------------------
     if (userId) {
       try {
-        console.log('🔍 [CONVERT DEBUG] Checking limits for user:', userId);
+       // console.log('🔍 [CONVERT DEBUG] Checking limits for user:', userId);
+       // console.log('🔍 [CONVERT DEBUG] File size:', fileSize, 'bytes');
         
-        const limitCheck = await checkLimits(userId, "convert", req.file?.size || 0);
-        creditsInfo = limitCheck.creditsInfo;
+        const limitCheck = await checkLimits(userId, "convert", fileSize);
         
-        console.log('🔍 [CONVERT DEBUG] Image to PDF Limit Check:', {
-          allowed: limitCheck.allowed,
-          reason: limitCheck.reason,
-          currentUsage: limitCheck.usage?.conversions,
-          limit: limitCheck.plan?.conversionLimit,
-          usingTopup: limitCheck.creditsInfo?.usingTopup || false,
-          topupAvailable: limitCheck.creditsInfo?.topupAvailable || 0
-        });
+        // console.log('🔍 [CONVERT DEBUG] Image to PDF Limit Check:', {
+        //   allowed: limitCheck.allowed,
+        //   reason: limitCheck.reason,
+        //   currentUsage: limitCheck.usage?.conversions,
+        //   limit: limitCheck.plan?.conversionLimit,
+        // });
 
         if (!limitCheck.allowed) {
-          return res.status(200).json({
-            success: false,
-            type: "limit_exceeded",
-            title: limitCheck.title || "Usage Limit Reached",
-            message: limitCheck.reason,
-            notificationType: "error",
-            currentUsage: limitCheck.usage?.conversions || 0,
-            limit: limitCheck.plan?.conversionLimit || 0,
-            upgradeRequired: limitCheck.upgradeRequired || true,
-            creditsInfo: {
-              planLimit: limitCheck.creditsInfo?.planLimit || 0,
-              planUsed: limitCheck.creditsInfo?.planUsed || 0,
-              planRemaining: limitCheck.creditsInfo?.planRemaining || 0,
-              topupAvailable: limitCheck.creditsInfo?.topupAvailable || 0,
-              totalAvailable: limitCheck.creditsInfo?.totalAvailable || 0,
-              usingTopup: limitCheck.creditsInfo?.usingTopup || false
-            }
-          });
+         // console.log('🚫 [CONVERT DEBUG] Conversion blocked - limit exceeded');
+          return res.status(200).json(handleConversionLimitError(limitCheck, req));
         }
       } catch (limitErr) {
         console.error('❌ [CONVERT DEBUG] Limit check error:', limitErr);
@@ -776,16 +779,6 @@ const convertImageToPdf = async (req, res) => {
           notificationType: "error"
         });
       }
-    }
-
-    if (!req.file) {
-      return res.status(200).json({
-        success: false,
-        type: "validation_error",
-        title: "File Required",
-        message: "No file uploaded",
-        notificationType: "warning"
-      });
     }
 
     const allowedImageTypes = [".jpg", ".jpeg", ".png"];
@@ -847,11 +840,10 @@ const convertImageToPdf = async (req, res) => {
           );
 
           incrementResult = await incrementUsage(userId, "convert");
-          console.log('✅ [CONVERT DEBUG] Usage incremented for Image to PDF:', {
-            userId: userId,
-            creditsUsed: incrementResult?.creditsUsed,
-            topupRemaining: incrementResult?.creditsUsed?.topupRemaining
-          });
+          // console.log('✅ [CONVERT DEBUG] Usage incremented for Image to PDF:', {
+          //   userId: userId,
+          //   creditsUsed: incrementResult?.creditsUsed,
+          // });
         } catch (e) {
           console.error("Save to user account failed:", e);
         }
@@ -870,17 +862,11 @@ const convertImageToPdf = async (req, res) => {
       };
 
       // Add credits info if available
-      if (creditsInfo || incrementResult?.creditsUsed) {
+      if (incrementResult?.creditsUsed) {
         responseData.creditsInfo = {
-          ...creditsInfo,
-          ...(incrementResult?.creditsUsed && {
-            creditsUsed: incrementResult.creditsUsed.total,
-            fromPlan: incrementResult.creditsUsed.fromPlan,
-            fromTopup: incrementResult.creditsUsed.fromTopup,
-            topupRemaining: incrementResult.creditsUsed.topupRemaining,
-            planRemaining: creditsInfo ? Math.max(0, creditsInfo.planRemaining - (incrementResult.creditsUsed.fromPlan || 0)) : 0,
-            topupAvailable: incrementResult.creditsUsed.topupRemaining || 0
-          })
+          fromPlan: incrementResult.creditsUsed.fromPlan,
+          fromTopup: incrementResult.creditsUsed.fromTopup,
+          topupRemaining: incrementResult.creditsUsed.topupRemaining,
         };
       }
 
@@ -907,7 +893,6 @@ const convertImageToPdf = async (req, res) => {
       type: "server_error",
       title: "Conversion Error",
       message: "Image to PDF conversion failed",
-      details: error.message,
       notificationType: "error"
     });
   }
@@ -917,46 +902,39 @@ const convertImageToPdf = async (req, res) => {
 const convertToPdf = async (req, res) => {
   try {
     const userId = req.user?.id;
-    let creditsInfo = null;
 
+    if (!req.file) {
+      return res.status(200).json({
+        success: false,
+        type: "validation_error",
+        title: "File Required",
+        message: "No file uploaded",
+        notificationType: "warning"
+      });
+    }
+
+    const fileSize = req.file.size || 0;
+    
     // -------------------------------------------------------
-    // ✅ ENHANCED: Usage limit check WITH TOPUP SUPPORT
+    // ✅ ENHANCED: Usage limit check WITH FILE SIZE
     // -------------------------------------------------------
     if (userId) {
       try {
-        console.log('🔍 [CONVERT DEBUG] Checking limits for user:', userId);
+        //console.log('🔍 [CONVERT DEBUG] Checking limits for user:', userId);
+        //console.log('🔍 [CONVERT DEBUG] File size:', fileSize, 'bytes');
         
-        const limitCheck = await checkLimits(userId, "convert", req.file?.size || 0);
-        creditsInfo = limitCheck.creditsInfo;
+        const limitCheck = await checkLimits(userId, "convert", fileSize);
         
-        console.log('🔍 [CONVERT DEBUG] Convert to PDF Limit Check:', {
-          allowed: limitCheck.allowed,
-          reason: limitCheck.reason,
-          currentUsage: limitCheck.usage?.conversions,
-          limit: limitCheck.plan?.conversionLimit,
-          usingTopup: limitCheck.creditsInfo?.usingTopup || false,
-          topupAvailable: limitCheck.creditsInfo?.topupAvailable || 0
-        });
+        // console.log('🔍 [CONVERT DEBUG] Convert to PDF Limit Check:', {
+        //   allowed: limitCheck.allowed,
+        //   reason: limitCheck.reason,
+        //   currentUsage: limitCheck.usage?.conversions,
+        //   limit: limitCheck.plan?.conversionLimit,
+        // });
 
         if (!limitCheck.allowed) {
-          return res.status(200).json({
-            success: false,
-            type: "limit_exceeded",
-            title: limitCheck.title || "Usage Limit Reached",
-            message: limitCheck.reason,
-            notificationType: "error",
-            currentUsage: limitCheck.usage?.conversions || 0,
-            limit: limitCheck.plan?.conversionLimit || 0,
-            upgradeRequired: limitCheck.upgradeRequired || true,
-            creditsInfo: {
-              planLimit: limitCheck.creditsInfo?.planLimit || 0,
-              planUsed: limitCheck.creditsInfo?.planUsed || 0,
-              planRemaining: limitCheck.creditsInfo?.planRemaining || 0,
-              topupAvailable: limitCheck.creditsInfo?.topupAvailable || 0,
-              totalAvailable: limitCheck.creditsInfo?.totalAvailable || 0,
-              usingTopup: limitCheck.creditsInfo?.usingTopup || false
-            }
-          });
+         // console.log('🚫 [CONVERT DEBUG] Conversion blocked - limit exceeded');
+          return res.status(200).json(handleConversionLimitError(limitCheck, req));
         }
       } catch (limitErr) {
         console.error('❌ [CONVERT DEBUG] Limit check error:', limitErr);
@@ -968,16 +946,6 @@ const convertToPdf = async (req, res) => {
           notificationType: "error"
         });
       }
-    }
-
-    if (!req.file) {
-      return res.status(200).json({
-        success: false,
-        type: "validation_error",
-        title: "File Required",
-        message: "No file uploaded",
-        notificationType: "warning"
-      });
     }
 
     const allowedInputTypes = [
@@ -1083,7 +1051,6 @@ const convertToPdf = async (req, res) => {
           console.log('✅ [CONVERT DEBUG] Usage incremented for Convert to PDF:', {
             userId: userId,
             creditsUsed: incrementResult?.creditsUsed,
-            topupRemaining: incrementResult?.creditsUsed?.topupRemaining
           });
         } catch (e) {
           console.error("Save to user account failed:", e);
@@ -1103,17 +1070,11 @@ const convertToPdf = async (req, res) => {
       };
 
       // Add credits info if available
-      if (creditsInfo || incrementResult?.creditsUsed) {
+      if (incrementResult?.creditsUsed) {
         responseData.creditsInfo = {
-          ...creditsInfo,
-          ...(incrementResult?.creditsUsed && {
-            creditsUsed: incrementResult.creditsUsed.total,
-            fromPlan: incrementResult.creditsUsed.fromPlan,
-            fromTopup: incrementResult.creditsUsed.fromTopup,
-            topupRemaining: incrementResult.creditsUsed.topupRemaining,
-            planRemaining: creditsInfo ? Math.max(0, creditsInfo.planRemaining - (incrementResult.creditsUsed.fromPlan || 0)) : 0,
-            topupAvailable: incrementResult.creditsUsed.topupRemaining || 0
-          })
+          fromPlan: incrementResult.creditsUsed.fromPlan,
+          fromTopup: incrementResult.creditsUsed.fromTopup,
+          topupRemaining: incrementResult.creditsUsed.topupRemaining,
         };
       }
 
@@ -1140,7 +1101,6 @@ const convertToPdf = async (req, res) => {
       type: "server_error",
       title: "Conversion Error",
       message: "Conversion failed",
-      details: error.message,
       notificationType: "error"
     });
   }
@@ -1217,7 +1177,6 @@ const downloadConvertedFile = async (req, res) => {
       type: "server_error",
       title: "Download Failed",
       message: "Download failed",
-      details: error.message,
       notificationType: "error"
     });
   }
@@ -1273,7 +1232,6 @@ const getConversionStatus = async (req, res) => {
       type: "server_error",
       title: "Status Check Failed",
       message: "Status check failed",
-      details: error.message,
       notificationType: "error"
     });
   }

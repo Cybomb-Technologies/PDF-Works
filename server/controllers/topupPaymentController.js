@@ -14,7 +14,7 @@ const EXCHANGE_RATE = process.env.EXCHANGE_RATE ? Number(process.env.EXCHANGE_RA
 // 🔹 HEALTH CHECK ENDPOINT (For Testing)
 // ============================================
 const healthCheck = async (req, res) => {
-  console.log("✅ Topup Health Check Called");
+ // console.log("✅ Topup Health Check Called");
   res.json({
     success: true,
     message: "Topup Payment API is working!",
@@ -31,9 +31,9 @@ const healthCheck = async (req, res) => {
 // 🔹 CREATE TOPUP ORDER
 // ============================================
 const createTopupOrder = async (req, res) => {
-  console.log("🔹 CREATE TOPUP ORDER - Request received");
-  console.log("📝 Request body:", req.body);
-  console.log("👤 User from request:", req.user);
+  // console.log("🔹 CREATE TOPUP ORDER - Request received");
+  // console.log("📝 Request body:", req.body);
+  // console.log("👤 User from request:", req.user);
 
   try {
     const { topupPackageId, currency = "USD" } = req.body;
@@ -48,7 +48,7 @@ const createTopupOrder = async (req, res) => {
     }
 
     const userId = req.user.id;
-    console.log("👤 User ID:", userId);
+   // console.log("👤 User ID:", userId);
 
     if (!topupPackageId) {
       console.error("❌ Missing topupPackageId");
@@ -68,7 +68,7 @@ const createTopupOrder = async (req, res) => {
       });
     }
 
-    console.log("✅ User found:", user.email);
+   // console.log("✅ User found:", user.email);
 
     // Get topup package
     const topupPackage = await TopupPackage.findById(topupPackageId);
@@ -88,7 +88,7 @@ const createTopupOrder = async (req, res) => {
       });
     }
 
-    console.log("✅ Topup package:", topupPackage.name, "Price:", topupPackage.price);
+   // console.log("✅ Topup package:", topupPackage.name, "Price:", topupPackage.price);
 
     // Calculate amount
     let amount = topupPackage.price;
@@ -111,7 +111,7 @@ const createTopupOrder = async (req, res) => {
 
     // Generate unique order ID
     const orderId = `TOPUP_${Date.now()}_${userId}`;
-    console.log("📦 Generated Order ID:", orderId);
+   // console.log("📦 Generated Order ID:", orderId);
 
     // Get user's current credits snapshot
     const creditsBefore = {
@@ -151,7 +151,7 @@ const createTopupOrder = async (req, res) => {
     });
 
     await paymentRecord.save();
-    console.log("✅ Payment record saved:", orderId);
+   // console.log("✅ Payment record saved:", orderId);
 
     // Create Cashfree order payload
     const orderPayload = {
@@ -171,8 +171,8 @@ const createTopupOrder = async (req, res) => {
       },
     };
 
-    console.log("📤 Calling Cashfree API...");
-    console.log("🔑 Cashfree URL:", CASHFREE_BASE_URL);
+    // console.log("📤 Calling Cashfree API...");
+    // console.log("🔑 Cashfree URL:", CASHFREE_BASE_URL);
 
     // Call Cashfree API - USE 2022-01-01 API VERSION (SAME AS SUBSCRIPTION)
     let response;
@@ -186,7 +186,7 @@ const createTopupOrder = async (req, res) => {
         },
         timeout: 10000,
       });
-      console.log("✅ Cashfree response received");
+     // console.log("✅ Cashfree response received");
       
     } catch (axiosError) {
       console.error("❌ Cashfree API Error:");
@@ -205,30 +205,14 @@ const createTopupOrder = async (req, res) => {
     paymentRecord.cashfreeOrderId = response.data.order_id || orderId;
     await paymentRecord.save();
 
-    console.log("✅ Cashfree order created successfully");
+    // console.log("✅ Cashfree order created successfully");
     
     // Extract payment link - Check for payment_link field (same as subscription)
     let paymentLink = response.data.payment_link;
     
-    // If payment_link doesn't exist, try alternative fields
-    if (!paymentLink) {
-      console.log("⚠️ payment_link not found, trying alternatives...");
-      
-      // Try payments.url
-      if (response.data.payments?.url) {
-        paymentLink = response.data.payments.url;
-      }
-      // Try constructing from payment_session_id
-      else if (response.data.payment_session_id) {
-        paymentLink = `https://sandbox.cashfree.com/pg/orders/sessions/${response.data.payment_session_id}`;
-      }
-      // Last resort: construct from order_id
-      else {
-        paymentLink = `https://sandbox.cashfree.com/pg/orders/${orderId}/payments`;
-      }
-    }
+  
     
-    console.log("🔗 Final payment link:", paymentLink);
+    // console.log("🔗 Final payment link:", paymentLink);
     
     // Return success response
     return res.json({
@@ -277,8 +261,8 @@ const createTopupOrder = async (req, res) => {
 // 🔹 VERIFY TOPUP PAYMENT (Frontend Callback)
 // ============================================
 const verifyTopupPayment = async (req, res) => {
-  console.log("🔹 VERIFY TOPUP PAYMENT - Request received");
-  console.log("📝 Request body:", req.body);
+  // console.log("🔹 VERIFY TOPUP PAYMENT - Request received");
+  // console.log("📝 Request body:", req.body);
 
   try {
     const { orderId } = req.body;
@@ -300,7 +284,7 @@ const verifyTopupPayment = async (req, res) => {
       });
     }
 
-    console.log("🔍 Looking for payment record:", orderId, "for user:", userId);
+   // console.log("🔍 Looking for payment record:", orderId, "for user:", userId);
 
     // Get payment record
     const paymentRecord = await TopupPayment.findOne({
@@ -316,7 +300,7 @@ const verifyTopupPayment = async (req, res) => {
       });
     }
 
-    console.log("✅ Payment record found, status:", paymentRecord.status);
+    // console.log("✅ Payment record found, status:", paymentRecord.status);
 
     // If already successful, return success
     if (paymentRecord.status === "success") {
@@ -332,7 +316,7 @@ const verifyTopupPayment = async (req, res) => {
       });
     }
 
-    console.log("🔍 Verifying with Cashfree...");
+    // console.log("🔍 Verifying with Cashfree...");
     
     // Verify with Cashfree - USE 2022-01-01 API VERSION
     let response;
@@ -360,10 +344,10 @@ const verifyTopupPayment = async (req, res) => {
     }
 
     const data = response.data;
-    console.log("✅ Cashfree verification response:", {
-      order_status: data.order_status,
-      order_amount: data.order_amount,
-    });
+    // console.log("✅ Cashfree verification response:", {
+    //   order_status: data.order_status,
+    //   order_amount: data.order_amount,
+    // });
 
     // Handle successful payment
     if (data.order_status === "PAID") {
@@ -445,9 +429,9 @@ const verifyTopupPayment = async (req, res) => {
       // Save user with updated credits
       await user.save();
 
-      console.log(`✅ Credits added to user ${user.email}`);
-      console.log(`📊 New credits - Total: ${user.topupCredits.total}`);
-      console.log(`📊 Purchase history count: ${user.topupPurchases.length}`);
+      // console.log(`✅ Credits added to user ${user.email}`);
+      // console.log(`📊 New credits - Total: ${user.topupCredits.total}`);
+      // console.log(`📊 Purchase history count: ${user.topupPurchases.length}`);
 
       // ✅ AUTO SEND TOPUP INVOICE (fire-and-forget)
       sendTopupInvoiceAfterPayment(orderId, userId).catch((err) =>
@@ -498,7 +482,7 @@ const verifyTopupPayment = async (req, res) => {
 // 🔹 WEBHOOK HANDLER (Cashfree → Server)
 // ============================================
 const handleTopupWebhook = async (req, res) => {
-  console.log("🔔 TOPUP WEBHOOK RECEIVED");
+ // console.log("🔔 TOPUP WEBHOOK RECEIVED");
 
   try {
     const { data, event } = req.body;
@@ -512,7 +496,7 @@ const handleTopupWebhook = async (req, res) => {
         return res.status(400).json({ success: false, message: "No orderId" });
       }
 
-      console.log(`🔍 Processing webhook for order: ${orderId}`);
+     // console.log(`🔍 Processing webhook for order: ${orderId}`);
 
       // Find payment record
       const paymentRecord = await TopupPayment.findOne({
@@ -521,11 +505,11 @@ const handleTopupWebhook = async (req, res) => {
       });
 
       if (!paymentRecord) {
-        console.log(`⚠️ Payment record not found or already processed: ${orderId}`);
+       // console.log(`⚠️ Payment record not found or already processed: ${orderId}`);
         return res.status(200).json({ success: true });
       }
 
-      console.log(`✅ Found payment record for user: ${paymentRecord.userId}`);
+     // console.log(`✅ Found payment record for user: ${paymentRecord.userId}`);
 
       // Update payment record
       paymentRecord.status = "success";
@@ -602,8 +586,8 @@ const handleTopupWebhook = async (req, res) => {
       // Save user with updated credits
       await user.save();
 
-      console.log(`✅ Webhook: Credits added to user ${user.email}`);
-      console.log(`📊 New total credits: ${user.topupCredits.total}`);
+      // console.log(`✅ Webhook: Credits added to user ${user.email}`);
+      // console.log(`📊 New total credits: ${user.topupCredits.total}`);
 
       // ✅ AUTO SEND TOPUP INVOICE (fire-and-forget)
       sendTopupInvoiceAfterPayment(orderId, paymentRecord.userId).catch((err) =>

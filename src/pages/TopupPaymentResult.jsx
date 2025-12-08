@@ -18,7 +18,7 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 const TopupPaymentResult = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, refreshUser } = useAuth();
   const [status, setStatus] = useState("loading");
   const [message, setMessage] = useState("Verifying your payment...");
   const [creditsAdded, setCreditsAdded] = useState(null);
@@ -62,31 +62,33 @@ const TopupPaymentResult = () => {
         setMessage(
           data.message || "Payment completed successfully! Credits have been added to your account."
         );
-        
+
         if (data.creditsAdded) {
           setCreditsAdded(data.creditsAdded);
         }
-        
+
         if (data.currentCredits) {
           setCurrentCredits(data.currentCredits);
           // Update user context if needed
-          if (updateUser) {
-            updateUser({ topupCredits: data.currentCredits });
-          }
+
         }
-        
+
         if (data.orderAmount) {
           setOrderDetails({
             amount: data.orderAmount,
             currency: data.orderCurrency || "USD",
           });
         }
-        
+
+
+
         // Auto-redirect after 5 seconds
-        setTimeout(() => {
-          navigate("/dashboard");
-        }, 5000);
-        
+        setTimeout(async () => {
+          await refreshUser();                             // ⬅ fetch fresh DB values
+          window.dispatchEvent(new Event("user-updated")); // ⬅ notify UI
+          navigate("/dashboard", { replace: true });       // ⬅ correct navigation
+        }, 1200);
+
       } else {
         setStatus("error");
         setMessage(data.message || "Payment verification failed");
@@ -221,27 +223,27 @@ const TopupPaymentResult = () => {
                     Credits Added Successfully!
                   </span>
                 </div>
-                
+
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-gray-600">Total Credits:</span>
                     <span className="font-bold">{creditsAdded.total || 0}</span>
                   </div>
-                  
+
                   {creditsAdded.conversion > 0 && (
                     <div className="flex justify-between">
                       <span className="text-gray-600">PDF Conversions:</span>
                       <span className="font-medium">{creditsAdded.conversion}</span>
                     </div>
                   )}
-                  
+
                   {creditsAdded.editTools > 0 && (
                     <div className="flex justify-between">
                       <span className="text-gray-600">Edit Tools:</span>
                       <span className="font-medium">{creditsAdded.editTools}</span>
                     </div>
                   )}
-                  
+
                   {orderDetails && (
                     <div className="pt-2 border-t mt-2">
                       <div className="flex justify-between">
