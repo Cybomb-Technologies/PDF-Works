@@ -29,6 +29,10 @@ import {
   CreditCard,
   User,
   File,
+  BatteryCharging,
+  IndianRupee,
+  Package,
+  BarChart
 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -45,6 +49,18 @@ const AdminPage = () => {
     filesByCategory: {},
     totalRevenue: 0,
     previousMonthRevenue: 0,
+    // Combined stats (USD for display)
+    topupRevenue: 0,
+    subscriptionRevenue: 0,
+    totalCreditsSold: 0,
+    avgCreditsPerPurchase: 0,
+    topupTransactions: 0,
+    topupSuccessRate: 0,
+    combinedRevenue: 0,
+    // Original INR values
+    totalRevenueINR: 0,
+    topupRevenueINR: 0,
+    subscriptionRevenueINR: 0
   });
 
   const [users, setUsers] = useState([]);
@@ -54,7 +70,13 @@ const AdminPage = () => {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedUser, setSelectedUser] = useState(null);
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [currency, setCurrency] = useState('USD'); // Default to USD
   const navigate = useNavigate();
+
+  const exchangeRates = {
+    USD: 1,
+    INR: 83.5
+  };
 
   const getAdminToken = () => {
     const token = localStorage.getItem("pdfpro_admin_token");
@@ -76,8 +98,7 @@ const AdminPage = () => {
       const token = getAdminToken();
       if (!token) return;
 
-      // console.log("🔍 Fetching admin dashboard data...");
-
+      // Fetch all dashboard data in parallel - REMOVED topup-specific call
       const [statsRes, usersRes, filesRes, paymentStatsRes] = await Promise.all(
         [
           fetch(`${API_URL}/api/admin/dashboard/stats`, {
@@ -91,10 +112,11 @@ const AdminPage = () => {
           }),
           fetch(`${API_URL}/api/admin/dashboard/payment-stats`, {
             headers: { Authorization: `Bearer ${token}` },
-          }),
+          })
         ]
       );
 
+      // Check for authentication errors
       if (
         statsRes.status === 401 ||
         usersRes.status === 401 ||
@@ -106,31 +128,17 @@ const AdminPage = () => {
         return;
       }
 
-      if (!statsRes.ok || !usersRes.ok || !filesRes.ok || !paymentStatsRes.ok) {
-        throw new Error("Failed to fetch dashboard data");
-      }
-
+      // Parse all responses
       const [statsData, usersData, filesData, paymentStatsData] =
         await Promise.all([
-          statsRes.json(),
-          usersRes.json(),
-          filesRes.json(),
-          paymentStatsRes.json(),
+          statsRes.ok ? statsRes.json() : { success: false, stats: {} },
+          usersRes.ok ? usersRes.json() : { success: false, users: [] },
+          filesRes.ok ? filesRes.json() : { success: false, files: [] },
+          paymentStatsRes.ok ? paymentStatsRes.json() : { success: false, stats: {} }
         ]);
 
-      // console.log("📊 Admin dashboard data:", { statsData, usersData, filesData, paymentStatsData });
-
-      if (
-        !statsData.success ||
-        !usersData.success ||
-        !filesData.success ||
-        !paymentStatsData.success
-      ) {
-        throw new Error("Invalid data received from server");
-      }
-
-      // Process statistics
-      const usersByPlan = statsData.stats.usersByPlan || {};
+      // Process main statistics
+      const usersByPlan = statsData.stats?.usersByPlan || {};
 
       // Create dynamic plan distribution
       const dynamicPlanDistribution = Object.entries(usersByPlan)
@@ -144,23 +152,37 @@ const AdminPage = () => {
         }))
         .sort((a, b) => b.value - a.value);
 
-      // Use payment stats for revenue data
+      // Use combined payment stats from backend
       const paymentStats = paymentStatsData.stats || {};
 
+      // Set stats from combined backend data
       setStats({
-        totalUsers: statsData.stats.totalUsers || 0,
-        totalFiles: statsData.stats.totalFiles || 0,
+        totalUsers: statsData.stats?.totalUsers || 0,
+        totalFiles: statsData.stats?.totalFiles || 0,
         monthlyRevenue: paymentStats.monthlyRevenue || 0,
         revenueGrowth: paymentStats.revenueGrowth || 0,
         totalRevenue: paymentStats.totalRevenue || 0,
-        previousMonthRevenue: paymentStats.previousMonthRevenue || 0,
-        activeUsers: statsData.stats.activeUsers || 0,
-        filesByCategory: statsData.stats.filesByTool || {},
+        totalRevenueINR: paymentStats.totalRevenueINR || 0,
+        previousMonthRevenue: 0, // Calculate if needed
+        activeUsers: statsData.stats?.activeUsers || 0,
+        filesByCategory: statsData.stats?.filesByTool || {},
+        
+        // Combined stats from backend
+        topupRevenue: paymentStats.topupRevenue || 0,
+        topupRevenueINR: paymentStats.topupRevenueINR || 0,
+        subscriptionRevenue: paymentStats.subscriptionRevenue || 0,
+        subscriptionRevenueINR: paymentStats.subscriptionRevenueINR || 0,
+        totalCreditsSold: paymentStats.totalCreditsSold || 0,
+        avgCreditsPerPurchase: paymentStats.avgCreditsPerPurchase || 0,
+        topupTransactions: paymentStats.totalTopupTransactions || 0,
+        topupSuccessRate: paymentStats.topupSuccessRate || 0,
+        combinedRevenue: paymentStats.totalRevenue || 0
       });
 
       setUsers(usersData.users || []);
       setRecentFiles(filesData.files || []);
       setPlanDistribution(dynamicPlanDistribution);
+
     } catch (error) {
       console.error("❌ Error fetching dashboard data:", error);
       toast({
@@ -221,6 +243,7 @@ const AdminPage = () => {
       edit: FileText,
       security: Shield,
       advanced: Database,
+      topup: BatteryCharging,
     };
     return icons[category] || FileText;
   };
@@ -241,6 +264,30 @@ const AdminPage = () => {
 
   const refreshData = () => {
     fetchDashboardData();
+  };
+
+  const toggleCurrency = () => {
+    setCurrency(prev => prev === 'USD' ? 'INR' : 'USD');
+  };
+
+  const formatCurrency = (amount, originalCurrency = 'USD') => {
+    if (!amount) return currency === 'INR' ? '₹0' : '$0.00';
+    
+    let finalAmount = amount;
+    
+    // Convert if currency differs
+    if (originalCurrency === 'INR' && currency === 'USD') {
+      finalAmount = amount / exchangeRates.INR;
+    } else if (originalCurrency === 'USD' && currency === 'INR') {
+      finalAmount = amount * exchangeRates.INR;
+    }
+
+    return new Intl.NumberFormat(currency === 'INR' ? 'en-IN' : 'en-US', {
+      style: 'currency',
+      currency: currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(finalAmount);
   };
 
   const formatFileSize = (bytes) => {
@@ -271,15 +318,6 @@ const AdminPage = () => {
     });
   };
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(amount);
-  };
-
   // Filter files by category
   const filteredFiles =
     selectedCategory === "all"
@@ -308,10 +346,32 @@ const AdminPage = () => {
       description: "Across all tools",
     },
     {
-      label: "Monthly Revenue",
-      value: formatCurrency(stats.monthlyRevenue),
+      label: "Combined Revenue",
+      value: formatCurrency(stats.combinedRevenue, 'USD'),
       icon: DollarSign,
       color: "from-green-500 to-emerald-500",
+      description: (
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-gray-500">Subscriptions:</span>
+            <span className="text-xs font-medium text-green-600">
+              {formatCurrency(stats.subscriptionRevenue, 'USD')}
+            </span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-gray-500">Topups:</span>
+            <span className="text-xs font-medium text-blue-600">
+              {formatCurrency(stats.topupRevenue, 'USD')}
+            </span>
+          </div>
+        </div>
+      ),
+    },
+    {
+      label: "Monthly Revenue",
+      value: formatCurrency(stats.monthlyRevenue, 'USD'),
+      icon: DollarSign,
+      color: "from-indigo-500 to-purple-500",
       description: (
         <div className="flex items-center gap-1">
           {stats.revenueGrowth >= 0 ? (
@@ -327,23 +387,31 @@ const AdminPage = () => {
             {stats.revenueGrowth >= 0 ? "+" : ""}
             {stats.revenueGrowth.toFixed(1)}%
           </span>
-          <span className="text-gray-500 ml-1">from last month</span>
+          <span className="text-gray-500 ml-1">growth</span>
         </div>
       ),
     },
     {
-      label: "Active Users",
-      value: stats.activeUsers,
-      icon: Activity,
+      label: "Credits Sold",
+      value: stats.totalCreditsSold.toLocaleString(),
+      icon: BatteryCharging,
       color: "from-orange-500 to-red-500",
-      description: "Users with activity",
-    },
-    {
-      label: "Total Revenue",
-      value: formatCurrency(stats.totalRevenue),
-      icon: DollarSign,
-      color: "from-indigo-500 to-purple-500",
-      description: "All time revenue",
+      description: (
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-gray-500">Avg:</span>
+            <span className="text-xs font-medium text-orange-600">
+              {stats.avgCreditsPerPurchase} credits/purchase
+            </span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-gray-500">Success Rate:</span>
+            <span className="text-xs font-medium text-green-600">
+              {stats.topupSuccessRate.toFixed(1)}%
+            </span>
+          </div>
+        </div>
+      ),
     },
   ];
 
@@ -458,6 +526,36 @@ const AdminPage = () => {
                 </div>
               </div>
             </div>
+
+            {/* Topup Information (if available) */}
+            {selectedUser.topupPurchases !== undefined && (
+              <div className="space-y-4">
+                <h4 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <BatteryCharging className="h-5 w-5 text-emerald-600" />
+                  Topup Information
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="p-4 bg-emerald-50 rounded-lg">
+                    <div className="text-sm text-emerald-700">Purchases</div>
+                    <div className="text-2xl font-bold text-emerald-800">
+                      {selectedUser.topupPurchases || 0}
+                    </div>
+                  </div>
+                  <div className="p-4 bg-blue-50 rounded-lg">
+                    <div className="text-sm text-blue-700">Credits Purchased</div>
+                    <div className="text-2xl font-bold text-blue-800">
+                      {selectedUser.topupCredits || 0}
+                    </div>
+                  </div>
+                  <div className="p-4 bg-purple-50 rounded-lg">
+                    <div className="text-sm text-purple-700">Current Credits</div>
+                    <div className="text-2xl font-bold text-purple-800">
+                      {selectedUser.currentTopupCredits || 0}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Storage & Activity */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -595,13 +693,28 @@ const AdminPage = () => {
               Manage users, files, and monitor platform activity
             </p>
           </div>
-          <button
-            onClick={refreshData}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-lg hover:shadow-xl"
-          >
-            <RefreshCw className="h-4 w-4" />
-            Refresh Data
-          </button>
+          <div className="flex items-center gap-4">
+            {/* Currency Toggle */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">Currency:</span>
+              <button
+                onClick={toggleCurrency}
+                className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
+              >
+                {currency === 'INR' ? (
+                  <>
+                    <IndianRupee className="h-4 w-4" />
+                    <span>INR</span>
+                  </>
+                ) : (
+                  <>
+                    <DollarSign className="h-4 w-4" />
+                    <span>USD</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       </motion.div>
 
@@ -645,6 +758,158 @@ const AdminPage = () => {
             </motion.div>
           );
         })}
+      </motion.div>
+
+      {/* Combined Revenue Overview - NO SEPARATE TOPUP SECTION */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.15 }}
+        className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm"
+      >
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-green-600 rounded-lg flex items-center justify-center">
+              <BarChart className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">Revenue Overview</h2>
+              <p className="text-sm text-gray-600">All payment statistics</p>
+            </div>
+          </div>
+          <button
+            onClick={() => navigate("/admin/payments")}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+          >
+            <Eye className="h-4 w-4" />
+            Manage All Payments
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* Combined Revenue Card */}
+          <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-6 border border-gray-200 hover:shadow-md transition-all duration-300">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 mb-2">
+                  Total Revenue
+                </p>
+                <h3 className="text-2xl font-bold text-gray-900 mb-1">
+                  {formatCurrency(stats.combinedRevenue, 'USD')}
+                </h3>
+                <p className="text-xs text-gray-500">
+                  Combined subscription + topup
+                </p>
+                <div className="mt-2 text-xs text-gray-400">
+                  {formatCurrency(stats.totalRevenueINR, 'INR')} in INR
+                </div>
+              </div>
+              <div
+                className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-md"
+              >
+                <DollarSign className="h-5 w-5 text-white" />
+              </div>
+            </div>
+          </div>
+
+          {/* Subscription Revenue Card */}
+          <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-6 border border-gray-200 hover:shadow-md transition-all duration-300">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 mb-2">
+                  Subscription Revenue
+                </p>
+                <h3 className="text-2xl font-bold text-gray-900 mb-1">
+                  {formatCurrency(stats.subscriptionRevenue, 'USD')}
+                </h3>
+                <p className="text-xs text-gray-500">
+                  Recurring plan payments
+                </p>
+                <div className="mt-2 text-xs text-gray-400">
+                  {formatCurrency(stats.subscriptionRevenueINR, 'INR')} in INR
+                </div>
+              </div>
+              <div
+                className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-md"
+              >
+                <CreditCard className="h-5 w-5 text-white" />
+              </div>
+            </div>
+          </div>
+
+          {/* Topup Revenue Card */}
+          <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-6 border border-gray-200 hover:shadow-md transition-all duration-300">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 mb-2">
+                  Topup Revenue
+                </p>
+                <h3 className="text-2xl font-bold text-gray-900 mb-1">
+                  {formatCurrency(stats.topupRevenue, 'USD')}
+                </h3>
+                <p className="text-xs text-gray-500">
+                  Credit purchases
+                </p>
+                <div className="mt-2 text-xs text-gray-400">
+                  {formatCurrency(stats.topupRevenueINR, 'INR')} in INR
+                </div>
+              </div>
+              <div
+                className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-md"
+              >
+                <BatteryCharging className="h-5 w-5 text-white" />
+              </div>
+            </div>
+          </div>
+
+          {/* Credits Card */}
+          <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-6 border border-gray-200 hover:shadow-md transition-all duration-300">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 mb-2">
+                  Credits Statistics
+                </p>
+                <h3 className="text-2xl font-bold text-gray-900 mb-1">
+                  {stats.totalCreditsSold.toLocaleString()}
+                </h3>
+                <p className="text-xs text-gray-500">
+                  Total credits sold
+                </p>
+                <div className="mt-2 text-xs text-gray-400">
+                  Avg: {stats.avgCreditsPerPurchase} credits
+                </div>
+              </div>
+              <div
+                className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center shadow-md"
+              >
+                <BatteryCharging className="h-5 w-5 text-white" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Success Rate Info */}
+        <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-700">Topup Success Rate</p>
+              <p className="text-xs text-gray-500">
+                {stats.topupTransactions} transactions
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-32 bg-gray-200 rounded-full h-2">
+                <div
+                  className="h-2 rounded-full bg-gradient-to-r from-green-500 to-emerald-500"
+                  style={{ width: `${stats.topupSuccessRate}%` }}
+                ></div>
+              </div>
+              <span className="text-sm font-bold text-gray-900">
+                {stats.topupSuccessRate.toFixed(1)}%
+              </span>
+            </div>
+          </div>
+        </div>
       </motion.div>
 
       {/* Plan Distribution */}
@@ -717,7 +982,7 @@ const AdminPage = () => {
         </div>
       </motion.div>
 
-      {/* Revenue Overview */}
+      {/* Revenue Breakdown */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -725,60 +990,70 @@ const AdminPage = () => {
         className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm"
       >
         <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2 mb-6">
-          <BarChart3 className="h-5 w-5 text-green-600" />
-          Revenue Overview
+          <BarChart className="h-5 w-5 text-green-600" />
+          Revenue Breakdown
         </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="flex justify-between items-center p-6 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200">
             <div>
               <p className="text-sm font-medium text-green-700">
-                Current Month
+                Total Combined
               </p>
               <p className="text-2xl font-bold text-green-800">
-                {formatCurrency(stats.monthlyRevenue)}
+                {formatCurrency(stats.combinedRevenue, 'USD')}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                {formatCurrency(stats.totalRevenueINR, 'INR')} in INR
               </p>
             </div>
-            {stats.revenueGrowth >= 0 ? (
-              <div className="flex items-center gap-1 bg-green-100 px-3 py-2 rounded-full">
-                <TrendingUp className="h-5 w-5 text-green-600" />
-                <span className="text-sm font-medium text-green-700">
-                  +{stats.revenueGrowth.toFixed(1)}%
-                </span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-1 bg-red-100 px-3 py-2 rounded-full">
-                <TrendingDown className="h-5 w-5 text-red-600" />
-                <span className="text-sm font-medium text-red-700">
-                  {stats.revenueGrowth.toFixed(1)}%
-                </span>
-              </div>
-            )}
+            <div className="flex items-center gap-1 bg-green-100 px-3 py-2 rounded-full">
+              <DollarSign className="h-5 w-5 text-green-600" />
+            </div>
           </div>
 
           <div className="p-6 bg-blue-50 rounded-xl border border-blue-200">
             <p className="text-sm font-medium text-blue-600 mb-2">
-              Previous Month
+              Subscription Revenue
             </p>
             <p className="text-2xl font-bold text-blue-700">
-              {formatCurrency(stats.previousMonthRevenue)}
+              {formatCurrency(stats.subscriptionRevenue, 'USD')}
             </p>
             <div className="flex items-center gap-2 mt-3">
-              <Calendar className="h-4 w-4 text-blue-500" />
-              <span className="text-sm text-blue-600">Last 30 days</span>
+              <CreditCard className="h-4 w-4 text-blue-500" />
+              <span className="text-sm text-blue-600">Recurring payments</span>
+            </div>
+          </div>
+
+          <div className="p-6 bg-emerald-50 rounded-xl border border-emerald-200">
+            <p className="text-sm font-medium text-emerald-600 mb-2">
+              Topup Revenue
+            </p>
+            <p className="text-2xl font-bold text-emerald-700">
+              {formatCurrency(stats.topupRevenue, 'USD')}
+            </p>
+            <div className="flex items-center gap-2 mt-3">
+              <BatteryCharging className="h-4 w-4 text-emerald-500" />
+              <span className="text-sm text-emerald-600">Credit purchases</span>
             </div>
           </div>
 
           <div className="p-6 bg-purple-50 rounded-xl border border-purple-200">
             <p className="text-sm font-medium text-purple-600 mb-2">
-              All Time Revenue
+              Current Month
             </p>
             <p className="text-2xl font-bold text-purple-700">
-              {formatCurrency(stats.totalRevenue)}
+              {formatCurrency(stats.monthlyRevenue, 'USD')}
             </p>
             <div className="flex items-center gap-2 mt-3">
-              <DollarSign className="h-4 w-4 text-purple-500" />
-              <span className="text-sm text-purple-600">Total earnings</span>
+              {stats.revenueGrowth >= 0 ? (
+                <TrendingUp className="h-4 w-4 text-green-500" />
+              ) : (
+                <TrendingDown className="h-4 w-4 text-red-500" />
+              )}
+              <span className={`text-sm ${stats.revenueGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {stats.revenueGrowth >= 0 ? '+' : ''}{stats.revenueGrowth.toFixed(1)}%
+              </span>
             </div>
           </div>
         </div>
@@ -904,7 +1179,7 @@ const AdminPage = () => {
                       Files
                     </th>
                     <th className="text-left py-3 px-4 font-semibold text-gray-700">
-                      Storage
+                      Credits
                     </th>
                     <th className="text-left py-3 px-4 font-semibold text-gray-700">
                       Joined
@@ -956,9 +1231,16 @@ const AdminPage = () => {
                         </div>
                       </td>
                       <td className="py-3 px-4">
-                        <span className="text-sm text-gray-600">
-                          {formatFileSize(user.storageUsed)}
-                        </span>
+                        {user.currentTopupCredits > 0 ? (
+                          <div className="flex items-center gap-1">
+                            <BatteryCharging className="h-3 w-3 text-emerald-600" />
+                            <span className="text-sm font-medium text-emerald-700">
+                              {user.currentTopupCredits}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-sm text-gray-500">-</span>
+                        )}
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-1 text-sm text-gray-600">

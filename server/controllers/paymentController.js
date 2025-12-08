@@ -29,12 +29,12 @@ const calculateAmountFromPlan = async (planId, billingCycle, currency) => {
     throw new Error("Invalid plan selected");
   }
 
-  console.log("Plan data:", {
-    planId: plan._id,
-    name: plan.name,
-    usdPrice: plan.usdPrice,
-    billingCycles: plan.billingCycles,
-  });
+  // console.log("Plan data:", {
+  //   planId: plan._id,
+  //   name: plan.name,
+  //   usdPrice: plan.usdPrice,
+  //   billingCycles: plan.billingCycles,
+  // });
 
   let amount;
   let finalCurrency = currency;
@@ -71,12 +71,12 @@ const calculateAmountFromPlan = async (planId, billingCycle, currency) => {
     finalCurrency = "INR";
   }
 
-  console.log("Final calculated amount:", {
-    originalAmount: plan.billingCycles?.[billingCycle],
-    convertedAmount: amount,
-    currency: finalCurrency,
-    exchangeRate: currency === "INR" ? EXCHANGE_RATE : "N/A",
-  });
+  // console.log("Final calculated amount:", {
+  //   originalAmount: plan.billingCycles?.[billingCycle],
+  //   convertedAmount: amount,
+  //   currency: finalCurrency,
+  //   exchangeRate: currency === "INR" ? EXCHANGE_RATE : "N/A",
+  // });
 
   return { amount, currency: finalCurrency, plan };
 };
@@ -91,15 +91,15 @@ const handleSimpleUpgrade = async (userId, newPlanId) => {
       throw new Error("User or plan not found");
     }
 
-    console.log(
-      "🔄 Simple upgrade - keeping current usage, updating plan only"
-    );
-    console.log("Before upgrade:", {
-      userId: user._id,
-      oldPlan: user.planName,
-      newPlan: newPlan.name,
-      currentUsage: user.usage,
-    });
+    // console.log(
+    //   "🔄 Simple upgrade - keeping current usage, updating plan only"
+    // );
+    // console.log("Before upgrade:", {
+    //   userId: user._id,
+    //   oldPlan: user.planName,
+    //   newPlan: newPlan.name,
+    //   currentUsage: user.usage,
+    // });
 
     // Update user plan - usage object remains exactly the same
     user.plan = newPlanId;
@@ -111,11 +111,11 @@ const handleSimpleUpgrade = async (userId, newPlanId) => {
     // ✅ USAGE REMAINS UNCHANGED - only plan limits increase
     await user.save();
 
-    console.log("After upgrade:", {
-      userId: user._id,
-      newPlan: user.planName,
-      usageRemains: user.usage,
-    });
+    // console.log("After upgrade:", {
+    //   userId: user._id,
+    //   newPlan: user.planName,
+    //   usageRemains: user.usage,
+    // });
 
     return user;
   } catch (error) {
@@ -129,8 +129,8 @@ const createOrder = async (req, res) => {
   try {
     const { planId, billingCycle = "monthly", currency = "USD" } = req.body;
 
-    console.log("Payment request received:", { planId, billingCycle, currency });
-    console.log("User from request:", req.user);
+    // console.log("Payment request received:", { planId, billingCycle, currency });
+    // console.log("User from request:", req.user);
 
     // Check if user is authenticated
     if (!req.user || !req.user.id) {
@@ -159,7 +159,7 @@ const createOrder = async (req, res) => {
       });
     }
 
-    console.log("Found user:", user.email);
+   // console.log("Found user:", user.email);
 
     // Calculate amount and get plan
     const { amount, currency: orderCurrency, plan } =
@@ -204,12 +204,12 @@ const createOrder = async (req, res) => {
       },
     };
 
-    console.log("Creating Cashfree order with payload:", {
-      order_id: orderPayload.order_id,
-      order_amount: orderPayload.order_amount,
-      order_currency: orderPayload.order_currency,
-      customer_email: orderPayload.customer_details.customer_email,
-    });
+    // console.log("Creating Cashfree order with payload:", {
+    //   order_id: orderPayload.order_id,
+    //   order_amount: orderPayload.order_amount,
+    //   order_currency: orderPayload.order_currency,
+    //   customer_email: orderPayload.customer_details.customer_email,
+    // });
 
     const response = await axios.post(CASHFREE_BASE_URL, orderPayload, {
       headers: {
@@ -238,7 +238,7 @@ const createOrder = async (req, res) => {
 
     await paymentRecord.save();
 
-    console.log("Payment record created successfully");
+   // console.log("Payment record created successfully");
 
     return res.json({
       success: true,
@@ -287,7 +287,7 @@ const verifyPayment = async (req, res) => {
       });
     }
 
-    console.log("Verifying payment for order:", orderId);
+   // console.log("Verifying payment for order:", orderId);
 
     const response = await axios.get(`${CASHFREE_BASE_URL}/${orderId}`, {
       headers: {
@@ -321,15 +321,15 @@ const verifyPayment = async (req, res) => {
         // Get updated user to verify changes
         const userAfter = await User.findById(userId);
 
-        console.log("✅ Upgrade completed successfully:");
-        console.log("User before:", {
-          plan: userBefore.planName,
-          usage: userBefore.usage,
-        });
-        console.log("User after:", {
-          plan: userAfter.planName,
-          usage: userAfter.usage,
-        });
+        // console.log("✅ Upgrade completed successfully:");
+        // console.log("User before:", {
+        //   plan: userBefore.planName,
+        //   usage: userBefore.usage,
+        // });
+        // console.log("User after:", {
+        //   plan: userAfter.planName,
+        //   usage: userAfter.usage,
+        // });
 
         // ✅ AUTO SEND INVOICE (fire-and-forget)
         sendInvoiceAfterPayment(orderId, userId).catch((err) =>
@@ -386,7 +386,7 @@ const handlePaymentWebhook = async (req, res) => {
     if (event === "PAYMENT_SUCCESS_WEBHOOK") {
       const { orderId } = data;
 
-      console.log("Payment webhook received:", { orderId });
+     // console.log("Payment webhook received:", { orderId });
 
       // Update payment record
       const paymentRecord = await Payment.findOne({ transactionId: orderId });
@@ -402,10 +402,10 @@ const handlePaymentWebhook = async (req, res) => {
         // ✅ SIMPLE UPGRADE: Keep current usage, update plan only
         await handleSimpleUpgrade(paymentRecord.userId, paymentRecord.planId);
 
-        console.log(
-          "User plan updated via webhook with simple upgrade for order:",
-          orderId
-        );
+        // console.log(
+        //   "User plan updated via webhook with simple upgrade for order:",
+        //   orderId
+        // );
 
         // ✅ AUTO SEND INVOICE (fire-and-forget)
         sendInvoiceAfterPayment(orderId, paymentRecord.userId).catch((err) =>

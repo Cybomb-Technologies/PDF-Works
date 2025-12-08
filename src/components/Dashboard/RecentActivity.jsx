@@ -324,19 +324,6 @@ const RecentActivity = ({ recentActivities, fetchUserData, formatDate }) => {
             <RefreshCw className="h-4 w-4 animate-spin text-gray-400" />
           )}
         </h2>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={refreshData}
-            disabled={loading}
-          >
-            <RefreshCw
-              className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`}
-            />
-            Refresh
-          </Button>
-        </div>
       </div>
 
       {/* Activities List */}

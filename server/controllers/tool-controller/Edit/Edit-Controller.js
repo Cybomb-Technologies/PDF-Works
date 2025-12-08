@@ -15,7 +15,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = path.join(__dirname, '../../../node_mod
 
 class EditController {
   constructor() {
-    console.log('EditController initialized');
+   // console.log('EditController initialized');
     this.configurePDFJS();
     this.uploadPDF = this.uploadPDF.bind(this);
     this.extractPDFStructure = this.extractPDFStructure.bind(this);
@@ -82,7 +82,7 @@ class EditController {
       });
 
       await editRecord.save();
-      console.log("File saved to Edit model:", editRecord._id);
+     // console.log("File saved to Edit model:", editRecord._id);
       return editRecord;
     } catch (error) {
       console.error("Error saving to Edit model:", error);
@@ -98,32 +98,34 @@ class EditController {
       const userId = req.user?.id;
 
       if (!file) {
-        return res.status(400).json({
+        return res.status(200).json({
           success: false,
-          error: 'No file provided'
+          type: "validation_error",
+          title: "File Required",
+          message: 'No file provided',
+          notificationType: "warning",
         });
       }
 
+      // Calculate file size
+      const fileSize = file.size || 0;
+      
       // -------------------------------------------------------
-      // ✅ ENHANCED: Usage limit check WITH TOPUP SUPPORT
+      // ✅ ENHANCED: Usage limit check WITH FILE SIZE
       // -------------------------------------------------------
-      let creditsInfo = null;
       if (userId) {
         try {
-          console.log('🔍 [EDIT DEBUG] Checking limits for user:', userId);
+         // console.log('🔍 [EDIT DEBUG] Checking limits for user:', userId);
+         //  console.log('🔍 [EDIT DEBUG] File size:', fileSize, 'bytes');
           
-          const limitCheck = await checkLimits(userId, "edit-tools");
-          creditsInfo = limitCheck.creditsInfo;
+          const limitCheck = await checkLimits(userId, "edit-tools", fileSize);
           
-          console.log('🔍 [EDIT DEBUG] Limit check result:', {
-            allowed: limitCheck.allowed,
-            reason: limitCheck.reason,
-            currentUsage: limitCheck.usage?.editTools,
-            limit: limitCheck.plan?.editToolsLimit,
-            planName: limitCheck.plan?.name,
-            usingTopup: limitCheck.creditsInfo?.usingTopup || false,
-            topupAvailable: limitCheck.creditsInfo?.topupAvailable || 0
-          });
+          // console.log('🔍 [EDIT DEBUG] PDF Edit Limit Check:', {
+          //   allowed: limitCheck.allowed,
+          //   reason: limitCheck.reason,
+          //   currentUsage: limitCheck.usage?.editTools,
+          //   limit: limitCheck.plan?.editToolsLimit,
+          // });
           
           if (!limitCheck.allowed) {
             return res.status(200).json({
@@ -135,14 +137,6 @@ class EditController {
               currentUsage: limitCheck.usage?.editTools || 0,
               limit: limitCheck.plan?.editToolsLimit || 0,
               upgradeRequired: true,
-              creditsInfo: {
-                planLimit: limitCheck.creditsInfo?.planLimit || 0,
-                planUsed: limitCheck.creditsInfo?.planUsed || 0,
-                planRemaining: limitCheck.creditsInfo?.planRemaining || 0,
-                topupAvailable: limitCheck.creditsInfo?.topupAvailable || 0,
-                totalAvailable: limitCheck.creditsInfo?.totalAvailable || 0,
-                usingTopup: limitCheck.creditsInfo?.usingTopup || false
-              }
             });
           }
         } catch (limitErr) {
@@ -171,80 +165,90 @@ class EditController {
       let incrementResult = null;
       if (userId) {
         incrementResult = await incrementUsage(userId, "edit-tools");
-        console.log('✅ [EDIT DEBUG] Usage incremented:', {
-          userId: userId,
-          creditsUsed: incrementResult?.creditsUsed,
-          topupRemaining: incrementResult?.creditsUsed?.topupRemaining
-        });
+        // console.log('✅ [EDIT DEBUG] Usage incremented for PDF edit:', {
+        //   userId: userId,
+        //   creditsUsed: incrementResult?.creditsUsed,
+        // });
       }
 
       // ✅ ENHANCED: Response with credits information
       const responseData = {
         success: true,
+        type: "save_success",
+        title: "Edit Saved",
+        message: 'PDF edit saved successfully',
+        notificationType: "success",
         editId: editRecord._id,
         downloadUrl: editRecord.downloadUrl,
-        message: 'PDF edit saved successfully'
       };
 
       // Add credits info if available
-      if (creditsInfo || incrementResult?.creditsUsed) {
+      if (incrementResult?.creditsUsed) {
         responseData.creditsInfo = {
-          ...creditsInfo,
-          ...(incrementResult?.creditsUsed && {
-            creditsUsed: incrementResult.creditsUsed.total,
-            fromPlan: incrementResult.creditsUsed.fromPlan,
-            fromTopup: incrementResult.creditsUsed.fromTopup,
-            topupRemaining: incrementResult.creditsUsed.topupRemaining,
-            planRemaining: creditsInfo ? Math.max(0, creditsInfo.planRemaining - (incrementResult.creditsUsed.fromPlan || 0)) : 0,
-            topupAvailable: incrementResult.creditsUsed.topupRemaining || 0
-          })
+          fromPlan: incrementResult.creditsUsed.fromPlan,
+          fromTopup: incrementResult.creditsUsed.fromTopup,
+          topupRemaining: incrementResult.creditsUsed.topupRemaining,
         };
       }
 
       res.json(responseData);
 
     } catch (error) {
-      console.error('Save PDF edit error:', error);
-      res.status(500).json({
+      console.error('❌ [EDIT DEBUG] Save PDF edit error:', error);
+      res.status(200).json({
         success: false,
-        error: error.message
+        type: "server_error",
+        title: "Save Failed",
+        message: error.message,
+        notificationType: "error",
       });
     }
   }
 
-  // ✅ ENHANCED: Save Image Crop output with TOPUP SUPPORT
+  // ✅ ENHANCED: Save Image Crop output with FILE SIZE CHECK
   async saveImageCrop(req, res) {
     try {
-      console.log('🔍 [EDIT DEBUG] Save Image Crop called');
-      console.log('🔍 [EDIT DEBUG] Body:', req.body);
-      console.log('🔍 [EDIT DEBUG] File:', req.file ? `Present - ${req.file.originalname}` : 'Missing');
+      // console.log('🔍 [EDIT DEBUG] Save Image Crop called');
+      // console.log('🔍 [EDIT DEBUG] Body:', req.body);
+      // console.log('🔍 [EDIT DEBUG] File:', req.file ? `Present - ${req.file.originalname}` : 'Missing');
 
       const { originalName, cropDimensions } = req.body;
       const file = req.file;
       const userId = req.user?.id;
 
+      if (!file) {
+      //  console.log('❌ [EDIT DEBUG] No file provided in request');
+        return res.status(200).json({
+          success: false,
+          type: "validation_error",
+          title: "File Required",
+          message: 'No file provided',
+          notificationType: "warning",
+        });
+      }
+
+      // Calculate file size
+      const fileSize = file.size || 0;
+      
       // -------------------------------------------------------
-      // ✅ ENHANCED: Usage limit check WITH TOPUP SUPPORT
+      // ✅ ENHANCED: Usage limit check WITH FILE SIZE
       // -------------------------------------------------------
-      let creditsInfo = null;
       if (userId) {
         try {
-          console.log('🔍 [EDIT DEBUG] Checking limits for user:', userId);
+        //  console.log('🔍 [EDIT DEBUG] Checking limits for user:', userId);
+         // console.log('🔍 [EDIT DEBUG] File size:', fileSize, 'bytes');
           
-          const limitCheck = await checkLimits(userId, "edit-tools");
-          creditsInfo = limitCheck.creditsInfo;
+          const limitCheck = await checkLimits(userId, "edit-tools", fileSize);
           
-          console.log('🔍 [EDIT DEBUG] Image Crop Limit Check:', {
-            allowed: limitCheck.allowed,
-            reason: limitCheck.reason,
-            currentUsage: limitCheck.usage?.editTools,
-            limit: limitCheck.plan?.editToolsLimit,
-            usingTopup: limitCheck.creditsInfo?.usingTopup || false,
-            topupAvailable: limitCheck.creditsInfo?.topupAvailable || 0
-          });
+          // console.log('🔍 [EDIT DEBUG] Image Crop Limit Check:', {
+          //   allowed: limitCheck.allowed,
+          //   reason: limitCheck.reason,
+          //   currentUsage: limitCheck.usage?.editTools,
+          //   limit: limitCheck.plan?.editToolsLimit,
+          // });
 
           if (!limitCheck.allowed) {
-            console.log('🚫 [EDIT DEBUG] Image Crop blocked - limit exceeded');
+           // console.log('🚫 [EDIT DEBUG] Image Crop blocked - limit exceeded');
             return res.status(200).json({
               success: false,
               type: "limit_exceeded",
@@ -254,14 +258,6 @@ class EditController {
               currentUsage: limitCheck.usage?.editTools || 0,
               limit: limitCheck.plan?.editToolsLimit || 0,
               upgradeRequired: limitCheck.upgradeRequired || true,
-              creditsInfo: {
-                planLimit: limitCheck.creditsInfo?.planLimit || 0,
-                planUsed: limitCheck.creditsInfo?.planUsed || 0,
-                planRemaining: limitCheck.creditsInfo?.planRemaining || 0,
-                topupAvailable: limitCheck.creditsInfo?.topupAvailable || 0,
-                totalAvailable: limitCheck.creditsInfo?.totalAvailable || 0,
-                usingTopup: limitCheck.creditsInfo?.usingTopup || false
-              }
             });
           }
         } catch (limitErr) {
@@ -276,16 +272,7 @@ class EditController {
         }
       }
 
-      // If we reach here, limit check passed - proceed with processing
-      if (!file) {
-        console.log('❌ [EDIT DEBUG] No file provided in request');
-        return res.status(400).json({
-          success: false,
-          error: 'No file provided'
-        });
-      }
-
-      // Handle cropDimensions - it might be string or object
+      // Handle cropDimensions
       let cropData = {};
       if (cropDimensions) {
         if (typeof cropDimensions === 'string') {
@@ -293,7 +280,6 @@ class EditController {
             cropData = JSON.parse(cropDimensions);
           } catch (parseError) {
             console.warn('Failed to parse cropDimensions as JSON:', parseError);
-            // Try to extract basic info
             cropData = { raw: cropDimensions };
           }
         } else if (typeof cropDimensions === 'object') {
@@ -301,7 +287,7 @@ class EditController {
         }
       }
 
-      console.log('🔍 [EDIT DEBUG] Processing crop data:', cropData);
+     // console.log('🔍 [EDIT DEBUG] Processing crop data:', cropData);
 
       const editRecord = await this.saveToEditModel(
         file.buffer,
@@ -313,39 +299,35 @@ class EditController {
         { cropDimensions: cropData }
       );
 
-      console.log('✅ [EDIT DEBUG] Image crop saved successfully:', editRecord._id);
+     // console.log('✅ [EDIT DEBUG] Image crop saved successfully:', editRecord._id);
 
       // ✅ ENHANCED: Increment usage with topup tracking
       let incrementResult = null;
       if (userId) {
         incrementResult = await incrementUsage(userId, "edit-tools");
-        console.log('✅ [EDIT DEBUG] Usage incremented for image crop:', {
-          userId: userId,
-          creditsUsed: incrementResult?.creditsUsed,
-          topupRemaining: incrementResult?.creditsUsed?.topupRemaining
-        });
+        // console.log('✅ [EDIT DEBUG] Usage incremented for image crop:', {
+        //   userId: userId,
+        //   creditsUsed: incrementResult?.creditsUsed,
+        // });
       }
 
       // ✅ ENHANCED: Response with credits information
       const responseData = {
         success: true,
+        type: "crop_success",
+        title: "Image Cropped",
+        message: 'Image crop saved successfully',
+        notificationType: "success",
         editId: editRecord._id,
         downloadUrl: editRecord.downloadUrl,
-        message: 'Image crop saved successfully'
       };
 
       // Add credits info if available
-      if (creditsInfo || incrementResult?.creditsUsed) {
+      if (incrementResult?.creditsUsed) {
         responseData.creditsInfo = {
-          ...creditsInfo,
-          ...(incrementResult?.creditsUsed && {
-            creditsUsed: incrementResult.creditsUsed.total,
-            fromPlan: incrementResult.creditsUsed.fromPlan,
-            fromTopup: incrementResult.creditsUsed.fromTopup,
-            topupRemaining: incrementResult.creditsUsed.topupRemaining,
-            planRemaining: creditsInfo ? Math.max(0, creditsInfo.planRemaining - (incrementResult.creditsUsed.fromPlan || 0)) : 0,
-            topupAvailable: incrementResult.creditsUsed.topupRemaining || 0
-          })
+          fromPlan: incrementResult.creditsUsed.fromPlan,
+          fromTopup: incrementResult.creditsUsed.fromTopup,
+          topupRemaining: incrementResult.creditsUsed.topupRemaining,
         };
       }
 
@@ -353,52 +335,62 @@ class EditController {
 
     } catch (error) {
       console.error('❌ [EDIT DEBUG] Save image crop error:', error);
-      res.status(500).json({
+      res.status(200).json({
         success: false,
-        error: error.message
+        type: "server_error",
+        title: "Save Failed",
+        message: error.message,
+        notificationType: "error",
       });
     }
   }
 
-  // ✅ ENHANCED: Save File Rename output as BATCH with TOPUP SUPPORT
+  // ✅ ENHANCED: Save File Rename output as BATCH with FILE SIZE CHECK
   async saveFileRename(req, res) {
     try {
-      console.log('🔍 [EDIT DEBUG] Save File Rename called with:', {
-        body: req.body,
-        filesCount: req.files ? req.files.length : 0,
-        userId: req.user?.id
-      });
+      // console.log('🔍 [EDIT DEBUG] Save File Rename called with:', {
+      //   body: req.body,
+      //   filesCount: req.files ? req.files.length : 0,
+      //   userId: req.user?.id
+      // });
 
       const { filesData, batchName } = req.body;
       const files = req.files || [];
       const userId = req.user?.id;
 
+      if (!files || files.length === 0) {
+       // console.log('❌ [EDIT DEBUG] No files provided');
+        return res.status(200).json({
+          success: false,
+          type: "validation_error",
+          title: "Files Required",
+          message: 'No files provided',
+          notificationType: "warning",
+        });
+      }
+
+      // Calculate total file size
+      const totalFileSize = files.reduce((sum, file) => sum + (file.size || 0), 0);
+      
       // -------------------------------------------------------
-      // ✅ ENHANCED: Usage limit check WITH TOPUP SUPPORT
+      // ✅ ENHANCED: Usage limit check WITH TOTAL FILE SIZE
       // -------------------------------------------------------
-      let creditsInfo = null;
       if (userId) {
         try {
-          console.log('🔍 [EDIT DEBUG] Checking limits for user:', userId);
+        //  console.log('🔍 [EDIT DEBUG] Checking limits for user:', userId);
+         // console.log('🔍 [EDIT DEBUG] Total file size:', totalFileSize, 'bytes');
           
-          const limitCheck = await checkLimits(userId, "edit-tools");
-          creditsInfo = limitCheck.creditsInfo;
+          const limitCheck = await checkLimits(userId, "edit-tools", totalFileSize);
           
-          console.log('🔍 [EDIT DEBUG] File Rename Limit Check:', {
-            allowed: limitCheck.allowed,
-            reason: limitCheck.reason,
-            currentUsage: limitCheck.usage?.editTools,
-            limit: limitCheck.plan?.editToolsLimit,
-            usingTopup: limitCheck.creditsInfo?.usingTopup || false,
-            topupAvailable: limitCheck.creditsInfo?.topupAvailable || 0
-          });
+          // console.log('🔍 [EDIT DEBUG] File Rename Limit Check:', {
+          //   allowed: limitCheck.allowed,
+          //   reason: limitCheck.reason,
+          //   currentUsage: limitCheck.usage?.editTools,
+          //   limit: limitCheck.plan?.editToolsLimit,
+          // });
 
           if (!limitCheck.allowed) {
-            // Delete all uploaded files since we're not processing them
-            if (files && files.length > 0) {
-              console.log('🚫 [EDIT DEBUG] Limit exceeded, discarding uploaded files');
-            }
-
+           // console.log('🚫 [EDIT DEBUG] File Rename blocked - limit exceeded');
             return res.status(200).json({
               success: false,
               type: "limit_exceeded",
@@ -408,14 +400,6 @@ class EditController {
               currentUsage: limitCheck.usage?.editTools || 0,
               limit: limitCheck.plan?.editToolsLimit || 0,
               upgradeRequired: limitCheck.upgradeRequired || true,
-              creditsInfo: {
-                planLimit: limitCheck.creditsInfo?.planLimit || 0,
-                planUsed: limitCheck.creditsInfo?.planUsed || 0,
-                planRemaining: limitCheck.creditsInfo?.planRemaining || 0,
-                topupAvailable: limitCheck.creditsInfo?.topupAvailable || 0,
-                totalAvailable: limitCheck.creditsInfo?.totalAvailable || 0,
-                usingTopup: limitCheck.creditsInfo?.usingTopup || false
-              }
             });
           }
         } catch (limitErr) {
@@ -428,14 +412,6 @@ class EditController {
             notificationType: "error"
           });
         }
-      }
-
-      if (!files || files.length === 0) {
-        console.log('❌ [EDIT DEBUG] No files provided');
-        return res.status(400).json({
-          success: false,
-          error: 'No files provided'
-        });
       }
 
       let filesDataParsed = [];
@@ -448,7 +424,7 @@ class EditController {
       // Create batch ID for grouping
       const batchId = `batch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
-      console.log('🔍 [EDIT DEBUG] Generated batchId:', batchId);
+    //  console.log('🔍 [EDIT DEBUG] Generated batchId:', batchId);
 
       const savedRecords = [];
       const batchFiles = [];
@@ -487,7 +463,7 @@ class EditController {
           downloadUrl: `/api/tools/pdf-editor/download-edited/${filename}`
         });
 
-        console.log(`✅ [EDIT DEBUG] File processed for batch: ${file.originalname} -> ${newFilename}`);
+       // console.log(`✅ [EDIT DEBUG] File processed for batch: ${file.originalname} -> ${newFilename}`);
       }
 
       // Create SINGLE batch record in database
@@ -514,45 +490,41 @@ class EditController {
 
       await batchRecord.save();
       
-      console.log('✅ [EDIT DEBUG] Batch saved successfully:', {
-        batchRecordId: batchRecord._id,
-        batchId: batchId,
-        totalFiles: files.length,
-        userId: userId
-      });
+      // console.log('✅ [EDIT DEBUG] Batch saved successfully:', {
+      //   batchRecordId: batchRecord._id,
+      //   batchId: batchId,
+      //   totalFiles: files.length,
+      //   userId: userId
+      // });
 
       // ✅ ENHANCED: Increment usage with topup tracking
       let incrementResult = null;
       if (userId) {
         incrementResult = await incrementUsage(userId, "edit-tools");
-        console.log('✅ [EDIT DEBUG] Usage incremented for file rename batch:', {
-          userId: userId,
-          creditsUsed: incrementResult?.creditsUsed,
-          topupRemaining: incrementResult?.creditsUsed?.topupRemaining
-        });
+        // console.log('✅ [EDIT DEBUG] Usage incremented for file rename batch:', {
+        //   userId: userId,
+        //   creditsUsed: incrementResult?.creditsUsed,
+        // });
       }
 
       // ✅ ENHANCED: Response with credits information
       const responseData = {
         success: true,
+        type: "batch_success",
+        title: "Batch Saved",
+        message: `Successfully saved ${files.length} files as batch`,
+        notificationType: "success",
         batchId: batchId,
         editId: batchRecord._id,
         savedRecords: savedRecords,
-        message: `Successfully saved ${files.length} files as batch`
       };
 
       // Add credits info if available
-      if (creditsInfo || incrementResult?.creditsUsed) {
+      if (incrementResult?.creditsUsed) {
         responseData.creditsInfo = {
-          ...creditsInfo,
-          ...(incrementResult?.creditsUsed && {
-            creditsUsed: incrementResult.creditsUsed.total,
-            fromPlan: incrementResult.creditsUsed.fromPlan,
-            fromTopup: incrementResult.creditsUsed.fromTopup,
-            topupRemaining: incrementResult.creditsUsed.topupRemaining,
-            planRemaining: creditsInfo ? Math.max(0, creditsInfo.planRemaining - (incrementResult.creditsUsed.fromPlan || 0)) : 0,
-            topupAvailable: incrementResult.creditsUsed.topupRemaining || 0
-          })
+          fromPlan: incrementResult.creditsUsed.fromPlan,
+          fromTopup: incrementResult.creditsUsed.fromTopup,
+          topupRemaining: incrementResult.creditsUsed.topupRemaining,
         };
       }
 
@@ -560,41 +532,64 @@ class EditController {
 
     } catch (error) {
       console.error('❌ [EDIT DEBUG] Save file rename error:', error);
-      res.status(500).json({
+      res.status(200).json({
         success: false,
-        error: error.message
+        type: "server_error",
+        title: "Save Failed",
+        message: error.message,
+        notificationType: "error",
       });
     }
   }
 
-  // ✅ ENHANCED: Upload PDF with TOPUP SUPPORT
+  // ✅ ENHANCED: Upload PDF with FILE SIZE CHECK
   async uploadPDF(req, res) {
-    console.log('🔍 [EDIT DEBUG] uploadPDF method called');
+   // console.log('🔍 [EDIT DEBUG] uploadPDF method called');
     try {
       const userId = req.user?.id;
       
+      if (!req.file) {
+        return res.status(200).json({
+          success: false,
+          type: "validation_error",
+          title: "File Required",
+          message: 'No file uploaded',
+          notificationType: "warning",
+        });
+      }
+
+      if (req.file.mimetype !== 'application/pdf') {
+        return res.status(200).json({
+          success: false,
+          type: "validation_error",
+          title: "Invalid File Type",
+          message: 'Only PDF files are allowed',
+          notificationType: "error",
+        });
+      }
+
+      // Calculate file size
+      const fileSize = req.file.size || 0;
+      
       // -------------------------------------------------------
-      // ✅ ENHANCED: Usage limit check WITH TOPUP SUPPORT
+      // ✅ ENHANCED: Usage limit check WITH FILE SIZE
       // -------------------------------------------------------
-      let creditsInfo = null;
       if (userId) {
         try {
-          console.log('🔍 [EDIT DEBUG] Checking limits for user:', userId);
+         // console.log('🔍 [EDIT DEBUG] Checking limits for user:', userId);
+         // console.log('🔍 [EDIT DEBUG] File size:', fileSize, 'bytes');
           
-          const limitCheck = await checkLimits(userId, "edit-tools");
-          creditsInfo = limitCheck.creditsInfo;
+          const limitCheck = await checkLimits(userId, "edit-tools", fileSize);
           
-          console.log('🔍 [EDIT DEBUG] PDF Upload Limit Check:', {
-            allowed: limitCheck.allowed,
-            reason: limitCheck.reason,
-            currentUsage: limitCheck.usage?.editTools,
-            limit: limitCheck.plan?.editToolsLimit,
-            usingTopup: limitCheck.creditsInfo?.usingTopup || false,
-            topupAvailable: limitCheck.creditsInfo?.topupAvailable || 0
-          });
+          // console.log('🔍 [EDIT DEBUG] PDF Upload Limit Check:', {
+          //   allowed: limitCheck.allowed,
+          //   reason: limitCheck.reason,
+          //   currentUsage: limitCheck.usage?.editTools,
+          //   limit: limitCheck.plan?.editToolsLimit,
+          // });
 
           if (!limitCheck.allowed) {
-            console.log('🚫 [EDIT DEBUG] PDF Upload blocked - limit exceeded');
+           // console.log('🚫 [EDIT DEBUG] PDF Upload blocked - limit exceeded');
             return res.status(200).json({
               success: false,
               type: "limit_exceeded",
@@ -604,14 +599,6 @@ class EditController {
               currentUsage: limitCheck.usage?.editTools || 0,
               limit: limitCheck.plan?.editToolsLimit || 0,
               upgradeRequired: limitCheck.upgradeRequired || true,
-              creditsInfo: {
-                planLimit: limitCheck.creditsInfo?.planLimit || 0,
-                planUsed: limitCheck.creditsInfo?.planUsed || 0,
-                planRemaining: limitCheck.creditsInfo?.planRemaining || 0,
-                topupAvailable: limitCheck.creditsInfo?.topupAvailable || 0,
-                totalAvailable: limitCheck.creditsInfo?.totalAvailable || 0,
-                usingTopup: limitCheck.creditsInfo?.usingTopup || false
-              }
             });
           }
         } catch (limitErr) {
@@ -626,33 +613,19 @@ class EditController {
         }
       }
 
-      if (!req.file) {
-        return res.status(400).json({
-          success: false,
-          error: 'No file uploaded'
-        });
-      }
-
-      if (req.file.mimetype !== 'application/pdf') {
-        return res.status(400).json({
-          success: false,
-          error: 'Only PDF files are allowed'
-        });
-      }
-
-      console.log('✅ [EDIT DEBUG] PDF file received, size:', req.file.size);
+     // console.log('✅ [EDIT DEBUG] PDF file received, size:', req.file.size);
 
       const sessionId = `edit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       const sessionDir = path.join(__dirname, '../../../uploads/sessions', sessionId);
       
       await fs.mkdir(sessionDir, { recursive: true });
-      console.log('✅ [EDIT DEBUG] Session directory created:', sessionDir);
+     // console.log('✅ [EDIT DEBUG] Session directory created:', sessionDir);
 
       const originalFilePath = path.join(sessionDir, 'original.pdf');
       await fs.writeFile(originalFilePath, req.file.buffer);
 
       // Extract PDF structure and render pages to images
-      console.log('🔍 [EDIT DEBUG] Starting PDF processing...');
+     // console.log('🔍 [EDIT DEBUG] Starting PDF processing...');
       const pdfUint8Array = new Uint8Array(req.file.buffer);
       const pdfStructure = await this.extractPDFStructure(pdfUint8Array, sessionId);
       
@@ -665,40 +638,36 @@ class EditController {
         await this.renderPageToImage(pdfUint8Array, pageNum, sessionId);
       }
 
-      console.log('✅ [EDIT DEBUG] PDF processing completed');
+     // console.log('✅ [EDIT DEBUG] PDF processing completed');
 
       // ✅ ENHANCED: Increment usage with topup tracking
       let incrementResult = null;
       if (userId) {
         incrementResult = await incrementUsage(userId, "edit-tools");
-        console.log('✅ [EDIT DEBUG] Usage incremented for PDF upload:', {
-          userId: userId,
-          creditsUsed: incrementResult?.creditsUsed,
-          topupRemaining: incrementResult?.creditsUsed?.topupRemaining
-        });
+        // console.log('✅ [EDIT DEBUG] Usage incremented for PDF upload:', {
+        //   userId: userId,
+        //   creditsUsed: incrementResult?.creditsUsed,
+        // });
       }
 
       // ✅ ENHANCED: Response with credits information
       const responseData = {
         success: true,
+        type: "upload_success",
+        title: "PDF Uploaded",
+        message: 'PDF uploaded and processed successfully',
+        notificationType: "success",
         sessionId,
         totalPages: pdfStructure.pages.length,
         structure: pdfStructure,
-        message: 'PDF uploaded and processed successfully'
       };
 
       // Add credits info if available
-      if (creditsInfo || incrementResult?.creditsUsed) {
+      if (incrementResult?.creditsUsed) {
         responseData.creditsInfo = {
-          ...creditsInfo,
-          ...(incrementResult?.creditsUsed && {
-            creditsUsed: incrementResult.creditsUsed.total,
-            fromPlan: incrementResult.creditsUsed.fromPlan,
-            fromTopup: incrementResult.creditsUsed.fromTopup,
-            topupRemaining: incrementResult.creditsUsed.topupRemaining,
-            planRemaining: creditsInfo ? Math.max(0, creditsInfo.planRemaining - (incrementResult.creditsUsed.fromPlan || 0)) : 0,
-            topupAvailable: incrementResult.creditsUsed.topupRemaining || 0
-          })
+          fromPlan: incrementResult.creditsUsed.fromPlan,
+          fromTopup: incrementResult.creditsUsed.fromTopup,
+          topupRemaining: incrementResult.creditsUsed.topupRemaining,
         };
       }
 
@@ -706,10 +675,12 @@ class EditController {
 
     } catch (error) {
       console.error('❌ [EDIT DEBUG] Upload error:', error);
-      res.status(500).json({
+      res.status(200).json({
         success: false,
-        error: error.message,
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        type: "server_error",
+        title: "Upload Failed",
+        message: error.message,
+        notificationType: "error",
       });
     }
   }
@@ -720,11 +691,11 @@ class EditController {
       const { batchId } = req.params;
       const userId = req.user?.id;
       
-      console.log('🔍 [EDIT DEBUG] Download batch requested:', {
-        batchId,
-        userId,
-        timestamp: new Date().toISOString()
-      });
+      // console.log('🔍 [EDIT DEBUG] Download batch requested:', {
+      //   batchId,
+      //   userId,
+      //   timestamp: new Date().toISOString()
+      // });
 
       // Find the batch record
       const batchRecord = await Edit.findOne({ 
@@ -732,54 +703,34 @@ class EditController {
         editType: 'file-rename'
       });
 
-      console.log('🔍 [EDIT DEBUG] Batch record search result:', {
-        found: !!batchRecord,
-        batchIdSearched: batchId,
-        recordId: batchRecord?._id,
-        recordBatchId: batchRecord?.editMetadata?.batchId,
-        userId: batchRecord?.userId,
-        totalFiles: batchRecord?.editMetadata?.totalFiles
-      });
+      // console.log('🔍 [EDIT DEBUG] Batch record search result:', {
+      //   found: !!batchRecord,
+      //   batchIdSearched: batchId,
+      //   recordId: batchRecord?._id,
+      //   recordBatchId: batchRecord?.editMetadata?.batchId,
+      //   userId: batchRecord?.userId,
+      //   totalFiles: batchRecord?.editMetadata?.totalFiles
+      // });
 
       if (!batchRecord) {
-        // Debug: Check what batches exist for this user
-        const userBatches = await Edit.find({ 
-          userId: userId,
-          editType: 'file-rename' 
-        });
-        
-        console.log('🔍 [EDIT DEBUG] All batches for user:', {
-          userId,
-          totalBatches: userBatches.length,
-          batches: userBatches.map(b => ({
-            id: b._id,
-            batchId: b.editMetadata?.batchId,
-            batchName: b.editMetadata?.batchName,
-            totalFiles: b.editMetadata?.totalFiles,
-            createdAt: b.createdAt
-          }))
-        });
-
-        return res.status(404).json({
+        return res.status(200).json({
           success: false,
-          error: 'Batch not found',
-          debug: {
-            searchedBatchId: batchId,
-            userBatches: userBatches.map(b => b.editMetadata?.batchId),
-            userId: userId
-          }
+          type: "not_found",
+          title: "Batch Not Found",
+          message: 'Batch not found',
+          notificationType: "error",
         });
       }
 
       // Check if user owns this batch
       if (batchRecord.userId.toString() !== userId.toString()) {
-        console.log('🚫 [EDIT DEBUG] User unauthorized for batch:', {
-          batchUserId: batchRecord.userId.toString(),
-          requestUserId: userId.toString()
-        });
-        return res.status(403).json({
+      //  console.log('🚫 [EDIT DEBUG] User unauthorized for batch');
+        return res.status(200).json({
           success: false,
-          error: 'Unauthorized to access this batch'
+          type: "auth_error",
+          title: "Unauthorized",
+          message: 'Unauthorized to access this batch',
+          notificationType: "error",
         });
       }
 
@@ -797,21 +748,19 @@ class EditController {
         }
       }
 
-      console.log('🔍 [EDIT DEBUG] File check results:', {
-        totalFiles: batchRecord.editMetadata.files.length,
-        existingFiles: existingFiles.length,
-        missingFiles: missingFiles.length,
-        missingFilePaths: missingFiles
-      });
+      // console.log('🔍 [EDIT DEBUG] File check results:', {
+      //   totalFiles: batchRecord.editMetadata.files.length,
+      //   existingFiles: existingFiles.length,
+      //   missingFiles: missingFiles.length,
+      // });
 
       if (existingFiles.length === 0) {
-        return res.status(404).json({
+        return res.status(200).json({
           success: false,
-          error: 'No files found in batch',
-          debug: {
-            totalFiles: batchRecord.editMetadata.files.length,
-            missingFiles: missingFiles.length
-          }
+          type: "not_found",
+          title: "Files Not Found",
+          message: 'No files found in batch',
+          notificationType: "error",
         });
       }
 
@@ -827,31 +776,37 @@ class EditController {
 
       // Add each file to the ZIP
       for (const fileInfo of existingFiles) {
-        console.log(`📦 [EDIT DEBUG] Adding to ZIP: ${fileInfo.newName} -> ${fileInfo.outputPath}`);
+      //  console.log(`📦 [EDIT DEBUG] Adding to ZIP: ${fileInfo.newName} -> ${fileInfo.outputPath}`);
         zip.file(fileInfo.outputPath, { name: fileInfo.newName });
       }
 
       zip.on('error', (err) => {
         console.error('❌ [EDIT DEBUG] ZIP creation error:', err);
-        res.status(500).json({
+        res.status(200).json({
           success: false,
-          error: 'Failed to create ZIP file'
+          type: "server_error",
+          title: "ZIP Creation Failed",
+          message: 'Failed to create ZIP file',
+          notificationType: "error",
         });
       });
 
       zip.on('end', () => {
-        console.log('✅ [EDIT DEBUG] ZIP creation completed successfully');
+       // console.log('✅ [EDIT DEBUG] ZIP creation completed successfully');
       });
 
       await zip.finalize();
 
-      console.log(`✅ [EDIT DEBUG] Batch ZIP downloaded: ${batchId} with ${existingFiles.length} files`);
+     // console.log(`✅ [EDIT DEBUG] Batch ZIP downloaded: ${batchId} with ${existingFiles.length} files`);
 
     } catch (error) {
       console.error('❌ [EDIT DEBUG] Download batch error:', error);
-      res.status(500).json({
+      res.status(200).json({
         success: false,
-        error: error.message
+        type: "server_error",
+        title: "Download Failed",
+        message: error.message,
+        notificationType: "error",
       });
     }
   }
@@ -860,15 +815,17 @@ class EditController {
   async downloadEditedFile(req, res) {
     try {
       const { filename } = req.params;
-
       const filePath = path.join(__dirname, '../../../uploads/edited', filename);
 
       try {
         await fs.access(filePath);
       } catch {
-        return res.status(404).json({
+        return res.status(200).json({
           success: false,
-          error: 'File not found'
+          type: "not_found",
+          title: "File Not Found",
+          message: 'File not found',
+          notificationType: "error",
         });
       }
 
@@ -881,9 +838,12 @@ class EditController {
 
     } catch (error) {
       console.error('Download edited file error:', error);
-      res.status(500).json({
+      res.status(200).json({
         success: false,
-        error: error.message
+        type: "server_error",
+        title: "Download Failed",
+        message: error.message,
+        notificationType: "error",
       });
     }
   }
@@ -921,9 +881,12 @@ class EditController {
 
     } catch (error) {
       console.error('Get edit history error:', error);
-      res.status(500).json({
+      res.status(200).json({
         success: false,
-        error: error.message
+        type: "server_error",
+        title: "History Error",
+        message: error.message,
+        notificationType: "error",
       });
     }
   }
@@ -950,7 +913,7 @@ class EditController {
 
   // Extract PDF structure with precise coordinates
   async extractPDFStructure(pdfBuffer, sessionId) {
-    console.log('extractPDFStructure called');
+   // console.log('extractPDFStructure called');
     
     const structure = {
       pages: [],
@@ -961,13 +924,13 @@ class EditController {
 
     try {
       const pdfDoc = await pdfjsLib.getDocument({ data: pdfBuffer }).promise;
-      console.log('PDF loaded, pages:', pdfDoc.numPages);
+     // console.log('PDF loaded, pages:', pdfDoc.numPages);
 
       const metadata = await pdfDoc.getMetadata();
       structure.metadata = metadata.info || {};
 
       for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
-        console.log(`Processing page ${pageNum}...`);
+       // console.log(`Processing page ${pageNum}...`);
         
         const page = await pdfDoc.getPage(pageNum);
         const viewport = page.getViewport({ scale: 1.0 });
@@ -1004,10 +967,10 @@ class EditController {
 
         structure.pages.push(pageStructure);
 
-        console.log(`Page ${pageNum} processed:`, {
-          text: textElements.length,
-          annotations: annotationElements.length
-        });
+        // console.log(`Page ${pageNum} processed:`, {
+        //   text: textElements.length,
+        //   annotations: annotationElements.length
+        // });
       }
 
       await pdfDoc.destroy();
@@ -1131,7 +1094,7 @@ class EditController {
       await page.cleanup();
       await pdfDoc.destroy();
       
-      console.log(`Rendered page ${pageNum} to image`);
+     // console.log(`Rendered page ${pageNum} to image`);
       
     } catch (error) {
       console.error(`Error rendering page ${pageNum} to image:`, error);
@@ -1154,7 +1117,13 @@ class EditController {
       try {
         await fs.access(imagePath);
       } catch {
-        return res.status(404).json({ error: 'Background image not found' });
+        return res.status(200).json({ 
+          success: false,
+          type: "not_found",
+          title: "Image Not Found",
+          message: 'Background image not found',
+          notificationType: "error",
+        });
       }
       
       const imageBuffer = await fs.readFile(imagePath);
@@ -1165,7 +1134,7 @@ class EditController {
       
     } catch (error) {
       console.error('Serve background image error:', error);
-      res.status(500).send('Error serving background image');
+      res.status(200).send('Error serving background image');
     }
   }
 
@@ -1175,9 +1144,12 @@ class EditController {
       const { sessionId } = req.params;
       
       if (!sessionId) {
-        return res.status(400).json({
+        return res.status(200).json({
           success: false,
-          error: 'Session ID missing'
+          type: "validation_error",
+          title: "Session ID Required",
+          message: 'Session ID missing',
+          notificationType: "warning",
         });
       }
 
@@ -1199,9 +1171,12 @@ class EditController {
 
     } catch (error) {
       console.error('Get structure error:', error);
-      res.status(500).json({
+      res.status(200).json({
         success: false,
-        error: error.message
+        type: "server_error",
+        title: "Structure Error",
+        message: error.message,
+        notificationType: "error",
       });
     }
   }
@@ -1212,9 +1187,12 @@ class EditController {
       const { sessionId, elementId, newContent } = req.body;
       
       if (!sessionId || !elementId) {
-        return res.status(400).json({
+        return res.status(200).json({
           success: false,
-          error: 'Session ID and element ID are required'
+          type: "validation_error",
+          title: "Required Fields Missing",
+          message: 'Session ID and element ID are required',
+          notificationType: "warning",
         });
       }
 
@@ -1235,14 +1213,20 @@ class EditController {
 
       res.json({
         success: true,
-        message: 'Text updated successfully'
+        type: "update_success",
+        title: "Text Updated",
+        message: 'Text updated successfully',
+        notificationType: "success",
       });
 
     } catch (error) {
       console.error('Update text error:', error);
-      res.status(500).json({
+      res.status(200).json({
         success: false,
-        error: error.message
+        type: "server_error",
+        title: "Update Failed",
+        message: error.message,
+        notificationType: "error",
       });
     }
   }
@@ -1253,9 +1237,12 @@ class EditController {
       const { sessionId } = req.body;
       
       if (!sessionId) {
-        return res.status(400).json({
+        return res.status(200).json({
           success: false,
-          error: 'Session ID missing'
+          type: "validation_error",
+          title: "Session ID Required",
+          message: 'Session ID missing',
+          notificationType: "warning",
         });
       }
 
@@ -1277,9 +1264,12 @@ class EditController {
 
     } catch (error) {
       console.error('Get edits error:', error);
-      res.status(500).json({
+      res.status(200).json({
         success: false,
-        error: error.message
+        type: "server_error",
+        title: "Get Edits Failed",
+        message: error.message,
+        notificationType: "error",
       });
     }
   }
@@ -1290,9 +1280,12 @@ class EditController {
       const { sessionId, canvasData, exportMode } = req.body;
       
       if (!sessionId) {
-        return res.status(400).json({
+        return res.status(200).json({
           success: false,
-          error: 'Session ID missing'
+          type: "validation_error",
+          title: "Session ID Required",
+          message: 'Session ID missing',
+          notificationType: "warning",
         });
       }
 
@@ -1309,14 +1302,17 @@ class EditController {
         const structureData = await fs.readFile(structureFile, 'utf8');
         structure = JSON.parse(structureData);
       } catch (error) {
-        console.log('No structure file found');
-        return res.status(400).json({
+       // console.log('No structure file found');
+        return res.status(200).json({
           success: false,
-          error: 'PDF structure not found'
+          type: "validation_error",
+          title: "Structure Not Found",
+          message: 'PDF structure not found',
+          notificationType: "error",
         });
       }
 
-      console.log(`Exporting ${structure.pages.length} pages in ${exportMode || 'canvas-only'} mode`);
+     // console.log(`Exporting ${structure.pages.length} pages in ${exportMode || 'canvas-only'} mode`);
 
       // Process each page
       for (let pageNum = 1; pageNum <= structure.pages.length; pageNum++) {
@@ -1334,7 +1330,7 @@ class EditController {
         if (pageCanvasData && pageCanvasData.dataURL) {
           // Use ONLY the canvas data (no original PDF background)
           await this.embedCanvasAsPage(page, pageCanvasData.dataURL, pageStructure.width, pageStructure.height);
-          console.log(`Page ${pageNum}: Used canvas-only data`);
+        //  console.log(`Page ${pageNum}: Used canvas-only data`);
         } else {
           // Fallback: white background with message
           page.drawRectangle({
@@ -1355,14 +1351,14 @@ class EditController {
             color: rgb(0.5, 0.5, 0.5),
           });
           
-          console.log(`Page ${pageNum}: Used fallback (no canvas data)`);
+         // console.log(`Page ${pageNum}: Used fallback (no canvas data)`);
         }
       }
 
       const pdfBytes = await pdfDoc.save();
       await fs.writeFile(exportFilePath, pdfBytes);
 
-      console.log('PDF exported successfully with canvas-only rendering');
+     // console.log('PDF exported successfully with canvas-only rendering');
       
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', 'attachment; filename=edited-document.pdf');
@@ -1370,9 +1366,12 @@ class EditController {
 
     } catch (error) {
       console.error('Export PDF error:', error);
-      res.status(500).json({
+      res.status(200).json({
         success: false,
-        error: error.message
+        type: "server_error",
+        title: "Export Failed",
+        message: error.message,
+        notificationType: "error",
       });
     }
   }
@@ -1440,9 +1439,9 @@ class EditController {
           width: pageStructure.width,
           height: pageStructure.height,
         });
-        console.log(`Used background image for page ${pageNum}`);
+       // console.log(`Used background image for page ${pageNum}`);
       } else {
-        console.log(`No background image available for page ${pageNum}`);
+       // console.log(`No background image available for page ${pageNum}`);
         // Draw white background as fallback
         page.drawRectangle({
           x: 0,
@@ -1453,7 +1452,7 @@ class EditController {
         });
       }
     } catch (error) {
-      console.log('Could not load background image for page', pageNum, error.message);
+     // console.log('Could not load background image for page', pageNum, error.message);
       // Draw white background as final fallback
       page.drawRectangle({
         x: 0,
@@ -1471,9 +1470,12 @@ class EditController {
       const { sessionId, edits } = req.body;
       
       if (!sessionId) {
-        return res.status(400).json({
+        return res.status(200).json({
           success: false,
-          error: 'Session ID missing'
+          type: "validation_error",
+          title: "Session ID Required",
+          message: 'Session ID missing',
+          notificationType: "warning",
         });
       }
 
@@ -1484,14 +1486,20 @@ class EditController {
 
       res.json({
         success: true,
-        message: 'Edits applied successfully'
+        type: "apply_success",
+        title: "Edits Applied",
+        message: 'Edits applied successfully',
+        notificationType: "success",
       });
 
     } catch (error) {
       console.error('Apply edits error:', error);
-      res.status(500).json({
+      res.status(200).json({
         success: false,
-        error: error.message
+        type: "server_error",
+        title: "Apply Failed",
+        message: error.message,
+        notificationType: "error",
       });
     }
   }
@@ -1502,9 +1510,12 @@ class EditController {
       const { sessionId } = req.params;
       
       if (!sessionId) {
-        return res.status(400).json({
+        return res.status(200).json({
           success: false,
-          error: 'Session ID missing'
+          type: "validation_error",
+          title: "Session ID Required",
+          message: 'Session ID missing',
+          notificationType: "warning",
         });
       }
 
@@ -1514,9 +1525,12 @@ class EditController {
       try {
         await fs.access(exportedFilePath);
       } catch (error) {
-        return res.status(404).json({
+        return res.status(200).json({
           success: false,
-          error: 'No edited PDF found. Please export first.'
+          type: "not_found",
+          title: "No Edited PDF",
+          message: 'No edited PDF found. Please export first.',
+          notificationType: "error",
         });
       }
 
@@ -1528,9 +1542,12 @@ class EditController {
 
     } catch (error) {
       console.error('Download error:', error);
-      res.status(500).json({
+      res.status(200).json({
         success: false,
-        error: error.message
+        type: "server_error",
+        title: "Download Failed",
+        message: error.message,
+        notificationType: "error",
       });
     }
   }
@@ -1548,7 +1565,7 @@ class EditController {
 
     } catch (error) {
       console.error('Serve image error:', error);
-      res.status(500).send('Error serving image');
+      res.status(200).send('Error serving image');
     }
   }
 
@@ -1579,6 +1596,10 @@ class EditController {
       
       res.json({
         success: true,
+        type: "credits_info",
+        title: "Edit Credits",
+        message: "Edit credits information",
+        notificationType: "info",
         credits: {
           plan: {
             limit: planLimit,

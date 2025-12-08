@@ -1,12 +1,28 @@
 const User = require("../models/UserModel");
 const File = require("../models/FileModel");
 const Payment = require("../models/Payment");
+const TopupPayment = require("../models/TopupPayment");
+const TopupPackage = require("../models/TopupPackage");
 const Convert = require("../models/tools-models/Convert/Convert");
 const Organize = require("../models/tools-models/Organize/Organize-Model");
 const Optimize = require("../models/tools-models/Optimize/Optimize");
 const Edit = require("../models/tools-models/Edit/Edit-Model");
 const Security = require("../models/tools-models/Security/Security-Model");
 const Advanced = require("../models/tools-models/Advanced/Advanced-Model");
+
+// Exchange rate (INR to USD)
+const EXCHANGE_RATE = 83.5;
+
+// Helper function for currency conversion
+const convertToINR = (amount, currency) => {
+  if (!amount) return 0;
+  return currency === 'INR' ? amount : amount * EXCHANGE_RATE;
+};
+
+const convertToUSD = (amount, currency) => {
+  if (!amount) return 0;
+  return currency === 'USD' ? amount : amount / EXCHANGE_RATE;
+};
 
 // Get available plans for filtering
 const getPlans = async (req, res) => {
@@ -47,17 +63,25 @@ const getUsers = async (req, res) => {
           optimizeCount,
           editCount,
           securityCount,
-          advancedCount
+          advancedCount,
+          topupPurchases,
+          topupCredits
         ] = await Promise.all([
           File.countDocuments({ uploadedBy: userId }),
           Organize.countDocuments({ userId }),
           Optimize.countDocuments({ userId }),
           Edit.countDocuments({ userId }),
           Security.countDocuments({ userId }),
-          Advanced.countDocuments({ userId })
+          Advanced.countDocuments({ userId }),
+          TopupPayment.countDocuments({ userId, status: 'success' }),
+          TopupPayment.aggregate([
+            { $match: { userId, status: 'success' } },
+            { $group: { _id: null, total: { $sum: '$creditsAllocated.total' } } }
+          ])
         ]);
 
         const totalFiles = convertCount + organizeCount + optimizeCount + editCount + securityCount + advancedCount;
+        const totalTopupCredits = topupCredits[0]?.total || 0;
 
         return {
           _id: user._id,
@@ -70,7 +94,10 @@ const getUsers = async (req, res) => {
           lastActive: user.updatedAt,
           files: totalFiles,
           storageUsed: user.usage?.storageUsedBytes || 0,
-          subscriptionStatus: user.subscriptionStatus || "active"
+          subscriptionStatus: user.subscriptionStatus || "active",
+          topupPurchases: topupPurchases,
+          topupCredits: totalTopupCredits,
+          currentTopupCredits: user.topupCredits?.total || 0
         };
       })
     );
@@ -301,28 +328,72 @@ const getStats = async (req, res) => {
 
     const totalFiles = convertCount + organizeCount + optimizeCount + editCount + securityCount + advancedCount;
 
-    const payingUsers = await User.aggregate([
-      {
-        $match: {
-          planName: { $in: ["Pro", "Business", "Professional", "Enterprise"] }
+    // Calculate subscription revenue (INR)
+    const subscriptionRevenue = await Payment.aggregate([
+      { $match: { status: 'success' } },
+      { $group: {
+        _id: null,
+        totalINR: { 
+          $sum: { 
+            $cond: [
+              { $eq: ["$currency", "INR"] }, 
+              "$amount",
+              { $multiply: ["$amount", EXCHANGE_RATE] }
+            ]
+          }
         }
-      },
-      {
-        $group: {
-          _id: "$planName",
-          count: { $sum: 1 }
-        }
-      }
+      }}
     ]);
 
-    let monthlyRevenue = 0;
-    payingUsers.forEach(plan => {
-      if (plan._id === "Pro" || plan._id === "Professional") {
-        monthlyRevenue += plan.count * 12;
-      } else if (plan._id === "Business" || plan._id === "Enterprise") {
-        monthlyRevenue += plan.count * 49;
-      }
-    });
+    // Calculate topup revenue (INR)
+    const topupRevenue = await TopupPayment.aggregate([
+      { $match: { status: 'success' } },
+      { $group: {
+        _id: null,
+        totalINR: { 
+          $sum: { 
+            $cond: [
+              { $eq: ["$currency", "INR"] }, 
+              "$amount",
+              { $multiply: ["$amount", EXCHANGE_RATE] }
+            ]
+          }
+        }
+      }}
+    ]);
+
+    const subscriptionRevenueINR = subscriptionRevenue[0]?.totalINR || 0;
+    const topupRevenueINR = topupRevenue[0]?.totalINR || 0;
+    const totalRevenueINR = subscriptionRevenueINR + topupRevenueINR;
+
+    // Convert to USD for display
+    const totalRevenueUSD = totalRevenueINR / EXCHANGE_RATE;
+    const subscriptionRevenueUSD = subscriptionRevenueINR / EXCHANGE_RATE;
+    const topupRevenueUSD = topupRevenueINR / EXCHANGE_RATE;
+
+    // Get topup credits
+    const creditsStats = await TopupPayment.aggregate([
+      { $match: { status: 'success' } },
+      { $group: {
+        _id: null,
+        totalCredits: { $sum: '$creditsAllocated.total' },
+        count: { $sum: 1 }
+      }}
+    ]);
+
+    const totalCreditsSold = creditsStats[0]?.totalCredits || 0;
+    const totalTopupPurchases = creditsStats[0]?.count || 0;
+
+    // Calculate success rates
+    const [totalSubs, successSubs, totalTopups, successTopups] = await Promise.all([
+      Payment.countDocuments(),
+      Payment.countDocuments({ status: 'success' }),
+      TopupPayment.countDocuments(),
+      TopupPayment.countDocuments({ status: 'success' })
+    ]);
+
+    const topupSuccessRate = totalTopups > 0 ? (successTopups / totalTopups) * 100 : 0;
+    const avgCreditsPerPurchase = totalTopupPurchases > 0 ? Math.round(totalCreditsSold / totalTopupPurchases) : 0;
 
     const usersWithFiles = await User.aggregate([
       {
@@ -351,14 +422,34 @@ const getStats = async (req, res) => {
     res.json({
       success: true,
       stats: {
+        // User Stats
         totalUsers,
         totalFiles,
-        monthlyRevenue,
         activeUsers,
         usersByPlan: usersByPlan.reduce((acc, plan) => {
           acc[plan._id || "Free"] = plan.count;
           return acc;
         }, {}),
+        
+        // Revenue Stats (USD for frontend display)
+        totalRevenue: totalRevenueUSD,
+        monthlySubscriptionRevenue: subscriptionRevenueUSD,
+        topupRevenue: topupRevenueUSD,
+        combinedRevenue: totalRevenueUSD,
+        
+        // Revenue Stats (INR - original)
+        totalRevenueINR: totalRevenueINR,
+        subscriptionRevenueINR: subscriptionRevenueINR,
+        topupRevenueINR: topupRevenueINR,
+        
+        // Topup Stats
+        totalTopupPurchases,
+        totalCreditsSold: totalCreditsSold,
+        topupTransactions: totalTopups,
+        topupSuccessRate: Math.round(topupSuccessRate * 100) / 100,
+        avgCreditsPerPurchase: avgCreditsPerPurchase,
+        
+        // Files Stats
         filesByTool: {
           convert: convertCount,
           organize: organizeCount,
@@ -379,7 +470,7 @@ const getStats = async (req, res) => {
   }
 };
 
-// Get ALL payments with user details
+// Get ALL payments (Combined: Subscription + Topup)
 const getPayments = async (req, res) => {
   try {
     const { 
@@ -389,81 +480,220 @@ const getPayments = async (req, res) => {
       plan, 
       startDate, 
       endDate,
-      search 
+      search,
+      paymentType = 'all'
     } = req.query;
     
     const skip = (page - 1) * limit;
 
-    let filter = {};
+    let subscriptionFilter = {};
+    let topupFilter = {};
     
+    // Common filters
     if (status && status !== 'all') {
-      filter.status = status;
+      subscriptionFilter.status = status;
+      topupFilter.status = status;
     }
     
-    if (plan && plan !== 'all') {
-      filter.planName = plan;
+    if (plan && plan !== 'all' && paymentType !== 'topup') {
+      subscriptionFilter.planName = plan;
     }
     
     if (startDate && endDate) {
-      filter.createdAt = {
+      const dateFilter = {
         $gte: new Date(startDate),
-        $lte: new Date(endDate)
+        $lte: new Date(endDate + 'T23:59:59.999Z')
       };
+      subscriptionFilter.createdAt = dateFilter;
+      topupFilter.createdAt = dateFilter;
     }
     
     if (search) {
-      filter.$or = [
+      subscriptionFilter.$or = [
         { transactionId: { $regex: search, $options: 'i' } },
         { 'user.name': { $regex: search, $options: 'i' } },
         { 'user.email': { $regex: search, $options: 'i' } }
       ];
+      topupFilter.$or = [
+        { transactionId: { $regex: search, $options: 'i' } },
+        { cashfreeOrderId: { $regex: search, $options: 'i' } },
+        { 'userSnapshot.email': { $regex: search, $options: 'i' } }
+      ];
     }
 
-    const payments = await Payment.find(filter)
-      .populate('userId', 'name email')
-      .populate('planId', 'name planId price')
-      .sort({ createdAt: -1 })
-      .limit(parseInt(limit))
-      .skip(skip);
+    let subscriptionPayments = [];
+    let topupPayments = [];
+    let totalSubscriptionPayments = 0;
+    let totalTopupPayments = 0;
 
-    const totalPayments = await Payment.countDocuments(filter);
-    const totalRevenue = await Payment.aggregate([
-      { $match: { ...filter, status: 'success' } },
-      { $group: { _id: null, total: { $sum: '$amount' } } }
-    ]);
+    // Fetch subscription payments
+    if (paymentType === 'all' || paymentType === 'subscription') {
+      subscriptionPayments = await Payment.find(subscriptionFilter)
+        .populate('userId', 'name email')
+        .populate('planId', 'name planId price billingCycle')
+        .sort({ createdAt: -1 })
+        .limit(parseInt(limit))
+        .skip(skip)
+        .lean();
 
-    const revenueStats = await Payment.aggregate([
-      { $match: { status: 'success' } },
-      {
-        $group: {
-          _id: {
-            month: { $month: '$createdAt' },
-            year: { $year: '$createdAt' }
-          },
-          monthlyRevenue: { $sum: '$amount' },
-          paymentCount: { $sum: 1 }
-        }
+      totalSubscriptionPayments = await Payment.countDocuments(subscriptionFilter);
+    }
+
+    // Fetch topup payments
+    if (paymentType === 'all' || paymentType === 'topup') {
+      topupPayments = await TopupPayment.find(topupFilter)
+        .populate({
+          path: 'topupPackageId',
+          select: 'name totalCredits price'
+        })
+        .populate({
+          path: 'userId',
+          select: 'name email planName'
+        })
+        .sort({ createdAt: -1 })
+        .limit(parseInt(limit))
+        .skip(skip)
+        .lean();
+
+      totalTopupPayments = await TopupPayment.countDocuments(topupFilter);
+    }
+
+    // Format subscription payments
+    const formattedSubscriptionPayments = subscriptionPayments.map(payment => ({
+      ...payment,
+      paymentType: 'subscription',
+      displayAmount: payment.amount,
+      displayPlan: payment.planName,
+      billingCycle: payment.billingCycle || payment.planId?.billingCycle || 'monthly',
+      currency: payment.currency || 'INR',
+      user: payment.userId ? {
+        id: payment.userId._id,
+        name: payment.userId.name,
+        email: payment.userId.email
+      } : payment.user || { name: 'Unknown', email: 'Unknown' },
+      planDetails: payment.planId
+    }));
+
+    // Format topup payments
+    const formattedTopupPayments = topupPayments.map(payment => ({
+      ...payment,
+      paymentType: 'topup',
+      displayAmount: payment.amount,
+      displayPlan: 'Topup Credits',
+      billingCycle: 'one-time',
+      currency: payment.currency || 'INR',
+      credits: payment.creditsAllocated?.total || 0,
+      user: payment.userId ? {
+        id: payment.userId._id,
+        name: payment.userId.name,
+        email: payment.userId.email,
+        plan: payment.userId.planName
+      } : {
+        id: payment.userId,
+        email: payment.userSnapshot?.email || "Unknown User",
+        plan: payment.userSnapshot?.plan || "Unknown"
       },
-      { $sort: { '_id.year': -1, '_id.month': -1 } },
-      { $limit: 12 }
+      package: payment.topupPackageId || {
+        name: "Unknown Package",
+        totalCredits: payment.creditsAllocated?.total || 0
+      }
+    }));
+
+    // Combine and sort all payments
+    const allPayments = [...formattedSubscriptionPayments, ...formattedTopupPayments]
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .slice(0, parseInt(limit));
+
+    const totalPayments = totalSubscriptionPayments + totalTopupPayments;
+
+    // Calculate revenue stats (INR)
+    const subscriptionRevenue = await Payment.aggregate([
+      { $match: { ...subscriptionFilter, status: 'success' } },
+      { $group: { 
+        _id: null, 
+        totalINR: { 
+          $sum: { 
+            $cond: [
+              { $eq: ["$currency", "INR"] }, 
+              "$amount",
+              { $multiply: ["$amount", EXCHANGE_RATE] }
+            ]
+          }
+        }
+      }}
     ]);
 
+    const topupRevenue = await TopupPayment.aggregate([
+      { $match: { ...topupFilter, status: 'success' } },
+      { $group: { 
+        _id: null, 
+        totalINR: { 
+          $sum: { 
+            $cond: [
+              { $eq: ["$currency", "INR"] }, 
+              "$amount",
+              { $multiply: ["$amount", EXCHANGE_RATE] }
+            ]
+          }
+        }
+      }}
+    ]);
+
+    const totalRevenueINR = 
+      (subscriptionRevenue[0]?.totalINR || 0) + 
+      (topupRevenue[0]?.totalINR || 0);
+    
+    const totalRevenueUSD = totalRevenueINR / EXCHANGE_RATE;
+
+    // Get revenue by plan
+    const revenueByPlan = await Payment.aggregate([
+      { $match: { ...subscriptionFilter, status: 'success' } },
+      { $group: {
+        _id: '$planName',
+        revenueINR: { 
+          $sum: { 
+            $cond: [
+              { $eq: ["$currency", "INR"] }, 
+              "$amount",
+              { $multiply: ["$amount", EXCHANGE_RATE] }
+            ]
+          }
+        },
+        count: { $sum: 1 }
+      }},
+      { $sort: { revenueINR: -1 } }
+    ]);
+
+    // Get filters
     const uniquePlans = await Payment.distinct('planName');
     const uniqueStatuses = await Payment.distinct('status');
+    const topupStatuses = await TopupPayment.distinct('status');
+    const allStatuses = [...new Set([...uniqueStatuses, ...topupStatuses])];
 
     res.json({
       success: true,
-      payments,
+      payments: allPayments,
       stats: {
         totalPayments,
-        totalRevenue: totalRevenue[0]?.total || 0,
-        monthlyRevenue: revenueStats,
+        totalRevenue: totalRevenueUSD,
+        totalRevenueINR: totalRevenueINR,
+        subscriptionRevenue: subscriptionRevenue[0]?.totalINR ? subscriptionRevenue[0].totalINR / EXCHANGE_RATE : 0,
+        topupRevenue: topupRevenue[0]?.totalINR ? topupRevenue[0].totalINR / EXCHANGE_RATE : 0,
+        subscriptionCount: totalSubscriptionPayments,
+        topupCount: totalTopupPayments,
         currentPage: parseInt(page),
-        totalPages: Math.ceil(totalPayments / limit)
+        totalPages: Math.ceil(totalPayments / limit),
+        revenueByPlan: revenueByPlan.map(plan => ({
+          _id: plan._id,
+          revenue: plan.revenueINR / EXCHANGE_RATE, // USD for display
+          revenueINR: plan.revenueINR, // Original INR
+          count: plan.count
+        }))
       },
       filters: {
         plans: uniquePlans,
-        statuses: uniqueStatuses
+        statuses: allStatuses,
+        paymentTypes: ['all', 'subscription', 'topup']
       }
     });
 
@@ -476,86 +706,193 @@ const getPayments = async (req, res) => {
   }
 };
 
-// Get payment statistics for dashboard
+// Get payment statistics for dashboard (Combined)
 const getPaymentStats = async (req, res) => {
   try {
     const today = new Date();
     const thirtyDaysAgo = new Date(today.setDate(today.getDate() - 30));
-    const sixtyDaysAgo = new Date(today.setDate(today.getDate() - 60));
 
+    // Subscription payment stats (INR)
     const [
-      totalRevenue,
-      monthlyRevenue,
-      previousMonthRevenue,
-      totalTransactions,
-      successfulTransactions,
-      failedTransactions,
+      subscriptionStats,
+      topupStats,
+      subscriptionMonthly,
+      topupMonthly,
       revenueByPlan,
-      recentPayments
+      creditsStats
     ] = await Promise.all([
+      // Total subscription revenue
       Payment.aggregate([
         { $match: { status: 'success' } },
-        { $group: { _id: null, total: { $sum: '$amount' } } }
+        { $group: {
+          _id: null,
+          totalINR: { 
+            $sum: { 
+              $cond: [
+                { $eq: ["$currency", "INR"] }, 
+                "$amount",
+                { $multiply: ["$amount", EXCHANGE_RATE] }
+              ]
+            }
+          },
+          count: { $sum: 1 }
+        }}
       ]),
+      
+      // Total topup revenue
+      TopupPayment.aggregate([
+        { $match: { status: 'success' } },
+        { $group: {
+          _id: null,
+          totalINR: { 
+            $sum: { 
+              $cond: [
+                { $eq: ["$currency", "INR"] }, 
+                "$amount",
+                { $multiply: ["$amount", EXCHANGE_RATE] }
+              ]
+            }
+          },
+          count: { $sum: 1 }
+        }}
+      ]),
+      
+      // Monthly subscription
       Payment.aggregate([
         { 
           $match: { 
             status: 'success',
             createdAt: { $gte: thirtyDaysAgo }
-          } 
+          }
         },
-        { $group: { _id: null, total: { $sum: '$amount' } } }
+        { $group: {
+          _id: null,
+          monthlyINR: { 
+            $sum: { 
+              $cond: [
+                { $eq: ["$currency", "INR"] }, 
+                "$amount",
+                { $multiply: ["$amount", EXCHANGE_RATE] }
+              ]
+            }
+          }
+        }}
       ]),
-      Payment.aggregate([
+      
+      // Monthly topup
+      TopupPayment.aggregate([
         { 
           $match: { 
             status: 'success',
-            createdAt: { 
-              $gte: sixtyDaysAgo,
-              $lt: thirtyDaysAgo
-            }
-          } 
-        },
-        { $group: { _id: null, total: { $sum: '$amount' } } }
-      ]),
-      Payment.countDocuments(),
-      Payment.countDocuments({ status: 'success' }),
-      Payment.countDocuments({ status: 'failed' }),
-      Payment.aggregate([
-        { $match: { status: 'success' } },
-        {
-          $group: {
-            _id: '$planName',
-            revenue: { $sum: '$amount' },
-            count: { $sum: 1 }
+            createdAt: { $gte: thirtyDaysAgo }
           }
         },
-        { $sort: { revenue: -1 } }
+        { $group: {
+          _id: null,
+          monthlyINR: { 
+            $sum: { 
+              $cond: [
+                { $eq: ["$currency", "INR"] }, 
+                "$amount",
+                { $multiply: ["$amount", EXCHANGE_RATE] }
+              ]
+            }
+          }
+        }}
       ]),
-      Payment.find({ status: 'success' })
-        .populate('userId', 'name email')
-        .sort({ createdAt: -1 })
-        .limit(10)
-        .select('transactionId amount planName billingCycle createdAt user')
+      
+      // Revenue by plan
+      Payment.aggregate([
+        { $match: { status: 'success' } },
+        { $group: {
+          _id: '$planName',
+          revenueINR: { 
+            $sum: { 
+              $cond: [
+                { $eq: ["$currency", "INR"] }, 
+                "$amount",
+                { $multiply: ["$amount", EXCHANGE_RATE] }
+              ]
+            }
+          },
+          count: { $sum: 1 }
+        }},
+        { $sort: { revenueINR: -1 } }
+      ]),
+      
+      // Credits stats
+      TopupPayment.aggregate([
+        { $match: { status: 'success' } },
+        { $group: {
+          _id: null,
+          totalCredits: { $sum: '$creditsAllocated.total' },
+          avgCredits: { $avg: '$creditsAllocated.total' }
+        }}
+      ])
     ]);
 
-    const revenueGrowth = previousMonthRevenue[0]?.total 
-      ? ((monthlyRevenue[0]?.total - previousMonthRevenue[0]?.total) / previousMonthRevenue[0]?.total) * 100
-      : 0;
+    // Calculate totals
+    const subscriptionTotal = subscriptionStats[0] || { totalINR: 0, count: 0 };
+    const topupTotal = topupStats[0] || { totalINR: 0, count: 0 };
+    const subscriptionMonth = subscriptionMonthly[0] || { monthlyINR: 0 };
+    const topupMonth = topupMonthly[0] || { monthlyINR: 0 };
+    const credits = creditsStats[0] || { totalCredits: 0, avgCredits: 0 };
+
+    // Convert to USD
+    const totalRevenueUSD = (subscriptionTotal.totalINR + topupTotal.totalINR) / EXCHANGE_RATE;
+    const monthlyRevenueUSD = (subscriptionMonth.monthlyINR + topupMonth.monthlyINR) / EXCHANGE_RATE;
+    
+    // Get transaction counts
+    const [totalSubs, successSubs, totalTopups, successTopups] = await Promise.all([
+      Payment.countDocuments(),
+      Payment.countDocuments({ status: 'success' }),
+      TopupPayment.countDocuments(),
+      TopupPayment.countDocuments({ status: 'success' })
+    ]);
+
+    // Calculate success rates
+    const subscriptionSuccessRate = totalSubs > 0 ? (successSubs / totalSubs) * 100 : 0;
+    const topupSuccessRate = totalTopups > 0 ? (successTopups / totalTopups) * 100 : 0;
+    const overallSuccessRate = (totalSubs + totalTopups) > 0 ? 
+      ((successSubs + successTopups) / (totalSubs + totalTopups)) * 100 : 0;
 
     res.json({
       success: true,
       stats: {
-        totalRevenue: totalRevenue[0]?.total || 0,
-        monthlyRevenue: monthlyRevenue[0]?.total || 0,
-        previousMonthRevenue: previousMonthRevenue[0]?.total || 0,
-        revenueGrowth: Math.round(revenueGrowth * 100) / 100,
-        totalTransactions,
-        successfulTransactions,
-        failedTransactions,
-        successRate: totalTransactions > 0 ? (successfulTransactions / totalTransactions) * 100 : 0,
-        revenueByPlan,
-        recentPayments
+        // Combined Stats
+        totalRevenue: totalRevenueUSD,
+        totalRevenueINR: subscriptionTotal.totalINR + topupTotal.totalINR,
+        monthlyRevenue: monthlyRevenueUSD,
+        monthlyRevenueINR: subscriptionMonth.monthlyINR + topupMonth.monthlyINR,
+        totalTransactions: totalSubs + totalTopups,
+        successfulTransactions: successSubs + successTopups,
+        successRate: Math.round(overallSuccessRate * 100) / 100,
+        
+        // Subscription Stats
+        subscriptionRevenue: subscriptionTotal.totalINR / EXCHANGE_RATE,
+        subscriptionRevenueINR: subscriptionTotal.totalINR,
+        monthlySubscriptionRevenue: subscriptionMonth.monthlyINR / EXCHANGE_RATE,
+        monthlySubscriptionRevenueINR: subscriptionMonth.monthlyINR,
+        totalSubscriptionTransactions: totalSubs,
+        successfulSubscriptionTransactions: successSubs,
+        subscriptionSuccessRate: Math.round(subscriptionSuccessRate * 100) / 100,
+        subscriptionRevenueByPlan: revenueByPlan.map(plan => ({
+          _id: plan._id,
+          revenue: plan.revenueINR / EXCHANGE_RATE,
+          revenueINR: plan.revenueINR,
+          count: plan.count
+        })),
+        
+        // Topup Stats
+        topupRevenue: topupTotal.totalINR / EXCHANGE_RATE,
+        topupRevenueINR: topupTotal.totalINR,
+        monthlyTopupRevenue: topupMonth.monthlyINR / EXCHANGE_RATE,
+        monthlyTopupRevenueINR: topupMonth.monthlyINR,
+        totalTopupTransactions: totalTopups,
+        successfulTopupTransactions: successTopups,
+        topupSuccessRate: Math.round(topupSuccessRate * 100) / 100,
+        totalCreditsSold: credits.totalCredits,
+        avgCreditsPerPurchase: Math.round(credits.avgCredits || 0)
       }
     });
 
@@ -568,12 +905,33 @@ const getPaymentStats = async (req, res) => {
   }
 };
 
-// Get specific payment details
+// Get specific payment details (Supports both subscription and topup)
 const getPaymentById = async (req, res) => {
   try {
-    const payment = await Payment.findById(req.params.id)
+    const { id } = req.params;
+    
+    // Try to find as subscription payment first
+    let payment = await Payment.findById(id)
       .populate('userId', 'name email createdAt')
-      .populate('planId');
+      .populate('planId', 'name planId price billingCycle');
+
+    let paymentType = 'subscription';
+
+    // If not found as subscription, try as topup payment
+    if (!payment) {
+      payment = await TopupPayment.findById(id)
+        .populate({
+          path: 'topupPackageId',
+          select: 'name description totalCredits price'
+        })
+        .populate({
+          path: 'userId',
+          select: 'name email phone planName topupCredits createdAt'
+        })
+        .lean();
+      
+      paymentType = 'topup';
+    }
 
     if (!payment) {
       return res.status(404).json({
@@ -582,9 +940,20 @@ const getPaymentById = async (req, res) => {
       });
     }
 
+    // Add missing fields
+    const formattedPayment = {
+      ...payment.toObject ? payment.toObject() : payment,
+      paymentType,
+      currency: payment.currency || 'INR',
+      billingCycle: paymentType === 'subscription' 
+        ? (payment.billingCycle || payment.planId?.billingCycle || 'monthly')
+        : 'one-time'
+    };
+
     res.json({
       success: true,
-      payment
+      payment: formattedPayment,
+      paymentType
     });
 
   } catch (error) {
@@ -596,21 +965,21 @@ const getPaymentById = async (req, res) => {
   }
 };
 
-// Update payment status (for manual adjustments)
+// Update payment status (for manual adjustments) - Supports both types
 const updatePayment = async (req, res) => {
   try {
-    const { status, autoRenewal, renewalStatus } = req.body;
+    const { id } = req.params;
+    const { status, autoRenewal, renewalStatus, refundReason } = req.body;
     
-    const updateData = {};
-    if (status) updateData.status = status;
-    if (autoRenewal !== undefined) updateData.autoRenewal = autoRenewal;
-    if (renewalStatus) updateData.renewalStatus = renewalStatus;
+    // Try to find and update as subscription payment
+    let payment = await Payment.findById(id);
+    let paymentType = 'subscription';
 
-    const payment = await Payment.findByIdAndUpdate(
-      req.params.id,
-      updateData,
-      { new: true }
-    ).populate('userId', 'name email');
+    if (!payment) {
+      // Try as topup payment
+      payment = await TopupPayment.findById(id);
+      paymentType = 'topup';
+    }
 
     if (!payment) {
       return res.status(404).json({
@@ -619,10 +988,31 @@ const updatePayment = async (req, res) => {
       });
     }
 
+    const updateData = {};
+    
+    if (paymentType === 'subscription') {
+      if (status) updateData.status = status;
+      if (autoRenewal !== undefined) updateData.autoRenewal = autoRenewal;
+      if (renewalStatus) updateData.renewalStatus = renewalStatus;
+    } else if (paymentType === 'topup') {
+      if (status) updateData.status = status;
+      if (refundReason) updateData.refundReason = refundReason;
+    }
+
+    if (paymentType === 'subscription') {
+      payment = await Payment.findByIdAndUpdate(id, updateData, { new: true })
+        .populate('userId', 'name email');
+    } else {
+      payment = await TopupPayment.findByIdAndUpdate(id, updateData, { new: true })
+        .populate('userId', 'name email')
+        .populate('topupPackageId', 'name');
+    }
+
     res.json({
       success: true,
-      message: "Payment updated successfully",
-      payment
+      message: `${paymentType.charAt(0).toUpperCase() + paymentType.slice(1)} payment updated successfully`,
+      payment,
+      paymentType
     });
 
   } catch (error) {

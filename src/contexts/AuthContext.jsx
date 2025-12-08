@@ -13,6 +13,9 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // =====================================================
+  // 🧠 INITIAL AUTH CHECK (on app load)
+  // =====================================================
   useEffect(() => {
     checkAuthStatus();
   }, []);
@@ -23,12 +26,10 @@ export const AuthProvider = ({ children }) => {
       const storedUser = localStorage.getItem("pdfpro_user");
 
       if (token && storedUser) {
+        // Try validating token & get updated user
         try {
-          // Verify token is still valid by making API call
           const response = await fetch(`${API_URL}/api/auth/me`, {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
+            headers: { Authorization: `Bearer ${token}` },
           });
 
           if (response.ok) {
@@ -36,63 +37,23 @@ export const AuthProvider = ({ children }) => {
             if (userInfo.success) {
               setUser(userInfo.user);
               localStorage.setItem("pdfpro_user", JSON.stringify(userInfo.user));
+              window.dispatchEvent(new Event("user-updated"));
             } else {
-              // Token is invalid, but we'll still use stored user for display
-              console.log("Token invalid, using stored user data");
-              if (storedUser) {
-                try {
-                  const parsedUser = JSON.parse(storedUser);
-                  setUser(parsedUser);
-                } catch (parseError) {
-                  console.error("Failed to parse stored user:", parseError);
-                }
-              }
-            }
-          } else if (response.status === 401) {
-            // Token expired or invalid, but we can still use stored user
-            console.log("Token expired, using stored user for display");
-            if (storedUser) {
-              try {
-                const parsedUser = JSON.parse(storedUser);
-                setUser(parsedUser);
-              } catch (parseError) {
-                console.error("Failed to parse stored user:", parseError);
-              }
+              // token invalid → fallback to stored user
+              setUser(JSON.parse(storedUser));
             }
           } else {
-            // Other error, still try to use stored user
-            console.log("Auth check failed, using stored user");
-            if (storedUser) {
-              try {
-                const parsedUser = JSON.parse(storedUser);
-                setUser(parsedUser);
-              } catch (parseError) {
-                console.error("Failed to parse stored user:", parseError);
-              }
-            }
+            // fallback to stored user when token expired
+            setUser(JSON.parse(storedUser));
           }
-        } catch (error) {
-          console.error("Token validation error:", error);
-          // Network error or other issue, use stored user if available
-          if (storedUser) {
-            try {
-              const parsedUser = JSON.parse(storedUser);
-              setUser(parsedUser);
-            } catch (parseError) {
-              console.error("Failed to parse stored user:", parseError);
-            }
-          }
+        } catch {
+          // Offline or network error → fallback
+          setUser(JSON.parse(storedUser));
         }
       } else if (storedUser && !token) {
-        // If we have user data but no token, use the stored user for display
-        try {
-          const parsedUser = JSON.parse(storedUser);
-          setUser(parsedUser);
-        } catch (parseError) {
-          console.error("Failed to parse stored user:", parseError);
-        }
+        // local display without token
+        setUser(JSON.parse(storedUser));
       } else {
-        // No stored user, set loading to false
         setUser(null);
       }
     } catch (error) {
@@ -103,29 +64,75 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const loginBackend = (userData, token) => {
-    const fullUser = {
-      ...userData,
-      token: token,
-    };
+  // =====================================================
+  // 🔄 REFRESH USER DATA (Used after payment / changes)
+  // =====================================================
+  const refreshUser = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return;
 
+      const response = await fetch(`${API_URL}/api/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        const userInfo = await response.json();
+        if (userInfo.success && userInfo.user) {
+          setUser(userInfo.user);
+          localStorage.setItem("pdfpro_user", JSON.stringify(userInfo.user));
+          window.dispatchEvent(new Event("user-updated"));
+        }
+      }
+    } catch (error) {
+      console.error("Refresh user failed:", error);
+    }
+  };
+
+  // =====================================================
+  // 🎉 AUTO REFRESH AFTER PAYMENT SUCCESS (Top-up / Plan)
+  // =====================================================
+  useEffect(() => {
+    if (sessionStorage.getItem("topup_success") || sessionStorage.getItem("sub_success")) {
+      refreshUser();
+      sessionStorage.removeItem("topup_success");
+      sessionStorage.removeItem("sub_success");
+    }
+  }, []);
+
+  // =====================================================
+  // 🔐 LOGIN HANDLER
+  // =====================================================
+  const loginBackend = (userData, token) => {
+    const fullUser = { ...userData, token };
     setUser(fullUser);
     localStorage.setItem("pdfpro_user", JSON.stringify(fullUser));
     localStorage.setItem("token", token);
+    window.dispatchEvent(new Event("user-updated"));
   };
 
+  // =====================================================
+  // 🚪 LOGOUT HANDLER
+  // =====================================================
   const logout = () => {
     setUser(null);
     localStorage.removeItem("pdfpro_user");
     localStorage.removeItem("token");
   };
 
+  // =====================================================
+  // 🔧 UPDATE USER (Local Update)
+  // =====================================================
   const updateUser = (updatedData) => {
     const updatedUser = { ...user, ...updatedData };
     setUser(updatedUser);
     localStorage.setItem("pdfpro_user", JSON.stringify(updatedUser));
+    window.dispatchEvent(new Event("user-updated"));
   };
 
+  // =====================================================
+  // 💳 UPDATE USER PLAN DATA
+  // =====================================================
   const updateUserPlan = (newPlanData) => {
     const updatedUser = {
       ...user,
@@ -137,46 +144,44 @@ export const AuthProvider = ({ children }) => {
     };
     setUser(updatedUser);
     localStorage.setItem("pdfpro_user", JSON.stringify(updatedUser));
+    window.dispatchEvent(new Event("user-updated"));
+
+    // 🔔 Trigger refresh on next render
+    sessionStorage.setItem("sub_success", "1");
   };
 
-  const getToken = () => {
-    return localStorage.getItem("token");
-  };
+  // =====================================================
+  // 🎯 TOKEN GETTER
+  // =====================================================
+  const getToken = () => localStorage.getItem("token");
 
+  // =====================================================
+  // ⚙️ CHECK IF USER CAN PERFORM CONVERSION
+  // =====================================================
   const canPerformConversion = async () => {
     if (!user) return false;
 
     try {
       const token = getToken();
       const response = await fetch(`${API_URL}/api/auth/me`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (response.ok) {
         const userInfo = await response.json();
         if (userInfo.success) {
           const currentUser = userInfo.user;
-
-          // Update local user state
           setUser(currentUser);
           localStorage.setItem("pdfpro_user", JSON.stringify(currentUser));
+          window.dispatchEvent(new Event("user-updated"));
 
-          // Check conversion limits
-          if (currentUser.planName === "Free") {
-            return currentUser.usage?.conversions < 10;
-          }
+          const usage = currentUser.usage?.conversions || 0;
+          const plan = currentUser.planName;
 
-          if (currentUser.planName === "Starter") {
-            return currentUser.usage?.conversions < 50;
-          }
+          if (plan === "Free") return usage < 10;
+          if (plan === "Starter") return usage < 50;
+          if (plan === "Professional") return usage < 500;
 
-          if (currentUser.planName === "Professional") {
-            return currentUser.usage?.conversions < 500;
-          }
-
-          // Enterprise or unlimited plans
           return true;
         }
       }
@@ -187,15 +192,15 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // =====================================================
+  // ➕ INCREMENT CONVERSION COUNT (frontend cache only)
+  // =====================================================
   const incrementConversionCount = async () => {
     if (!user) return;
-
     try {
       const token = getToken();
       const response = await fetch(`${API_URL}/api/auth/me`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (response.ok) {
@@ -208,9 +213,12 @@ export const AuthProvider = ({ children }) => {
               conversions: (userInfo.user.usage?.conversions || 0) + 1,
             },
           };
-
           setUser(updatedUser);
           localStorage.setItem("pdfpro_user", JSON.stringify(updatedUser));
+           sessionStorage.setItem("sub_success", "1");
+
+
+           window.dispatchEvent(new Event("user-updated"));
         }
       }
     } catch (error) {
@@ -218,6 +226,9 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // =====================================================
+  // 🧱 PROVIDER VALUES
+  // =====================================================
   return (
     <AuthContext.Provider
       value={{
@@ -229,8 +240,9 @@ export const AuthProvider = ({ children }) => {
         getToken,
         canPerformConversion,
         incrementConversionCount,
+        refreshUser,         // ➕ ADDED THIS
         loading,
-        checkAuthStatus, // Added this function
+        checkAuthStatus,     // ⚠ kept original
       }}
     >
       {children}

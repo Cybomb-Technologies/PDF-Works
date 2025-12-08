@@ -1,38 +1,40 @@
+// utils/incrementUsage.js
 const User = require("../models/UserModel");
+const PricingPlan = require("../models/Pricing");
 
 /**
- * Map feature → topup credit type
+ * Feature → Credit Key
  */
 function getCreditTypeForFeature(feature) {
   const creditMap = {
-    'convert': 'conversion',
-    'conversions': 'conversion',
-    'edit-tools': 'editTools',
-    'organize-tools': 'organizeTools',
-    'security-tools': 'securityTools',
-    'optimize-tools': 'optimizeTools',
-    'advanced-tools': 'advancedTools'
+    "convert": "conversion",
+    "conversions": "conversion",
+    "edit-tools": "editTools",
+    "organize-tools": "organizeTools",
+    "security-tools": "securityTools",
+    "optimize-tools": "optimizeTools",
+    "advanced-tools": "advancedTools"
   };
   return creditMap[feature] || null;
 }
 
 /**
- * Map feature → plan limit property
+ * Feature → Plan Limit Key
  */
 function getPlanLimitForFeature(plan, feature) {
   switch (feature) {
-    case 'convert':
-    case 'conversions':
+    case "convert":
+    case "conversions":
       return plan?.conversionLimit || 0;
-    case 'edit-tools':
+    case "edit-tools":
       return plan?.editToolsLimit || 0;
-    case 'organize-tools':
+    case "organize-tools":
       return plan?.organizeToolsLimit || 0;
-    case 'security-tools':
+    case "security-tools":
       return plan?.securityToolsLimit || 0;
-    case 'optimize-tools':
+    case "optimize-tools":
       return plan?.optimizeToolsLimit || 0;
-    case 'advanced-tools':
+    case "advanced-tools":
       return plan?.advancedToolsLimit || 0;
     default:
       return 0;
@@ -40,14 +42,14 @@ function getPlanLimitForFeature(plan, feature) {
 }
 
 /**
- * Unlimited plan?
+ * Unlimited plans check
  */
-function isUnlimitedPlan(planLimit) {
-  return planLimit === 0 || planLimit === 99999;
+function isUnlimitedPlan(limit) {
+  return limit === 0 || limit === 99999;
 }
 
 /**
- * Helper: get current usage count for feature
+ * Current Usage Count
  */
 function getCurrentUsageForFeature(usage, feature) {
   switch (feature) {
@@ -70,25 +72,19 @@ function getCurrentUsageForFeature(usage, feature) {
 }
 
 /**
- * 🚀 incrementUsage – now correctly handles topups
+ * 🚀 incrementUsage — final optimized version with proper top-up deduction
  */
 async function incrementUsage(userId, feature, options = {}) {
   const { addBytes = 0, count = 1 } = options;
-
   try {
     const now = new Date();
-
-    // Load user
     let user = await User.findById(userId);
     if (!user) return null;
 
-    console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-    console.log(`🔧 INCREMENT REQUEST | User: ${userId}`);
-    console.log(`   Feature: ${feature}, Count: ${count}`);
+    console.log("\n================== INCREMENT USAGE ==================");
+    console.log(`👤 User: ${userId} | Feature: ${feature} | Count: ${count}`);
 
-    // ---------------------------------------
-    // 1. Ensure usage + topup objects exist
-    // ---------------------------------------
+    // Default usage structure
     const defaultUsage = {
       conversions: 0,
       compressions: 0,
@@ -109,24 +105,24 @@ async function incrementUsage(userId, feature, options = {}) {
 
     let needsFix = false;
 
-    // If missing usage object
+    // 🧱 Ensure usage structure exists
     if (!user.usage || typeof user.usage !== "object") {
-      console.log(`⚠️ Fixing missing usage object...`);
+      console.log("⚠️ Fixing empty usage object…");
       user.usage = { ...defaultUsage };
       needsFix = true;
     } else {
       for (const key of Object.keys(defaultUsage)) {
         if (user.usage[key] === undefined) {
-          console.log(`⚠️ Fixing missing usage key: ${key}`);
+          console.log("⚠️ Adding missing usage key:", key);
           user.usage[key] = defaultUsage[key];
           needsFix = true;
         }
       }
     }
 
-    // Initialize topup credits if missing
+    // 🧱 Ensure top-up objects exist
     if (!user.topupCredits) {
-      console.log(`⚠️ Initializing topup credits...`);
+      console.log("⚠️ Initializing topup credits…");
       user.topupCredits = {
         conversion: 0,
         editTools: 0,
@@ -134,15 +130,13 @@ async function incrementUsage(userId, feature, options = {}) {
         securityTools: 0,
         optimizeTools: 0,
         advancedTools: 0,
-        convertTools: 0,
         total: 0
       };
       needsFix = true;
     }
 
-    // Initialize tracking if missing
     if (!user.topupUsage) {
-      console.log(`⚠️ Initializing topup usage...`);
+      console.log("⚠️ Initializing topup usage…");
       user.topupUsage = {
         conversion: 0,
         editTools: 0,
@@ -155,9 +149,9 @@ async function incrementUsage(userId, feature, options = {}) {
       needsFix = true;
     }
 
-    // Reset cycle if needed
+    // 🔄 Reset if cycle expired
     if (user.shouldResetUsage()) {
-      console.log(`🔄 Resetting monthly cycle`);
+      console.log("🔄 Resetting monthly cycle usage…");
       user.usage = { ...defaultUsage, resetDate: now };
       needsFix = true;
     }
@@ -171,27 +165,26 @@ async function incrementUsage(userId, feature, options = {}) {
     let usedPlanCredits = 0;
     let usedTopupCredits = 0;
 
-    // ---------------------------------------
-    // 2. Allocate credits: plan → topup
-    // ---------------------------------------
+    // 🏷️ Determine Plan & Topup Allocation
     if (creditType) {
-      const PricingPlan = require("../models/Pricing");
-
       let plan = null;
       if (user.plan) plan = await PricingPlan.findById(user.plan);
       if (!plan && user.planName) {
         plan = await PricingPlan.findOne({
-          $or: [{ planId: user.planName.toLowerCase() }, { name: user.planName }]
+          $or: [
+            { planId: user.planName.toLowerCase() },
+            { name: user.planName }
+          ]
         });
       }
 
       const planLimit = getPlanLimitForFeature(plan, feature);
       const topupAvailable = user.topupCredits[creditType] || 0;
 
-      console.log(`📊 PLAN vs TOPUP CHECK:`);
-      console.log(`   planLimit = ${planLimit}`);
-      console.log(`   used = ${currentUsage}`);
-      console.log(`   topupAvailable = ${topupAvailable}`);
+      console.log("📊 PLAN vs TOPUP ALLOCATION:");
+      console.log("   Plan Limit:", planLimit);
+      console.log("   Already Used:", currentUsage);
+      console.log("   Topup Available:", topupAvailable);
 
       let remaining = count;
 
@@ -211,12 +204,8 @@ async function incrementUsage(userId, feature, options = {}) {
       }
     }
 
-    // ---------------------------------------
-    // 3. Increment usage counters: ONLY PLAN COUNTS!
-    // ---------------------------------------
-    console.log(`📈 Updating counters...`);
-
-    const incPlan = usedPlanCredits; // DO NOT count topups here
+    // 📈 APPLY PLAN USAGE COUNT (Topup does NOT increase plan usage)
+    const incPlan = usedPlanCredits;
 
     switch (feature) {
       case "convert":
@@ -239,7 +228,7 @@ async function incrementUsage(userId, feature, options = {}) {
         usage.advancedTools += incPlan;
         break;
 
-      // Non credit-based
+      // Not credit-based
       default:
         if (feature === "compress") usage.compressions += count;
         if (feature === "ocr") usage.ocr += count;
@@ -247,7 +236,7 @@ async function incrementUsage(userId, feature, options = {}) {
         if (feature === "upload") usage.operations += count;
     }
 
-    // Storage updates
+    // 🧱 STORAGE UPDATE
     if (addBytes !== 0) {
       usage.storageUsedBytes += addBytes;
       if (usage.storageUsedBytes < 0) usage.storageUsedBytes = 0;
@@ -255,12 +244,10 @@ async function incrementUsage(userId, feature, options = {}) {
 
     await user.save();
 
-    console.log(`\n🎉 USAGE UPDATED SUCCESSFULLY`);
-    console.log(`   ➕ PLAN used: ${usedPlanCredits}`);
-    console.log(`   💰 TOPUP used: ${usedTopupCredits}`);
-    console.log(`   📌 New usage:`, usage);
-    console.log(`   💳 Remaining topup: ${creditType ? user.topupCredits[creditType] : "-"}`);
-    console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
+    console.log("🎉 USAGE UPDATED SUCCESSFULLY!");
+    console.log("   ➕ Plan Used:", usedPlanCredits);
+    console.log("   💰 Top-up Used:", usedTopupCredits);
+    console.log("====================================================\n");
 
     return {
       user,
@@ -268,11 +255,12 @@ async function incrementUsage(userId, feature, options = {}) {
         fromPlan: usedPlanCredits,
         fromTopup: usedTopupCredits,
         creditType,
-        topupRemaining: creditType ? user.topupCredits[creditType] : 0,
+        topupRemaining: creditType ? user.topupCredits[creditType] : 0
       }
     };
+
   } catch (err) {
-    console.error(`❌ incrementUsage ERROR:`, err);
+    console.error("❌ incrementUsage ERROR:", err);
     throw new Error(err.message);
   }
 }

@@ -16,7 +16,7 @@ const getAllActivities = async (req, res) => {
     const userId = req.user.id;
     const limit = parseInt(req.query.limit) || 50;
 
-    console.log(`🔍 Fetching activities for user: ${userId}, limit: ${limit}`);
+   // console.log(`🔍 Fetching activities for user: ${userId}, limit: ${limit}`);
 
     // Define all model queries INCLUDING OCR
     const queries = [
@@ -76,7 +76,7 @@ const getAllActivities = async (req, res) => {
       if (result.status === 'fulfilled') {
         const activities = result.value || [];
         
-        console.log(`✅ ${toolName}: Found ${activities.length} activities`);
+      //  console.log(`✅ ${toolName}: Found ${activities.length} activities`);
         
         activities.forEach(activity => {
           if (activity && activity._id) {
@@ -97,7 +97,7 @@ const getAllActivities = async (req, res) => {
     // Apply overall limit
     const finalActivities = allActivities.slice(0, limit);
 
-    console.log(`🎯 Total activities found: ${finalActivities.length}`);
+    //console.log(`🎯 Total activities found: ${finalActivities.length}`);
 
     res.json({
       success: true,
@@ -122,7 +122,7 @@ const downloadActivityFile = async (req, res) => {
     const { tool, filename } = req.params;
     const userId = req.user.id;
 
-    console.log(`📥 Download request - Tool: ${tool}, File: ${filename}`);
+    //console.log(`📥 Download request - Tool: ${tool}, File: ${filename}`);
 
     // Define upload directories for each tool INCLUDING OCR
     const uploadDirs = {
@@ -144,7 +144,7 @@ const downloadActivityFile = async (req, res) => {
     }
 
     const filePath = path.join(uploadDir, filename);
-    console.log('📁 Looking for file at:', filePath);
+    //console.log('📁 Looking for file at:', filePath);
 
     // Check if file exists
     try {
@@ -195,7 +195,7 @@ const downloadActivityFile = async (req, res) => {
     }
 
     const fileBuffer = await fs.readFile(filePath);
-    console.log('✅ File found, size:', fileBuffer.length);
+    //console.log('✅ File found, size:', fileBuffer.length);
 
     if (fileBuffer.length === 0) {
       return res.status(404).json({

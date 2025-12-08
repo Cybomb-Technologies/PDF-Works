@@ -25,7 +25,7 @@ import {
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 const Header = () => {
-  const { user, logout, loading } = useAuth();
+  const { user, logout, loading, refreshuser } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);

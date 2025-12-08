@@ -377,12 +377,7 @@ const Activities = () => {
         </div>
 
         <div className="flex gap-2">
-          <Button onClick={refreshAll} disabled={loading}>
-            <RefreshCw
-              className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`}
-            />
-            Refresh
-          </Button>
+          
           <Button onClick={() => setShowFilters(!showFilters)}>
             <Filter className="h-4 w-4 mr-2" />
             {showFilters ? "Hide Filters" : "Show Filters"}

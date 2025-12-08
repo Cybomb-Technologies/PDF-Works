@@ -26,7 +26,7 @@ const saveToAdvancedModel = async (operationType, userId, metadata = {}, resultD
     });
 
     await advancedRecord.save();
-    console.log("✅ Advanced operation saved to Advanced model:", advancedRecord._id);
+    //console.log("✅ Advanced operation saved to Advanced model:", advancedRecord._id);
     return advancedRecord;
   } catch (error) {
     console.error("❌ Error saving to Advanced model:", error);
@@ -101,8 +101,8 @@ exports.handleAdvancedTool = async (req, res) => {
     const { url, method = "GET", body, headers, tasks } = req.body;
     const userId = req.user?.id;
 
-    console.log('\n🔍 [ADVANCED TOOL] ===== START =====');
-    console.log('📱 Request:', { tool, userId });
+    //console.log('\n🔍 [ADVANCED TOOL] ===== START =====');
+    //console.log('📱 Request:', { tool, userId });
 
     // -------------------------------------------------------
     // ✅ FIXED: ENHANCED LIMIT CHECK WITH TOPUP SUPPORT
@@ -112,26 +112,26 @@ exports.handleAdvancedTool = async (req, res) => {
     
     if (userId) {
       try {
-        console.log('🔍 Checking limits for user:', userId);
+       // console.log('🔍 Checking limits for user:', userId);
         
         limitCheck = await checkLimits(userId, "advanced-tools");
         
         // Detailed logging for debugging
-        console.log('📊 Limit check results:', {
-          allowed: limitCheck.allowed,
-          planName: limitCheck.plan?.name,
-          planLimit: limitCheck.plan?.advancedToolsLimit,
-          currentUsage: limitCheck.usage?.advancedTools || 0,
-          usingTopup: limitCheck.creditsInfo?.usingTopup || false,
-          topupAvailable: limitCheck.creditsInfo?.topupAvailable || 0,
-          planRemaining: limitCheck.creditsInfo?.planRemaining || 0
-        });
+        // console.log('📊 Limit check results:', {
+        //   allowed: limitCheck.allowed,
+        //   planName: limitCheck.plan?.name,
+        //   planLimit: limitCheck.plan?.advancedToolsLimit,
+        //   currentUsage: limitCheck.usage?.advancedTools || 0,
+        //   usingTopup: limitCheck.creditsInfo?.usingTopup || false,
+        //   topupAvailable: limitCheck.creditsInfo?.topupAvailable || 0,
+        //   planRemaining: limitCheck.creditsInfo?.planRemaining || 0
+        // });
         
         // Store credits info
         creditsInfo = limitCheck.creditsInfo;
         
         if (!limitCheck.allowed) {
-          console.log('🚫 Limit exceeded - blocking operation');
+         // console.log('🚫 Limit exceeded - blocking operation');
           return res.status(200).json({
             success: false,
             type: "limit_exceeded",
@@ -151,7 +151,7 @@ exports.handleAdvancedTool = async (req, res) => {
             }
           });
         }
-        console.log('✅ Limits check passed');
+        //console.log('✅ Limits check passed');
       } catch (limitErr) {
         console.error('❌ Limit check error:', limitErr);
         return res.status(200).json({
@@ -163,7 +163,7 @@ exports.handleAdvancedTool = async (req, res) => {
         });
       }
     } else {
-      console.log('⚠️ No user ID - skipping limit check');
+     // console.log('⚠️ No user ID - skipping limit check');
     }
 
     // -------------------------------------------------------
@@ -340,19 +340,19 @@ exports.handleAdvancedTool = async (req, res) => {
         const shouldIncrementUsage = tool !== "analytics";
         
         if (shouldIncrementUsage) {
-          console.log('💰 Incrementing usage for user:', userId);
+         // console.log('💰 Incrementing usage for user:', userId);
           
           // This is where the fixed incrementUsage logic will properly handle topup credits
           incrementResult = await incrementUsage(userId, "advanced-tools");
           
-          console.log('📈 Usage increment result:', {
-            creditsUsed: incrementResult?.creditsUsed?.total || 0,
-            fromPlan: incrementResult?.creditsUsed?.fromPlan || 0,
-            fromTopup: incrementResult?.creditsUsed?.fromTopup || 0,
-            topupRemaining: incrementResult?.creditsUsed?.topupRemaining || 0
-          });
+          // console.log('📈 Usage increment result:', {
+          //   creditsUsed: incrementResult?.creditsUsed?.total || 0,
+          //   fromPlan: incrementResult?.creditsUsed?.fromPlan || 0,
+          //   fromTopup: incrementResult?.creditsUsed?.fromTopup || 0,
+          //   topupRemaining: incrementResult?.creditsUsed?.topupRemaining || 0
+          // });
         } else {
-          console.log('📊 Analytics operation - no usage increment needed');
+          //console.log('📊 Analytics operation - no usage increment needed');
         }
 
       } catch (saveError) {
@@ -384,9 +384,9 @@ exports.handleAdvancedTool = async (req, res) => {
       }
     };
 
-    console.log('✅ Operation completed successfully');
-    console.log('💰 Final credits info:', responseData.creditsInfo);
-    console.log('🔚 [ADVANCED TOOL] ===== END =====\n');
+    // console.log('✅ Operation completed successfully');
+    // console.log('💰 Final credits info:', responseData.creditsInfo);
+    // console.log('🔚 [ADVANCED TOOL] ===== END =====\n');
 
     res.json(responseData);
 

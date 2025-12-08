@@ -32,7 +32,7 @@ import { useNavigate } from "react-router-dom";
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 const TopupPage = () => {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const navigate = useNavigate();
   const [currency, setCurrency] = useState("USD");
   const [topupPackages, setTopupPackages] = useState([]);
@@ -98,7 +98,6 @@ const TopupPage = () => {
         const data = await res.json();
         if (data.success && data.user) {
           setUserPlanDetails(data.user);
-          console.log("User plan details:", data.user);
         }
       }
     } catch (error) {
@@ -132,11 +131,8 @@ const TopupPage = () => {
         },
       });
 
-      console.log("Eligibility response status:", res.status);
-
       if (res.ok) {
         const data = await res.json();
-        console.log("Eligibility data:", data);
         setIsEligible(data.eligible);
         
         if (!data.eligible) {
@@ -148,7 +144,6 @@ const TopupPage = () => {
           });
         }
       } else {
-        console.log("Eligibility check failed:", res.status);
         setIsEligible(false);
       }
     } catch (error) {
@@ -245,9 +240,6 @@ const TopupPage = () => {
     }
 
     console.log("🔄 Purchase initiated for package:", pkg);
-    console.log("🌐 API_URL:", API_URL);
-    console.log("👤 User logged in:", !!user);
-    console.log("🔑 Token exists:", !!localStorage.getItem("token"));
 
     if (!user) {
       toast({
@@ -279,9 +271,6 @@ const TopupPage = () => {
         currency: currency,
       };
 
-      console.log("📤 Sending request to:", `${API_URL}/api/payments/topup/create-order`);
-      console.log("📝 Request body:", requestBody);
-
       // Make the payment request
       const response = await fetch(`${API_URL}/api/payments/topup/create-order`, {
         method: "POST",
@@ -292,13 +281,8 @@ const TopupPage = () => {
         body: JSON.stringify(requestBody),
       });
 
-      console.log("📥 Response status:", response.status);
-      console.log("📥 Response status text:", response.statusText);
-
       // Get response text first
       const responseText = await response.text();
-      console.log("📥 Raw response text:", responseText);
-      
       let data;
       try {
         data = JSON.parse(responseText);
@@ -307,11 +291,7 @@ const TopupPage = () => {
         throw new Error("Invalid response from server");
       }
 
-      console.log("📊 Parsed response:", data);
-
       if (!response.ok) {
-        console.error("❌ HTTP Error:", response.status);
-        
         let errorMessage = data.message || `HTTP error: ${response.status}`;
         
         if (response.status === 401) {
@@ -327,45 +307,19 @@ const TopupPage = () => {
         throw new Error(errorMessage);
       }
 
-      if (data.success) {
-        console.log("✅ API response success:", data);
+      if (data.success && data.paymentLink) {
+        // Redirect to payment link
+        toast({
+          title: "Redirecting to Payment",
+          description: "You will be redirected to the payment page",
+          duration: 2000,
+        });
         
-        // Use the paymentLink from response (same as subscription)
-        let paymentLink = data.paymentLink;
-        
-        // Fallback: Use paymentSessionId URL
-        if (!paymentLink && data.paymentSessionId) {
-          paymentLink = `https://sandbox.cashfree.com/pg/orders/sessions/${data.paymentSessionId}`;
-          console.log("🔗 Using payment session URL");
-        }
-        
-        // Last resort: construct from orderId
-        if (!paymentLink && data.orderId) {
-          paymentLink = `https://sandbox.cashfree.com/pg/orders/${data.orderId}/payments`;
-          console.log("🔗 Constructed payment link from orderId");
-        }
-        
-        if (paymentLink) {
-          console.log("🔗 Final payment link:", paymentLink);
-          
-          toast({
-            title: "Redirecting to payment",
-            description: "You will be redirected to complete your payment",
-            duration: 2000,
-          });
-          
-          // Use window.location.href (same as subscription flow)
-          setTimeout(() => {
-            window.location.href = paymentLink;
-          }, 1500);
-          
-        } else {
-          console.error("❌ Could not generate payment link from:", data);
-          throw new Error("Could not generate payment link. Please contact support.");
-        }
+        // Open payment link in same tab or new tab based on your preference
+        window.location.href = data.paymentLink;
         
       } else {
-        console.error("❌ API returned success:false", data);
+        console.error("❌ API returned success:false or no paymentLink", data);
         throw new Error(data.message || "Failed to create payment order");
       }
     } catch (error) {
@@ -377,7 +331,6 @@ const TopupPage = () => {
         variant: "destructive",
         duration: 5000,
       });
-    } finally {
       setPurchaseLoading(false);
     }
   };
@@ -519,7 +472,6 @@ const TopupPage = () => {
   const getUserPlanInfo = () => {
     if (!user && !userPlanDetails) return { planName: "Unknown", isFree: true };
     
-    // Try multiple sources for plan info
     const planName = 
       userPlanDetails?.planName || 
       user?.planName || 
@@ -527,7 +479,6 @@ const TopupPage = () => {
       user?.plan || 
       "Free";
     
-    // Check if it's a free plan (case-insensitive)
     const isFree = typeof planName === 'string' && 
                    planName.toLowerCase().includes('free');
     
@@ -581,9 +532,6 @@ const TopupPage = () => {
     );
   }
 
-  // Debug info for testing
-  const showDebug = import.meta.env.DEV;
-  
   // Check eligibility - show loading if still checking
   if (!planCheckComplete) {
     return (
@@ -592,15 +540,6 @@ const TopupPage = () => {
         <p className="mt-4 text-gray-600">Checking your subscription status...</p>
       </div>
     );
-  }
-
-  // Show debug info in development
-  if (showDebug) {
-    console.log("User object:", user);
-    console.log("User plan details:", userPlanDetails);
-    console.log("Plan name:", planName);
-    console.log("Is free:", isFree);
-    console.log("Is eligible:", isEligible);
   }
 
   // Not eligible - show appropriate message
@@ -657,22 +596,6 @@ const TopupPage = () => {
             >
               Continue Using Tools
             </Button>
-            
-            {showDebug && (
-              <div className="mt-4 p-3 bg-gray-100 rounded-lg text-left">
-                <h4 className="text-sm font-semibold mb-2">Debug Info:</h4>
-                <pre className="text-xs overflow-auto">
-                  {JSON.stringify({
-                    userHasPlan: !!user?.plan,
-                    userPlanName: user?.planName,
-                    userPlan: user?.plan,
-                    userPlanDetails,
-                    isEligible,
-                    isFree,
-                  }, null, 2)}
-                </pre>
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -742,51 +665,15 @@ const TopupPage = () => {
         </div>
 
         {userCredits && user && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="glass-effect rounded-2xl p-6 max-w-md mx-auto"
-          >
-            <h3 className="font-bold text-gray-900 mb-3">Your Current Credits</h3>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-emerald-50 p-3 rounded-lg">
-                <div className="text-xs text-emerald-600">Total Available</div>
-                <div className="text-xl font-bold text-emerald-700">
-                  {userCredits.available?.total || 
-                   Object.values(userCredits.available || {}).reduce((a, b) => a + b, 0)}
-                </div>
-              </div>
-              <div className="bg-blue-50 p-3 rounded-lg">
-                <div className="text-xs text-blue-600">Used This Month</div>
-                <div className="text-xl font-bold text-blue-700">
-                  {Object.values(userCredits.usage || {}).reduce((a, b) => a + b, 0)}
-                </div>
-              </div>
-            </div>
+          <motion.div>
             <Button
               variant="outline"
-              className="w-full mt-4"
+              className="mt-4 hover:bg-green-500"
               onClick={() => navigate("/dashboard")}
             >
               View Detailed Breakdown
             </Button>
           </motion.div>
-        )}
-
-        {showDebug && (
-          <div className="mt-4 p-4 bg-gray-100 rounded-lg">
-            <h4 className="text-sm font-semibold mb-2">Debug Info:</h4>
-            <pre className="text-xs overflow-auto">
-              {JSON.stringify({
-                userPlan: user?.plan,
-                userPlanName: user?.planName,
-                userPlanDetails: userPlanDetails,
-                isEligible,
-                eligibilityLoading,
-                planCheckComplete,
-              }, null, 2)}
-            </pre>
-          </div>
         )}
       </motion.div>
 

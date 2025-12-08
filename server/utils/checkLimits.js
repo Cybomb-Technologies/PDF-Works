@@ -1,15 +1,18 @@
+// utils/checkLimits.js
 const User = require("../models/UserModel");
 const PricingPlan = require("../models/Pricing");
 const File = require("../models/FileModel");
 
 /**
- * Get plan from DB
+ * 📌 Fetch the user's plan from DB
  */
 async function getUserPlan(user) {
   let plan = null;
+
   if (user.plan) {
     plan = await PricingPlan.findById(user.plan);
   }
+
   if (!plan && user.planName) {
     plan = await PricingPlan.findOne({
       $or: [
@@ -18,17 +21,21 @@ async function getUserPlan(user) {
       ]
     });
   }
+
+  // Default fallback to free plan
   if (!plan) {
     plan = await PricingPlan.findOne({ planId: "free" });
   }
+
   return plan;
 }
 
 /**
- * Get topup credits for current feature
+ * 📌 Feature → Topup Mapping
  */
 function getTopupCreditsForFeature(user, feature) {
   if (!user.topupCredits) return 0;
+
   const map = {
     "convert": "conversion",
     "conversions": "conversion",
@@ -36,78 +43,55 @@ function getTopupCreditsForFeature(user, feature) {
     "organize-tools": "organizeTools",
     "security-tools": "securityTools",
     "optimize-tools": "optimizeTools",
-    "advanced-tools": "advancedTools",
+    "advanced-tools": "advancedTools"
   };
+
   return user.topupCredits[map[feature]] || 0;
 }
 
 /**
- * Get full available (plan + topup)
+ * 📌 Return combined total allowed (Plan + Topup)
  */
 function getTotalAvailable(planLimit, topup) {
-  if (planLimit === 0 || planLimit === 99999) return 99999;
+  if (planLimit === 0 || planLimit === 99999) return 99999; // Unlimited
   return planLimit + topup;
 }
 
 /**
- * Limit check function
+ * 🚨 Main Limit Check Function
+ * @param {String} userId
+ * @param {String} feature - tool type
+ * @param {Number} fileSizeBytes - file size from multer
  */
 async function checkLimits(userId, feature, fileSizeBytes = 0) {
   try {
-    console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-    console.log(`🔍 LIMIT CHECK REQUEST | User: ${userId}`);
-    console.log(`   Feature: ${feature}`);
-    console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+    console.log("\n================== CHECK LIMIT ==================");
+    console.log("🔍 Feature:", feature, "| User:", userId);
 
     if (!userId) {
-      console.log(`⛔ No User ID Provided`);
       return { allowed: false, reason: "Authentication required" };
     }
 
     // Load user
     const user = await User.findById(userId);
-    if (!user) {
-      console.log(`❌ User Not Found`);
-      return { allowed: false, reason: "User not found" };
-    }
+    if (!user) return { allowed: false, reason: "User not found" };
 
-    // Load plan fresh
+    // Load Plan
     const plan = await getUserPlan(user);
-    console.log(`📌 PLAN RESOLVED: ${plan?.name || "None"}`);
-
     if (!plan) return { allowed: false, reason: "Plan not found" };
 
-    // Topup for this feature
-    const topupCredits = getTopupCreditsForFeature(user, feature);
+    console.log("📌 Resolved Plan:", plan.name);
 
-    // Ensure usage object initialized
-    const now = new Date();
-    const defaultUsage = {
-      conversions: 0, compressions: 0, ocr: 0, signatures: 0,
-      edits: 0, organizes: 0, securityOps: 0, operations: 0,
-      storageUsedBytes: 0,
-      editTools: 0, organizeTools: 0, securityTools: 0,
-      optimizeTools: 0, advancedTools: 0,
-      resetDate: now
-    };
-
-    if (!user.usage || typeof user.usage !== "object") {
-      console.log(`⚠️ FIXING MISSING USAGE OBJECT`);
-      user.usage = { ...defaultUsage };
-      await user.save();
+    // 🚫 Subscription Check (if not free)
+    if (plan?.planId !== "free" && user.subscriptionStatus !== "active") {
+      return {
+        allowed: false,
+        reason: "Subscription inactive",
+        upgradeRequired: true
+      };
     }
 
-    let usage = user.usage;
-
-    // Reset monthly cycle if needed
-    if (user.shouldResetUsage()) {
-      console.log(`🔄 MONTHLY CYCLE RESET`);
-      user.usage = { ...defaultUsage, resetDate: now };
-      await user.save();
-      usage = user.usage;
-    }
-
-    // Extract feature limits
+    // Extract Limits
     const limits = {
       conversionLimit: plan?.conversionLimit ?? 0,
       editToolsLimit: plan?.editToolsLimit ?? 0,
@@ -119,29 +103,22 @@ async function checkLimits(userId, feature, fileSizeBytes = 0) {
       storageLimitGB: plan?.storage ?? 0
     };
 
-    // Subscription validation
-    if (plan?.planId !== "free" && user.subscriptionStatus !== "active") {
-      console.log(`❌ SUBSCRIPTION NOT ACTIVE`);
-      return {
-        allowed: false,
-        reason: "Subscription inactive",
-        upgradeRequired: true
-      };
-    }
-
-    // File Size Check
+    // 🧱 FILE SIZE CHECK (Disk Upload)
     if (fileSizeBytes > 0 && limits.maxFileSizeMB > 0) {
       const fileMB = fileSizeBytes / (1024 * 1024);
+
       if (fileMB > limits.maxFileSizeMB) {
-        console.log(`❌ FILE TOO LARGE (${fileMB.toFixed(1)}MB)`);
+        console.log(`❌ FILE SIZE BLOCKED (${fileMB.toFixed(1)}MB > ${limits.maxFileSizeMB}MB)`);
+
         return {
           allowed: false,
-          reason: `Max file ${limits.maxFileSizeMB} MB exceeded`
+          reason: `Max upload limit ${limits.maxFileSizeMB} MB exceeded`,
+          upgradeRequired: true
         };
       }
     }
 
-    // Storage Limit Check
+    // 📦 STORAGE CHECK
     if (limits.storageLimitGB > 0) {
       const agg = await File.aggregate([
         { $match: { uploadedBy: user._id } },
@@ -151,72 +128,65 @@ async function checkLimits(userId, feature, fileSizeBytes = 0) {
       const maxBytes = limits.storageLimitGB * 1024 * 1024 * 1024;
 
       if (usedBytes + fileSizeBytes > maxBytes) {
-        console.log(`❌ STORAGE LIMIT EXCEEDED`);
+        console.log(`❌ STORAGE EXCEEDED`);
         return { allowed: false, reason: "Storage limit exceeded" };
       }
     }
 
-    // ================ LIMIT CHECKS ==================
+    // 🧮 Determine Usage
+    const usage = user?.usage || {};
+    const topupCredits = getTopupCreditsForFeature(user, feature);
 
-    function checkMax(limit, used) {
-      const totalAllowed = getTotalAvailable(limit, topupCredits);
-      const isUnlimited = totalAllowed === 99999;
-
-      console.log(`📊 LIMIT CHECK:`);
-      console.log(`   PlanLimit: ${limit}`);
-      console.log(`   Used: ${used}`);
-      console.log(`   Topup: ${topupCredits}`);
-      console.log(`   TotalAllowed: ${totalAllowed}`);
-
-      if (isUnlimited) return true;
-      if (used < limit) return true; // still in plan
-      if (topupCredits > 0) return true; // can use topup
-
+    function getLimitUsed(limitValue, usedCount) {
+      const totalAllowed = getTotalAvailable(limitValue, topupCredits);
+      if (totalAllowed === 99999) return true;
+      if (usedCount < limitValue) return true;
+      if (topupCredits > 0) return true;
       return false;
     }
 
+    // 🔐 TOOL LIMIT CHECK
     switch (feature) {
       case "convert":
       case "conversions":
-        if (!checkMax(limits.conversionLimit, usage.conversions)) {
-          console.log(`❌ CONVERSION LIMIT BLOCKED`);
-          return { allowed: false, reason: "Conversion credits exhausted", upgradeRequired: true };
+        if (!getLimitUsed(limits.conversionLimit, usage.conversions || 0)) {
+          return { allowed: false, reason: "Conversion limit reached", upgradeRequired: true };
+        }
+        break;
+
+      case "security-tools":
+        if (!getLimitUsed(limits.securityToolsLimit, usage.securityTools || 0)) {
+          return { allowed: false, reason: "Security tools limit reached", upgradeRequired: true };
         }
         break;
 
       case "edit-tools":
-        if (!checkMax(limits.editToolsLimit, usage.editTools)) {
+        if (!getLimitUsed(limits.editToolsLimit, usage.editTools || 0)) {
           return { allowed: false, reason: "Edit tools limit reached", upgradeRequired: true };
         }
         break;
 
       case "organize-tools":
-        if (!checkMax(limits.organizeToolsLimit, usage.organizeTools)) {
+        if (!getLimitUsed(limits.organizeToolsLimit, usage.organizeTools || 0)) {
           return { allowed: false, reason: "Organize tools limit reached", upgradeRequired: true };
         }
         break;
 
-      case "security-tools":
-        if (!checkMax(limits.securityToolsLimit, usage.securityTools)) {
-          return { allowed: false, reason: "Security tools limit reached", upgradeRequired: true };
-        }
-        break;
-
       case "optimize-tools":
-        if (!checkMax(limits.optimizeToolsLimit, usage.optimizeTools)) {
+        if (!getLimitUsed(limits.optimizeToolsLimit, usage.optimizeTools || 0)) {
           return { allowed: false, reason: "Optimize tools limit reached", upgradeRequired: true };
         }
         break;
 
       case "advanced-tools":
-        if (!checkMax(limits.advancedToolsLimit, usage.advancedTools)) {
+        if (!getLimitUsed(limits.advancedToolsLimit, usage.advancedTools || 0)) {
           return { allowed: false, reason: "Advanced tools limit reached", upgradeRequired: true };
         }
         break;
     }
 
-    console.log(`✔️ LIMIT CHECK PASSED`);
-    console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
+    console.log("✔️ LIMIT CHECK PASSED");
+    console.log("==================================================\n");
 
     return {
       allowed: true,
@@ -224,9 +194,8 @@ async function checkLimits(userId, feature, fileSizeBytes = 0) {
       plan,
       topupCredits
     };
-
   } catch (err) {
-    console.error(`❌ checkLimits ERROR:`, err);
+    console.error("❌ checkLimits ERROR:", err);
     return { allowed: false, reason: "Server error" };
   }
 }
