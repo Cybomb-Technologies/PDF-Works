@@ -8,7 +8,7 @@ const fs = require("fs");
 
 // Auth middleware
 const { verifyToken } = require("../../../middleware/authMiddleware");
-
+ 
 // 🔹 Ensure temp upload directory exists
 const uploadDir = path.join(__dirname, "../../../uploads/security-temp");
 if (!fs.existsSync(uploadDir)) {

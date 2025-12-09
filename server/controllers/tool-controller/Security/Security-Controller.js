@@ -14,7 +14,7 @@ const { incrementUsage } = require("../../../utils/incrementUsage");
 let encryptedFiles = new Map();
 let twoFactorProtectedFiles = new Map();
 let fileAccessMap = new Map();
-
+ 
 // Save security operation to Security model
 const saveToSecurityModel = async (
   fileBuffer,

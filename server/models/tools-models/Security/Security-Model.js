@@ -11,7 +11,7 @@ const SecuritySchema = new mongoose.Schema(
     originalFilename: {
       type: String,
       required: true,
-    },
+    }, 
     processedFilename: {
       type: String,
       required: true,

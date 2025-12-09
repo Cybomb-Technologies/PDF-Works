@@ -7,7 +7,7 @@ const cors = require("cors");
 const path = require("path");
 const multer = require("multer");
 const fs = require("fs");
-const { runCleanupTask } = require("./utils/cleanup");
+const { runCleanup } = require("./utils/cleanup");
 
 // ROUTES
 const userRoutes = require("./routes/userRoutes");
@@ -351,5 +351,17 @@ app.listen(PORT, () => {
   console.log("✅ All tools are now available!");
 });
 
-setInterval(runCleanupTask, 10 * 60 * 1000); // every 10 min
-console.log("⏳ Auto cleanup system enabled (1 hour expiration)");
+// ⏳ Auto Cleanup System
+const cleanupInterval = (process.env.AUTO_CLEANUP_INTERVAL_MIN || 10) * 60 * 1000;
+
+setInterval(async () => {
+  try {
+    console.log("🧹 Running scheduled cleanup...");
+    await runCleanup();
+  } catch (err) {
+    console.error("❌ Cleanup failed:", err.message);
+  }
+}, cleanupInterval);
+
+console.log(`⏳ Auto cleanup enabled (every ${process.env.AUTO_CLEANUP_INTERVAL_MIN || 10} min)`);
+
