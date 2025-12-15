@@ -14,6 +14,8 @@ const upload = multer({
 
 // OCR routes - PROTECTED WITH AUTH
 router.post("/extract-text", verifyToken, upload.single("image"), OCRController.extractText);
+router.post("/extract-batch", verifyToken, upload.array("images", 20), OCRController.extractBatchText);
+router.post("/extract-handwriting", verifyToken, upload.single("image"), OCRController.extractHandwriting);
 router.get("/download/:filename", OCRController.downloadOCRFile);
 router.get("/preview/:filename", OCRController.previewOCRText);
 router.get("/history", verifyToken, OCRController.getOCRHistory);
