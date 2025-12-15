@@ -16,7 +16,7 @@ const CheckoutPage = () => {
   const [loading, setLoading] = useState(false);
   const [plan, setPlan] = useState(null);
   const [billingCycle, setBillingCycle] = useState("monthly");
-  const [currency, setCurrency] = useState("USD");
+  const [currency, setCurrency] = useState("INR");
 
   useEffect(() => {
     // Redirect if not logged in
@@ -189,11 +189,8 @@ const CheckoutPage = () => {
       price = plan.usdPrice || 0;
     }
 
-    // Convert to INR if needed
-    if (currency === "INR") {
-      return `₹${Math.round(price * 83.5).toLocaleString("en-IN")}`;
-    }
-    return `$${price}`;
+    // Always return INR
+    return `₹${Math.round(price * 83.5).toLocaleString("en-IN")}`;
   };
 
   const calculateSavings = () => {
@@ -206,7 +203,7 @@ const CheckoutPage = () => {
       if (savings > 0) {
         return currency === "INR"
           ? `Save ₹${Math.round(savings * 83.5).toLocaleString("en-IN")}`
-          : `Save $${savings.toFixed(2)}`;
+          : `Save ₹${Math.round(savings * 83.5).toLocaleString("en-IN")}`;
       }
     }
     return null;
@@ -284,55 +281,26 @@ const CheckoutPage = () => {
                   <div className="flex gap-2">
                     <button
                       onClick={() => setBillingCycle("monthly")}
-                      className={`flex-1 py-2 px-4 rounded-lg border transition-colors ${
-                        billingCycle === "monthly"
+                      className={`flex-1 py-2 px-4 rounded-lg border transition-colors ${billingCycle === "monthly"
                           ? "bg-blue-600 text-white border-blue-600"
                           : "bg-white text-gray-700 border-gray-300 hover:border-blue-300"
-                      }`}
+                        }`}
                     >
                       Monthly
                     </button>
                     <button
                       onClick={() => setBillingCycle("annual")}
-                      className={`flex-1 py-2 px-4 rounded-lg border transition-colors ${
-                        billingCycle === "annual"
+                      className={`flex-1 py-2 px-4 rounded-lg border transition-colors ${billingCycle === "annual"
                           ? "bg-blue-600 text-white border-blue-600"
                           : "bg-white text-gray-700 border-gray-300 hover:border-blue-300"
-                      }`}
+                        }`}
                     >
                       Annual (Save 25%)
                     </button>
                   </div>
                 </div>
 
-                {/* Currency Toggle */}
-                <div className="border-t pt-4">
-                  <label className="block text-sm font-medium mb-3">
-                    Currency
-                  </label>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setCurrency("USD")}
-                      className={`flex-1 py-2 px-4 rounded-lg border transition-colors ${
-                        currency === "USD"
-                          ? "bg-blue-600 text-white border-blue-600"
-                          : "bg-white text-gray-700 border-gray-300 hover:border-blue-300"
-                      }`}
-                    >
-                      USD ($)
-                    </button>
-                    <button
-                      onClick={() => setCurrency("INR")}
-                      className={`flex-1 py-2 px-4 rounded-lg border transition-colors ${
-                        currency === "INR"
-                          ? "bg-blue-600 text-white border-blue-600"
-                          : "bg-white text-gray-700 border-gray-300 hover:border-blue-300"
-                      }`}
-                    >
-                      INR (₹)
-                    </button>
-                  </div>
-                </div>
+
 
                 {/* Features Included */}
                 {features.length > 0 && (
@@ -409,7 +377,7 @@ const CheckoutPage = () => {
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-gray-600">Tax</span>
                     <span className="font-semibold">
-                      {currency === "INR" ? "₹0" : "$0"}
+                      {currency === "INR" ? "₹0" : "₹0"}
                     </span>
                   </div>
                   <div className="flex justify-between items-center text-lg font-bold border-t pt-2">
@@ -419,7 +387,7 @@ const CheckoutPage = () => {
                   <div className="text-sm text-gray-500 mt-1">
                     {currency === "INR"
                       ? "Prices in INR include all applicable taxes"
-                      : "No additional taxes"}
+                      : "Prices in INR include all applicable taxes"}
                   </div>
                 </div>
 

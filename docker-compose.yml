@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  # The Handwriting OCR Service
+  ocr-service:
+    build: ./ocr-service
+    container_name: pdf-works-ocr
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./ocr-service/models:/root/.paddleocr # Persist downloaded models
+    restart: unless-stopped
+    networks:
+      - pdf-works-net
+
+  # Main Server (Uncomment for full production dockerization)
+  # server:
+  #   build: ./server
+  #   ports:
+  #     - "5000:5000"
+  #   environment:
+  #     - PORT=5000
+  #     - OCR_SERVICE_URL=http://ocr-service:8000 # Inter-container communication
+  #   depends_on:
+  #     - ocr-service
+  #   networks:
+  #     - pdf-works-net
+
+networks:
+  pdf-works-net:
+    driver: bridge

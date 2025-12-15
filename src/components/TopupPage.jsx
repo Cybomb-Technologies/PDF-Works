@@ -34,7 +34,7 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 const TopupPage = () => {
   const { user, refreshUser } = useAuth();
   const navigate = useNavigate();
-  const [currency, setCurrency] = useState("USD");
+  const [currency, setCurrency] = useState("INR");
   const [topupPackages, setTopupPackages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [userCredits, setUserCredits] = useState(null);
@@ -110,7 +110,7 @@ const TopupPage = () => {
   // Check if user is eligible for top-ups
   const checkEligibility = async () => {
     setEligibilityLoading(true);
-    
+
     if (!user) {
       setIsEligible(false);
       setEligibilityLoading(false);
@@ -134,7 +134,7 @@ const TopupPage = () => {
       if (res.ok) {
         const data = await res.json();
         setIsEligible(data.eligible);
-        
+
         if (!data.eligible) {
           toast({
             title: "Upgrade Required",
@@ -158,11 +158,11 @@ const TopupPage = () => {
     try {
       setLoading(true);
       const res = await fetch(`${API_URL}/api/topup`);
-      
+
       if (!res.ok) {
         throw new Error(`Failed to fetch packages: ${res.status}`);
       }
-      
+
       const data = await res.json();
 
       if (data.success) {
@@ -219,12 +219,10 @@ const TopupPage = () => {
 
   const formatPrice = (usdPrice) => {
     if (!usdPrice && usdPrice !== 0) return "N/A";
-    
-    if (currency === "INR") {
-      const inrPrice = Math.round(usdPrice * exchangeRate);
-      return `₹${inrPrice.toLocaleString("en-IN")}`;
-    }
-    return `$${usdPrice.toFixed(2)}`;
+
+    // Always return INR
+    const inrPrice = Math.round(usdPrice * exchangeRate);
+    return `₹${inrPrice.toLocaleString("en-IN")}`;
   };
 
   const handlePurchase = async (pkg) => {
@@ -264,7 +262,7 @@ const TopupPage = () => {
       }
 
       setPurchaseLoading(true);
-      
+
       // Prepare request body
       const requestBody = {
         topupPackageId: pkg.id || pkg._id,
@@ -293,7 +291,7 @@ const TopupPage = () => {
 
       if (!response.ok) {
         let errorMessage = data.message || `HTTP error: ${response.status}`;
-        
+
         if (response.status === 401) {
           errorMessage = "Session expired. Please login again.";
           localStorage.removeItem("token");
@@ -303,7 +301,7 @@ const TopupPage = () => {
         } else if (response.status === 500) {
           errorMessage = "Server error. Please try again later.";
         }
-        
+
         throw new Error(errorMessage);
       }
 
@@ -314,17 +312,17 @@ const TopupPage = () => {
           description: "You will be redirected to the payment page",
           duration: 2000,
         });
-        
+
         // Open payment link in same tab or new tab based on your preference
         window.location.href = data.paymentLink;
-        
+
       } else {
         console.error("❌ API returned success:false or no paymentLink", data);
         throw new Error(data.message || "Failed to create payment order");
       }
     } catch (error) {
       console.error("❌ Topup purchase error:", error);
-      
+
       toast({
         title: "Payment Error",
         description: error.message,
@@ -342,22 +340,22 @@ const TopupPage = () => {
 
   const filterPackages = () => {
     if (selectedCategory === "all") return topupPackages;
-    
+
     return topupPackages.filter(pkg => {
       if (!pkg) return false;
-      
+
       switch (selectedCategory) {
         case "popular":
           return pkg.popular;
         case "conversion":
           return pkg.credits?.conversion > 50;
         case "tools":
-          const toolCredits = (pkg.credits?.editTools || 0) + 
-                            (pkg.credits?.organizeTools || 0) + 
-                            (pkg.credits?.securityTools || 0) + 
-                            (pkg.credits?.optimizeTools || 0) +
-                            (pkg.credits?.advancedTools || 0) + 
-                            (pkg.credits?.convertTools || 0);
+          const toolCredits = (pkg.credits?.editTools || 0) +
+            (pkg.credits?.organizeTools || 0) +
+            (pkg.credits?.securityTools || 0) +
+            (pkg.credits?.optimizeTools || 0) +
+            (pkg.credits?.advancedTools || 0) +
+            (pkg.credits?.convertTools || 0);
           return toolCredits > 50;
         case "value":
           return calculateValueScore(pkg) > 15;
@@ -471,17 +469,17 @@ const TopupPage = () => {
   // Get user's plan information
   const getUserPlanInfo = () => {
     if (!user && !userPlanDetails) return { planName: "Unknown", isFree: true };
-    
-    const planName = 
-      userPlanDetails?.planName || 
-      user?.planName || 
-      userPlanDetails?.plan || 
-      user?.plan || 
+
+    const planName =
+      userPlanDetails?.planName ||
+      user?.planName ||
+      userPlanDetails?.plan ||
+      user?.plan ||
       "Free";
-    
-    const isFree = typeof planName === 'string' && 
-                   planName.toLowerCase().includes('free');
-    
+
+    const isFree = typeof planName === 'string' &&
+      planName.toLowerCase().includes('free');
+
     return { planName, isFree };
   };
 
@@ -505,12 +503,12 @@ const TopupPage = () => {
           <div className="w-20 h-20 bg-gradient-to-br from-emerald-500 to-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
             <BatteryCharging className="h-10 w-10 text-white" />
           </div>
-          
+
           <h1 className="text-2xl font-bold mb-4">Login Required</h1>
           <p className="text-gray-600 mb-6">
             Please login to view and purchase top-up credits.
           </p>
-          
+
           <div className="space-y-3">
             <Button
               onClick={() => navigate("/login", { state: { from: "/topup" } })}
@@ -518,7 +516,7 @@ const TopupPage = () => {
             >
               Login
             </Button>
-            
+
             <Button
               onClick={() => navigate("/signup", { state: { from: "/topup" } })}
               variant="outline"
@@ -550,11 +548,11 @@ const TopupPage = () => {
           <div className="w-20 h-20 bg-gradient-to-br from-amber-500 to-orange-600 rounded-full flex items-center justify-center mx-auto mb-6">
             <AlertCircle className="h-10 w-10 text-white" />
           </div>
-          
+
           <h1 className="text-2xl font-bold mb-4">
             {isFree ? "Upgrade Required" : "Subscription Issue"}
           </h1>
-          
+
           <div className="mb-6">
             <div className="inline-block bg-gray-100 px-4 py-2 rounded-lg mb-4">
               <span className="text-sm text-gray-600">Your current plan:</span>
@@ -562,7 +560,7 @@ const TopupPage = () => {
                 {typeof planName === 'string' ? planName : "Unknown Plan"}
               </span>
             </div>
-            
+
             <p className="text-gray-600">
               {isFree ? (
                 "Top-up credits are only available for active paid subscription plans. Upgrade to a Starter, Professional, or Enterprise plan to purchase extra credits."
@@ -571,7 +569,7 @@ const TopupPage = () => {
               )}
             </p>
           </div>
-          
+
           <div className="space-y-3">
             {isFree ? (
               <Button
@@ -588,7 +586,7 @@ const TopupPage = () => {
                 Go to Dashboard
               </Button>
             )}
-            
+
             <Button
               onClick={() => navigate("/tools")}
               variant="outline"
@@ -621,7 +619,7 @@ const TopupPage = () => {
             </div>
           </div>
         </div>
-        
+
         <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent">
           Top-up Credits ⚡
         </h1>
@@ -644,25 +642,7 @@ const TopupPage = () => {
           </span>
         </motion.div>
 
-        <div className="flex items-center justify-center gap-4">
-          <div className="flex items-center gap-4 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full border">
-            <span className={`font-semibold ${currency === "USD" ? "text-gray-900" : "text-gray-500"}`}>
-              USD
-            </span>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                className="sr-only peer"
-                checked={currency === "INR"}
-                onChange={() => setCurrency(currency === "INR" ? "USD" : "INR")}
-              />
-              <div className="w-12 h-6 bg-emerald-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
-            </label>
-            <span className={`font-semibold ${currency === "INR" ? "text-gray-900" : "text-gray-500"}`}>
-              INR
-            </span>
-          </div>
-        </div>
+
 
         {userCredits && user && (
           <motion.div>
@@ -723,11 +703,10 @@ const TopupPage = () => {
                 <button
                   key={category.id}
                   onClick={() => setSelectedCategory(category.id)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-medium transition-all ${
-                    selectedCategory === category.id
+                  className={`flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-medium transition-all ${selectedCategory === category.id
                       ? "bg-gradient-to-r from-emerald-600 to-green-600 text-white border-emerald-600"
                       : "bg-white text-gray-600 border-gray-300 hover:border-emerald-300"
-                  }`}
+                    }`}
                 >
                   <Icon className="h-4 w-4" />
                   {category.name}
@@ -744,7 +723,7 @@ const TopupPage = () => {
               {topupPackages.length === 0 ? "No Packages Available" : "No Packages Found"}
             </h3>
             <p className="text-gray-500">
-              {topupPackages.length === 0 
+              {topupPackages.length === 0
                 ? "Top-up packages are not currently available. Please check back later."
                 : "Try selecting a different category"}
             </p>
@@ -753,21 +732,20 @@ const TopupPage = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredPackages.map((pkg, index) => {
               if (!pkg) return null;
-              
+
               const IconComponent = iconMap[pkg.icon] || Package;
               const totalCredits = pkg.totalCredits || 0;
               const valueScore = calculateValueScore(pkg);
               const isExpanded = expandedPackage === pkg.id;
-              
+
               return (
                 <motion.div
                   key={pkg.id || pkg._id || index}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 * index }}
-                  className={`bg-white rounded-2xl p-6 shadow-lg border-2 hover-lift flex flex-col ${
-                    pkg.popular ? "border-emerald-500 ring-2 ring-emerald-100" : "border-gray-200"
-                  }`}
+                  className={`bg-white rounded-2xl p-6 shadow-lg border-2 hover-lift flex flex-col ${pkg.popular ? "border-emerald-500 ring-2 ring-emerald-100" : "border-gray-200"
+                    }`}
                 >
                   {pkg.popular && (
                     <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
@@ -824,7 +802,7 @@ const TopupPage = () => {
                         )}
                       </button>
                     </div>
-                    
+
                     <div className="grid grid-cols-2 gap-2 mb-3">
                       {pkg.credits?.conversion > 0 && (
                         <div className="flex items-center text-sm">
@@ -959,7 +937,7 @@ const TopupPage = () => {
               </li>
             </ul>
           </div>
-          
+
           <div className="space-y-4">
             <div className="flex items-center">
               <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-full flex items-center justify-center mr-4">

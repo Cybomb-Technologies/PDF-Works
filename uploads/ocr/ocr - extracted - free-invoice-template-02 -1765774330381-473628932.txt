@@ -1,0 +1,21 @@
+YOUR NO. 000001
+
+LOGO
+
+Date: 02 June, 2030
+
+Billed to: From:
+
+Studio Shodwe Olivia Wilson
+
+123 Anywhere St., Any City 123 Anywhere St., Any City
+
+hello@reallygreatsite.com hello@reallygreatsite.com
+Item Quantity Price Amount
+Logo 1 $500 $500
+Banner (2x6m) 2 $45 $90
+Poster (1x2m) 3 $55 $165
+
+Total $755
+Payment method: Cash
+Note: Thank you for choosing us!
