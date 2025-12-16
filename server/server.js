@@ -66,9 +66,15 @@ ensureUploadsDirs();
 
 // GLOBAL MULTER – 500MB LIMIT
 const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 500 * 1024 * 1024 }, // 500MB
+  storage: multer.diskStorage({
+    destination: "uploads/temp",
+    filename: (req, file, cb) => {
+      cb(null, Date.now() + "-" + file.originalname);
+    }
+  }),
+  limits: { fileSize: 500 * 1024 * 1024 }
 });
+
 
 // BODY SIZE LIMIT
 app.use(express.json({ limit: "500mb" }));
@@ -310,8 +316,8 @@ app.use((req, res) => {
 
 // MONGODB
 mongoose
-  //.connect("mongodb://sudesh.t%40cybomb.com:Cybomb%401234@147.93.111.96:27017/pdf-works?authSource=admin")
-  .connect("mongodb://localhost:27017/pdf-tools")
+  .connect("mongodb://sudesh.t%40cybomb.com:Cybomb%401234@147.93.111.96:27017/pdf-works?authSource=admin")
+  //.connect("mongodb://localhost:27017/pdf-tools")
   .then(() => console.log("MongoDB connected successfully"))
   .catch((err) => {
     console.error("MongoDB connection error:", err);

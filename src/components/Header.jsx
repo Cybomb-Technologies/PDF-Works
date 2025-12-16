@@ -124,7 +124,7 @@ const Header = () => {
         {/* Logo */}
         <div className="flex items-center gap-2">
           <Link 
-            to={user ? "/dashboard" : "/"} 
+            to="/"
             className="flex items-center gap-2"
             onClick={() => setMobileMenuOpen(false)}
           >
