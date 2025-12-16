@@ -4,7 +4,7 @@ import { ArrowLeft, CreditCard, Shield, Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import Metatags from "../SEO/metatags";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
@@ -13,9 +13,11 @@ const CheckoutPage = () => {
   const { user, getToken } = useAuth();
   const navigate = useNavigate();
   const { planId } = useParams();
+  const location = useLocation();
   const [loading, setLoading] = useState(false);
   const [plan, setPlan] = useState(null);
-  const [billingCycle, setBillingCycle] = useState("monthly");
+  // Get billing cycle from navigation state, default to monthly
+  const [billingCycle, setBillingCycle] = useState(location.state?.billingCycle || "monthly");
   const [currency, setCurrency] = useState("INR");
 
   useEffect(() => {
@@ -282,8 +284,8 @@ const CheckoutPage = () => {
                     <button
                       onClick={() => setBillingCycle("monthly")}
                       className={`flex-1 py-2 px-4 rounded-lg border transition-colors ${billingCycle === "monthly"
-                          ? "bg-blue-600 text-white border-blue-600"
-                          : "bg-white text-gray-700 border-gray-300 hover:border-blue-300"
+                        ? "bg-blue-600 text-white border-blue-600"
+                        : "bg-white text-gray-700 border-gray-300 hover:border-blue-300"
                         }`}
                     >
                       Monthly
@@ -291,8 +293,8 @@ const CheckoutPage = () => {
                     <button
                       onClick={() => setBillingCycle("annual")}
                       className={`flex-1 py-2 px-4 rounded-lg border transition-colors ${billingCycle === "annual"
-                          ? "bg-blue-600 text-white border-blue-600"
-                          : "bg-white text-gray-700 border-gray-300 hover:border-blue-300"
+                        ? "bg-blue-600 text-white border-blue-600"
+                        : "bg-white text-gray-700 border-gray-300 hover:border-blue-300"
                         }`}
                     >
                       Annual (Save 25%)
@@ -303,27 +305,150 @@ const CheckoutPage = () => {
 
 
                 {/* Features Included */}
-                {features.length > 0 && (
-                  <div className="border-t pt-4">
-                    <h4 className="font-semibold mb-3">Features Included:</h4>
-                    <ul className="space-y-2">
-                      {features.slice(0, 6).map((feature, index) => (
-                        <li
-                          key={index}
-                          className="flex items-center gap-2 text-sm"
-                        >
-                          <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
-                          <span>{feature}</span>
-                        </li>
-                      ))}
-                      {features.length > 6 && (
-                        <li className="text-sm text-gray-500">
-                          +{features.length - 6} more features
-                        </li>
-                      )}
-                    </ul>
-                  </div>
-                )}
+                <div className="border-t pt-4">
+                  <h4 className="font-semibold mb-3">What's Included:</h4>
+                  <ul className="space-y-2">
+                    {/* Conversion Limit */}
+                    <li className="flex items-center gap-2 text-sm">
+                      <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
+                      <span>
+                        {plan.conversionLimit > 0
+                          ? `${plan.conversionLimit} PDF conversions/month`
+                          : "Unlimited PDF conversions"}
+                      </span>
+                    </li>
+
+                    {/* Edit Tools */}
+                    {plan.editToolsLimit >= 0 && (
+                      <li className="flex items-center gap-2 text-sm">
+                        <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
+                        <span>
+                          {plan.editToolsLimit > 0
+                            ? `${plan.editToolsLimit} edit tools uses/month`
+                            : "Unlimited edit tools"}
+                        </span>
+                      </li>
+                    )}
+
+                    {/* Organize Tools */}
+                    {plan.organizeToolsLimit >= 0 && (
+                      <li className="flex items-center gap-2 text-sm">
+                        <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
+                        <span>
+                          {plan.organizeToolsLimit > 0
+                            ? `${plan.organizeToolsLimit} organize tools uses/month`
+                            : "Unlimited organize tools"}
+                        </span>
+                      </li>
+                    )}
+
+                    {/* Security Tools */}
+                    {plan.securityToolsLimit >= 0 && (
+                      <li className="flex items-center gap-2 text-sm">
+                        <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
+                        <span>
+                          {plan.securityToolsLimit > 0
+                            ? `${plan.securityToolsLimit} security tools uses/month`
+                            : "Unlimited security tools"}
+                        </span>
+                      </li>
+                    )}
+
+                    {/* Optimize Tools */}
+                    {plan.optimizeToolsLimit >= 0 && (
+                      <li className="flex items-center gap-2 text-sm">
+                        <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
+                        <span>
+                          {plan.optimizeToolsLimit > 0
+                            ? `${plan.optimizeToolsLimit} optimize tools uses/month`
+                            : "Unlimited optimize tools"}
+                        </span>
+                      </li>
+                    )}
+
+                    {/* Advanced Tools */}
+                    {plan.advancedToolsLimit >= 0 && (
+                      <li className="flex items-center gap-2 text-sm">
+                        <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
+                        <span>
+                          {plan.advancedToolsLimit > 0
+                            ? `${plan.advancedToolsLimit} advanced tools uses/month`
+                            : "Unlimited advanced tools"}
+                        </span>
+                      </li>
+                    )}
+
+                    {/* File Size */}
+                    <li className="flex items-center gap-2 text-sm">
+                      <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
+                      <span>
+                        {plan.maxFileSize > 0
+                          ? `Up to ${plan.maxFileSize}MB file size`
+                          : "No file size limits"}
+                      </span>
+                    </li>
+
+                    {/* Storage */}
+                    <li className="flex items-center gap-2 text-sm">
+                      <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
+                      <span>
+                        {plan.storage > 0
+                          ? `${plan.storage}GB cloud storage`
+                          : "Unlimited cloud storage"}
+                      </span>
+                    </li>
+
+                    {/* Advanced Features */}
+                    {plan.hasBatchProcessing && (
+                      <li className="flex items-center gap-2 text-sm">
+                        <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
+                        <span>Batch file processing</span>
+                      </li>
+                    )}
+
+                    {plan.hasOCR && (
+                      <li className="flex items-center gap-2 text-sm">
+                        <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
+                        <span>OCR text recognition</span>
+                      </li>
+                    )}
+
+                    {plan.hasDigitalSignatures && (
+                      <li className="flex items-center gap-2 text-sm">
+                        <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
+                        <span>Digital signatures</span>
+                      </li>
+                    )}
+
+                    {plan.hasAPIAccess && (
+                      <li className="flex items-center gap-2 text-sm">
+                        <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
+                        <span>API access</span>
+                      </li>
+                    )}
+
+                    {plan.hasTeamCollaboration && (
+                      <li className="flex items-center gap-2 text-sm">
+                        <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
+                        <span>Team collaboration tools</span>
+                      </li>
+                    )}
+
+                    {!plan.hasWatermarks && (
+                      <li className="flex items-center gap-2 text-sm">
+                        <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
+                        <span>No watermarks on outputs</span>
+                      </li>
+                    )}
+
+                    {/* Support Type */}
+                    <li className="flex items-center gap-2 text-sm">
+                      <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
+                      <span>{plan.supportType || "Email"} support</span>
+                    </li>
+                  </ul>
+                </div>
+
               </div>
             </motion.div>
 

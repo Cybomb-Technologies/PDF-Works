@@ -367,7 +367,7 @@ const BillingPage = () => {
       { key: "hasDigitalSignatures", label: "Digital Signatures" },
       { key: "hasAPIAccess", label: "API Access" },
       { key: "hasTeamCollaboration", label: "Team Collaboration" },
-      { key: "hasWatermarks", label: "Watermarks", invert: true },
+      { key: "hasWatermarks", label: "No Watermarks", invert: true },
     ];
 
     advancedFeatures.forEach((feature) => {
@@ -469,8 +469,8 @@ const BillingPage = () => {
       return;
     }
 
-    // For paid plans → Redirect to Checkout.jsx
-    navigate(`/checkout/${planId}`);
+    // For paid plans → Redirect to Checkout.jsx with billing cycle
+    navigate(`/checkout/${planId}`, { state: { billingCycle } });
   };
 
   const updateUserPlanToFree = async (planId) => {
@@ -625,7 +625,7 @@ const BillingPage = () => {
 
           </div>
 
-          {/* Exchange Rate Notice */}
+          {/* Exchange Rate Notice
           <div className="mt-4">
             <p className="text-sm text-gray-600">
               <>
@@ -633,12 +633,16 @@ const BillingPage = () => {
                 all applicable taxes.
               </>
             </p>
-          </div>
+          </div> */}
         </motion.div>
 
         {/* Pricing Plans */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6">
-          {pricingPlans.map((plan, index) => {
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+          {pricingPlans.filter(plan => {
+            // Hide Starter plan - show only Free, Professional, Enterprise
+            const isStarterPlan = plan.planId?.toLowerCase().includes('starter') || plan.name?.toLowerCase().includes('starter');
+            return !isStarterPlan;
+          }).map((plan, index) => {
             const Icon = iconMap[plan.icon] || FileText;
             const freePlan = isFreePlan(plan);
             const enterprisePlan = isEnterprisePlan(plan);
@@ -699,7 +703,7 @@ const BillingPage = () => {
                 <p className="text-gray-700 text-sm mb-4">{plan.description}</p>
 
                 {/* Tool Limits Summary */}
-                <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                {/* <div className="mb-4 p-3 bg-gray-50 rounded-lg">
                   <div className="text-sm font-semibold text-gray-700 mb-2">
                     {plan.conversionLimit > 0
                       ? `${plan.conversionLimit} conversions/month`
@@ -743,7 +747,7 @@ const BillingPage = () => {
                       /conversion
                     </div>
                   )}
-                </div>
+                </div> */}
 
                 {/* Expandable Detailed Features List */}
                 <div className="mb-6">
@@ -759,42 +763,9 @@ const BillingPage = () => {
                     )}
                   </button>
 
-                  <div
-                    className={`space-y-3 transition-all duration-300 ${isExpanded
-                      ? "max-h-[500px] opacity-100"
-                      : "max-h-0 opacity-0 overflow-hidden"
-                      }`}
-                  >
-                    {detailedFeatures.map((feature, i) => (
-                      <li key={i} className="flex items-start gap-3 list-none">
-                        {feature.available ? (
-                          <Check
-                            className={`h-4 w-4 flex-shrink-0 mt-0.5 ${feature.highlight
-                              ? "text-green-600"
-                              : "text-gray-400"
-                              }`}
-                          />
-                        ) : (
-                          <X className="h-4 w-4 flex-shrink-0 mt-0.5 text-red-400" />
-                        )}
-                        <span
-                          className={`text-xs flex items-center gap-2 ${feature.available
-                            ? feature.highlight
-                              ? "text-gray-800 font-medium"
-                              : "text-gray-600"
-                            : "text-gray-400 line-through"
-                            }`}
-                        >
-                          <span className="text-sm">{feature.icon}</span>
-                          {feature.text}
-                        </span>
-                      </li>
-                    ))}
-                  </div>
-
-                  {/* Always show first 3 features */}
+                  {/* Show first 3 features when collapsed, all features when expanded */}
                   <ul className="space-y-3">
-                    {detailedFeatures.slice(0, 3).map((feature, i) => (
+                    {(isExpanded ? detailedFeatures : detailedFeatures.slice(0, 3)).map((feature, i) => (
                       <li key={i} className="flex items-start gap-3">
                         {feature.available ? (
                           <Check
@@ -829,6 +800,13 @@ const BillingPage = () => {
                       Enjoy all features for free! No credit card required.
                     </span>
                   </div>
+                ) : enterprisePlan ? (
+                  <Button
+                    onClick={() => navigate("/contact")}
+                    className={`w-full mt-4 bg-gradient-to-r ${plan.color} hover:opacity-90`}
+                  >
+                    {plan.ctaText || "Contact Us"}
+                  </Button>
                 ) : (
                   <Button
                     onClick={() => handleUpgrade(plan.id)}
@@ -840,20 +818,6 @@ const BillingPage = () => {
                   >
                     {currentPlan ? "Current Plan" : plan.ctaText || "Get Started"}
                   </Button>
-                )}
-
-                {!freePlan && !enterprisePlan && (
-                  <div className="text-center mt-3">
-                    <p className="text-xs text-gray-500">
-                      {billingCycle === "annual"
-                        ? currency === "INR"
-                          ? `Equivalent to ${formatPrice(
-                            (plan.usdPrice || plan.price || 0) / 12
-                          )}/month`
-                          : `Equivalent to $${((plan.usdPrice || plan.price || 0) / 12).toFixed(2)}/month`
-                        : "Cancel anytime"}
-                    </p>
-                  </div>
                 )}
               </motion.div>
             );
@@ -872,15 +836,12 @@ const BillingPage = () => {
           </h2>
           <div className="overflow-x-auto">
             <div className="min-w-full bg-white rounded-lg overflow-hidden shadow-sm border">
-              <div className="grid grid-cols-5 bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+              <div className="grid grid-cols-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white">
                 <div className="p-3 font-semibold text-left text-sm">
                   PDF Features
                 </div>
                 <div className="p-3 font-semibold text-center text-sm">
                   Free
-                </div>
-                <div className="p-3 font-semibold text-center text-sm">
-                  Starter
                 </div>
                 <div className="p-3 font-semibold text-center text-sm">
                   Professional
@@ -893,7 +854,7 @@ const BillingPage = () => {
               {featureComparison.map((item, index) => (
                 <div
                   key={index}
-                  className={`grid grid-cols-5 ${index % 2 === 0 ? "bg-gray-50" : "bg-white"
+                  className={`grid grid-cols-4 ${index % 2 === 0 ? "bg-gray-50" : "bg-white"
                     }`}
                 >
                   <div className="p-3 font-medium text-gray-900 border-r text-sm">
@@ -908,17 +869,6 @@ const BillingPage = () => {
                       )
                     ) : (
                       <span className="text-gray-700">{item.free}</span>
-                    )}
-                  </div>
-                  <div className="p-3 text-center border-r text-sm">
-                    {typeof item.starter === "boolean" ? (
-                      item.starter ? (
-                        <Check className="h-4 w-4 text-green-600 mx-auto" />
-                      ) : (
-                        <X className="h-4 w-4 text-red-400 mx-auto" />
-                      )
-                    ) : (
-                      <span className="text-gray-700">{item.starter}</span>
                     )}
                   </div>
                   <div className="p-3 text-center border-r text-sm">
@@ -948,47 +898,6 @@ const BillingPage = () => {
             </div>
           </div>
         </motion.div>
-
-        {/* Usage Progress */}
-        {user && user.plan !== "enterprise" && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="glass-effect rounded-2xl p-6"
-          >
-            <h2 className="text-xl font-bold mb-4">Your Monthly Usage</h2>
-            <div className="space-y-4">
-              <div>
-                <div className="flex justify-between text-sm mb-2">
-                  <span className="text-gray-600">PDF Conversions</span>
-                  <span className="font-semibold">
-                    {used} / {limit} used
-                  </span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-3">
-                  <div
-                    className={`h-3 rounded-full ${percentage >= 90
-                      ? "bg-red-500"
-                      : percentage >= 75
-                        ? "bg-yellow-500"
-                        : "bg-green-500"
-                      }`}
-                    style={{ width: `${Math.min(percentage, 100)}%` }}
-                  ></div>
-                </div>
-                <p className="text-xs text-gray-500 mt-2">
-                  {percentage >= 90
-                    ? "You've reached your limit. Upgrade to continue converting."
-                    : percentage >= 75
-                      ? "You're approaching your limit. Consider upgrading for more conversions."
-                      : `You're on the ${planName} plan.`}
-                </p>
-              </div>
-            </div>
-          </motion.div>
-        )}
-
         {/* FAQ Section */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -1044,7 +953,7 @@ const BillingPage = () => {
         </motion.div>
 
         {/* Final CTA Section */}
-        <motion.div
+        {/* <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6 }}
@@ -1064,14 +973,12 @@ const BillingPage = () => {
             <Button
               onClick={() => {
                 if (!user) {
-                  navigate("/login", { state: { from: "/pricing" } });
+                  // Redirect logged-out users to signup
+                  navigate("/signup", { state: { from: "/pricing" } });
                   return;
                 }
-                // Find the first paid plan
-                const paidPlan = pricingPlans.find(p => !isFreePlan(p));
-                if (paidPlan) {
-                  navigate(`/checkout/${paidPlan.id}`);
-                }
+                // Redirect logged-in users to dashboard
+                navigate("/dashboard");
               }}
               className="bg-white text-blue-600 hover:bg-blue-50 px-6 py-2 font-semibold rounded-full"
             >
@@ -1102,7 +1009,7 @@ const BillingPage = () => {
             {currency === "INR" ? "Prices in INR include taxes • " : ""}14-day
             free trial on paid plans • No commitment
           </p>
-        </motion.div>
+        </motion.div> */}
 
         {/* Top-up CTA Section */}
         <motion.div
