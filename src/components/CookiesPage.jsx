@@ -3,9 +3,9 @@ import { motion } from "framer-motion";
 import Metatags from "../SEO/metatags";
 
 const metaPropsData = {
-  title: "Cookies Policy - PDF Works Privacy & Data Policy",
+  title: "Cookies Policy – Privacy & Data Protection at PDF Works",
   description:
-    "PDF Works cookies policy explains how we use cookies to enhance your free PDF tools experience. Learn about authentication, preferences, and analytics cookies for our PDF editor and converter.",
+    "The Cookies Policy explains how authentication, preference, and analytics cookies are used to enhance your experience with free online PDF tools.",
   keyword:
     "pdf works cookies policy, free pdf tools cookies, privacy policy pdf works, cookie usage free pdf editor, website cookies policy",
   image:

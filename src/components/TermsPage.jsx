@@ -3,9 +3,9 @@ import { motion } from "framer-motion";
 import Metatags from "../SEO/metatags";
 
 const metaPropsData = {
-  title: "Terms & Conditions - Free PDF Tools Usage Policy | PDF Works",
+  title: "Terms & Conditions – Usage Policy for Free PDF Tools | PDF Works",
   description:
-    "Read PDF Works terms and conditions outlining our usage policy, user agreement, and legal terms for our free online PDF editor, converter, and compressor tools.",
+    "The Terms and Conditions explain the usage policy, user agreement, and legal terms for using free online PDF editing, conversion, and compression tools.",
   keyword:
     "free pdf tools terms conditions, pdf works usage policy, user agreement online pdf editor, legal terms service agreement",
   image:

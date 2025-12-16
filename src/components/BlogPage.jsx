@@ -188,9 +188,9 @@ const BlogPage = () => {
   }
   const metaPropsData = {
     title:
-      "PDF Works Blog - Free PDF Tools Guides, Tutorials & Conversion Tips",
+      "PDF Works Blog – Free PDF Tools, Tutorials & Conversion Tips",
     description:
-      "Explore the PDF Works blog for free PDF tools guides, document management tutorials, and PDF conversion tips. Read our articles to master our free PDF editor and organizer tools.",
+      "The PDF Works Blog provides free guides on PDF tools, tutorials on document management, and tips for PDF conversion to make PDF management easy, secure, and efficient.",
     keyword:
       "pdf works blog, free pdf tools guides, document management guides, pdf works articles, free pdf tools blog, pdf conversion tips",
     image:
