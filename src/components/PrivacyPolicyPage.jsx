@@ -3,9 +3,9 @@ import { motion } from "framer-motion";
 import Metatags from "../SEO/metatags";
 
 const metaPropsData = {
-  title: "Privacy Policy - Our PDF Works Tools Data Protection & Security",
+  title: "Privacy Policy – Data Protection & Security for Our PDF Works Tools",
   description:
-    "Read PDF Works privacy policy detailing our data protection measures, file security protocols, and user information handling for our free online PDF editor, converter, and compressor tools.",
+    "Privacy Policy explains how we protect data, ensure file security, and handle user information while providing free online PDF editing, conversion, and compression tools.",
   keyword:
     "free pdf tools privacy policy, pdf works data protection, file security online pdf editor, privacy user information security, secure document processing",
   image:

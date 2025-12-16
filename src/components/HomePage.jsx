@@ -15,9 +15,9 @@ import Metatags from "../SEO/metatags";
 
 const metaPropsData = {
   title:
-    "Free Online PDF Editor - Convert Word to PDF, Merge & Compress PDFs for Free",
+    "Free Online PDF Editor - Convert, Merge & Compress PDFs for Free",
   description:
-    "Use our free online PDF editor to convert Word to PDF, merge files, and compress PDFs online. Best PDF converter with free tools for all your document needs - no watermarks.",
+    "Use our easy online PDF editor to compress files, merge multiple PDFs, or split documents quickly all in one powerful, user-friendly PDF tool online today.",
   keyword:
     "free pdf editor, best pdf converter, convert word to pdf, free online pdf editor, free pdf merger, compress pdf online, convert pdf to word online for free",
   image:

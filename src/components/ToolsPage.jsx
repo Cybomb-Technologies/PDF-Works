@@ -92,9 +92,9 @@ const ToolsPage = () => {
 
   const metaPropsData = {
     title:
-      "Our PDF Works Tools - Online PDF Editor, Converter, Compressor, OCR & Merger",
+      "Edit, compress, merge, and split PDFs online for free.",
     description:
-      "Use our free online PDF Works tools including PDF editor, converter, compressor, OCR, merger, splitter, and organizer. Optimize and secure your documents with our advanced free PDF editor tools.",
+      "Experience the fastest way to edit, rename, and convert PDF files online for free. Manage your documents efficiently with our online PDF editor and manager.",
     keyword:
       "free pdf tools, online pdf editor, pdf converter, pdf compressor, pdf ocr, pdf merger, pdf splitter, pdf organizer, pdf security, pdf optimize, free pdf editor tools",
     image:
