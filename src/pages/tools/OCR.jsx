@@ -21,61 +21,109 @@ import { useNotification } from "@/contexts/NotificationContext";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
-// Define OCR tools array
-const ocrTools = [
-  {
-    id: "image-ocr",
-    name: "Image OCR",
-    description: "Extract text from images (PNG, JPG, WebP)",
-    icon: Scan,
-    color: "from-orange-500 to-red-500",
-    active: true,
-  },
-  {
-    id: "pdf-ocr",
-    name: "PDF OCR",
-    description: "Extract text from PDF documents",
-    icon: FileText,
-    color: "from-purple-500 to-pink-500",
-    active: false,
-    comingSoon: true,
-  },
-  {
-    id: "multi-language",
-    name: "Multi-language OCR",
-    description: "Support for 100+ languages",
-    icon: Languages,
-    color: "from-blue-500 to-cyan-500",
-    active: false,
-    comingSoon: true,
-  },
-  {
-    id: "batch-ocr",
-    name: "Batch OCR",
-    description: "Process multiple images at once",
-    icon: Image,
-    color: "from-green-500 to-emerald-500",
-    active: false,
-    comingSoon: true,
-  },
-  {
-    id: "handwriting",
-    name: "Handwriting OCR",
-    description: "Extract text from handwritten notes",
-    icon: ClipboardCheck,
-    color: "from-indigo-500 to-violet-500",
-    active: false,
-    comingSoon: true,
-  },
-  {
-    id: "document-scan",
-    name: "Document Scanner",
-    description: "Scan and extract text from documents",
-    icon: FileSearch,
-    color: "from-amber-500 to-yellow-500",
-    active: false,
-    comingSoon: true,
-  },
+const ocrLanguages = [
+  { code: 'afr', name: 'Afrikaans' },
+  { code: 'amh', name: 'Amharic' },
+  { code: 'ara', name: 'Arabic' },
+  { code: 'asm', name: 'Assamese' },
+  { code: 'aze', name: 'Azerbaijani' },
+  { code: 'aze_cyrl', name: 'Azerbaijani - Cyrillic' },
+  { code: 'bel', name: 'Belarusian' },
+  { code: 'ben', name: 'Bengali' },
+  { code: 'bod', name: 'Tibetan' },
+  { code: 'bos', name: 'Bosnian' },
+  { code: 'bul', name: 'Bulgarian' },
+  { code: 'cat', name: 'Catalan' },
+  { code: 'ceb', name: 'Cebuano' },
+  { code: 'ces', name: 'Czech' },
+  { code: 'chi_sim', name: 'Chinese - Simplified' },
+  { code: 'chi_tra', name: 'Chinese - Traditional' },
+  { code: 'chr', name: 'Cherokee' },
+  { code: 'cym', name: 'Welsh' },
+  { code: 'dan', name: 'Danish' },
+  { code: 'deu', name: 'German' },
+  { code: 'dzo', name: 'Dzongkha' },
+  { code: 'ell', name: 'Greek' },
+  { code: 'eng', name: 'English' },
+  { code: 'enm', name: 'English, Middle (1100-1500)' },
+  { code: 'epo', name: 'Esperanto' },
+  { code: 'est', name: 'Estonian' },
+  { code: 'eus', name: 'Basque' },
+  { code: 'fas', name: 'Persian' },
+  { code: 'fin', name: 'Finnish' },
+  { code: 'fra', name: 'French' },
+  { code: 'frk', name: 'German Fraktur' },
+  { code: 'frm', name: 'French, Middle (ca. 1400-1600)' },
+  { code: 'gle', name: 'Irish' },
+  { code: 'glg', name: 'Galician' },
+  { code: 'grc', name: 'Greek, Ancient (-1453)' },
+  { code: 'guj', name: 'Gujarati' },
+  { code: 'hat', name: 'Haitian' },
+  { code: 'heb', name: 'Hebrew' },
+  { code: 'hin', name: 'Hindi' },
+  { code: 'hrv', name: 'Croatian' },
+  { code: 'hun', name: 'Hungarian' },
+  { code: 'iku', name: 'Inuktitut' },
+  { code: 'ind', name: 'Indonesian' },
+  { code: 'isl', name: 'Icelandic' },
+  { code: 'ita', name: 'Italian' },
+  { code: 'ita_old', name: 'Italian - Old' },
+  { code: 'jav', name: 'Javanese' },
+  { code: 'jpn', name: 'Japanese' },
+  { code: 'kan', name: 'Kannada' },
+  { code: 'kat', name: 'Georgian' },
+  { code: 'kat_old', name: 'Georgian - Old' },
+  { code: 'kaz', name: 'Kazakh' },
+  { code: 'khm', name: 'Central Khmer' },
+  { code: 'kir', name: 'Kirghiz; Kyrgyz' },
+  { code: 'kor', name: 'Korean' },
+  { code: 'kur', name: 'Kurdish' },
+  { code: 'lao', name: 'Lao' },
+  { code: 'lat', name: 'Latin' },
+  { code: 'lav', name: 'Latvian' },
+  { code: 'lit', name: 'Lithuanian' },
+  { code: 'mal', name: 'Malayalam' },
+  { code: 'mar', name: 'Marathi' },
+  { code: 'mkd', name: 'Macedonian' },
+  { code: 'mlt', name: 'Maltese' },
+  { code: 'msa', name: 'Malay' },
+  { code: 'myan', name: 'Burmese' },
+  { code: 'nep', name: 'Nepali' },
+  { code: 'nld', name: 'Dutch; Flemish' },
+  { code: 'nor', name: 'Norwegian' },
+  { code: 'ori', name: 'Oriya' },
+  { code: 'pan', name: 'Panjabi; Punjabi' },
+  { code: 'pol', name: 'Polish' },
+  { code: 'por', name: 'Portuguese' },
+  { code: 'pus', name: 'Pushto; Pashto' },
+  { code: 'ron', name: 'Romanian; Moldavian; Moldovan' },
+  { code: 'rus', name: 'Russian' },
+  { code: 'san', name: 'Sanskrit' },
+  { code: 'sin', name: 'Sinhala; Sinhalese' },
+  { code: 'slk', name: 'Slovak' },
+  { code: 'slv', name: 'Slovenian' },
+  { code: 'spa', name: 'Spanish; Castilian' },
+  { code: 'spa_old', name: 'Spanish; Castilian - Old' },
+  { code: 'sqi', name: 'Albanian' },
+  { code: 'srp', name: 'Serbian' },
+  { code: 'srp_latn', name: 'Serbian - Latin' },
+  { code: 'swa', name: 'Swahili' },
+  { code: 'swe', name: 'Swedish' },
+  { code: 'syr', name: 'Syriac' },
+  { code: 'tam', name: 'Tamil' },
+  { code: 'tel', name: 'Telugu' },
+  { code: 'tgk', name: 'Tajik' },
+  { code: 'tgl', name: 'Tagalog' },
+  { code: 'tha', name: 'Thai' },
+  { code: 'tir', name: 'Tigrinya' },
+  { code: 'tur', name: 'Turkish' },
+  { code: 'uig', name: 'Uighur; Uyghur' },
+  { code: 'ukr', name: 'Ukrainian' },
+  { code: 'urd', name: 'Urdu' },
+  { code: 'uzb', name: 'Uzbek' },
+  { code: 'uzb_cyrl', name: 'Uzbek - Cyrillic' },
+  { code: 'vie', name: 'Vietnamese' },
+  { code: 'yid', name: 'Yiddish' }
 ];
 
 const OCR = () => {
@@ -89,12 +137,76 @@ const OCR = () => {
   const [ocrId, setOcrId] = useState(null);
   const [showHistory, setShowHistory] = useState(false);
   const [ocrHistory, setOcrHistory] = useState([]);
-  const [activeTool, setActiveTool] = useState("image-ocr"); // Default to Image OCR
+  const [activeTool, setActiveTool] = useState("image-ocr");
   const [showToolModal, setShowToolModal] = useState(false);
+  const [batchFiles, setBatchFiles] = useState([]); // New state for batch files
+
+  // Language Selection State
+  const [selectedLanguage, setSelectedLanguage] = useState("eng");
+  const [languageSearch, setLanguageSearch] = useState("");
+  const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
+
   const fileInputRef = useRef(null);
   const textAreaRef = useRef(null);
 
   const { showNotification } = useNotification();
+
+  // Define OCR tools array
+  const ocrTools = [
+    {
+      id: "image-ocr",
+      name: "Image OCR",
+      description: "Extract text from images (PNG, JPG, WebP)",
+      icon: Scan,
+      color: "from-orange-500 to-red-500",
+      active: true,
+    },
+    {
+      id: "pdf-ocr",
+      name: "PDF OCR",
+      description: "Extract text from PDF documents",
+      icon: FileText,
+      color: "from-purple-500 to-pink-500",
+      active: false,
+      comingSoon: true,
+    },
+    {
+      id: "multi-language",
+      name: "Multi-language OCR",
+      description: "Support for 100+ languages",
+      icon: Languages,
+      color: "from-blue-500 to-cyan-500",
+      active: true, // Now Active
+      comingSoon: false,
+    },
+    {
+      id: "batch-ocr",
+      name: "Batch OCR",
+      description: "Process multiple images at once",
+      icon: Image,
+      color: "from-green-500 to-emerald-500",
+      active: true,
+      comingSoon: false,
+    },
+    {
+      id: "handwriting",
+      name: "Handwriting OCR",
+      description: "Extract text from handwritten notes",
+      icon: ClipboardCheck,
+      color: "from-indigo-500 to-violet-500",
+      active: true,
+      comingSoon: false,
+    },
+    {
+      id: "document-scan",
+      name: "Document Scanner",
+      description: "Scan and extract text from documents",
+      icon: FileSearch,
+      color: "from-amber-500 to-yellow-500",
+      active: false,
+      comingSoon: true,
+    },
+  ];
 
   // Get token from localStorage
   const getToken = () => {
@@ -126,6 +238,51 @@ const OCR = () => {
   };
 
   const handleImageUpload = (event) => {
+    // Handle Batch Upload
+    if (activeTool === "batch-ocr") {
+      const files = Array.from(event.target.files);
+      if (files.length > 0) {
+        const validFiles = files.filter(f => f.type.startsWith("image/"));
+
+        if (validFiles.length !== files.length) {
+          setError("Some files were skipped - only images are allowed");
+          if (showNotification) {
+            showNotification({
+              type: "warning",
+              title: "Invalid Files",
+              message: "Only image files (JPG, PNG, WebP) are allowed",
+              duration: 4000
+            });
+          }
+        }
+
+        if (validFiles.length > 20) {
+          setError("Maximum 20 files allowed at once");
+          return;
+        }
+
+        if (validFiles.length === 0) return;
+
+        setBatchFiles(validFiles);
+        // Set first image as preview just for UI consistency if needed, or clear it
+        // actually better to show list.
+        setImage(null);
+        setExtractedText("");
+        setError("");
+
+        if (showNotification) {
+          showNotification({
+            type: "success",
+            title: "Files Selected",
+            message: `${validFiles.length} images ready for batch processing`,
+            duration: 3000,
+          });
+        }
+      }
+      return;
+    }
+
+    // Standard Single Upload
     const file = event.target.files[0];
     if (file) {
       // Check if user is logged in
@@ -147,8 +304,9 @@ const OCR = () => {
         return;
       }
 
+      // Allow Image AND PDF
       if (!file.type.startsWith("image/")) {
-        setError("Please upload a valid image file (PNG, JPG, WebP)");
+        setError("Please upload a valid image (PNG, JPG)");
         if (showNotification) {
           showNotification({
             type: "error",
@@ -162,6 +320,7 @@ const OCR = () => {
 
       setError("");
       setUploadedFile(file);
+
       const reader = new FileReader();
       reader.onload = (e) => {
         setImage(e.target.result);
@@ -199,7 +358,7 @@ const OCR = () => {
       return;
     }
 
-    if (!image) {
+    if (!image && batchFiles.length === 0) {
       setError("Please upload an image first");
       if (showNotification) {
         showNotification({
@@ -219,21 +378,36 @@ const OCR = () => {
       showNotification({
         type: "info",
         title: "Processing Image",
-        message: "Extracting text from image...",
+        message: `Extracting text (${ocrLanguages.find(l => l.code === selectedLanguage)?.name})...`,
         duration: 0,
         autoClose: false,
       });
     }
 
     try {
-      // Convert base64 image to blob
-      const response = await fetch(image);
-      const blob = await response.blob();
-
       const formData = new FormData();
-      formData.append("image", blob, uploadedFile?.name || "image.png");
 
-      const ocrResponse = await fetch(`${API_URL}/api/tools/ocr/extract-text`, {
+      if (activeTool === "batch-ocr") {
+        // Batch Processing
+        batchFiles.forEach(file => {
+          formData.append("images", file);
+        });
+      } else {
+        // Single Image Processing
+        const response = await fetch(image);
+        const blob = await response.blob();
+        formData.append("image", blob, uploadedFile?.name || "image.png");
+      }
+
+      formData.append("language", selectedLanguage); // Send selected language
+
+      const endpoint = activeTool === "batch-ocr"
+        ? `${API_URL}/api/tools/ocr/extract-batch`
+        : activeTool === "handwriting"
+          ? `${API_URL}/api/tools/ocr/extract-handwriting`
+          : `${API_URL}/api/tools/ocr/extract-text`;
+
+      const ocrResponse = await fetch(endpoint, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
@@ -357,7 +531,9 @@ const OCR = () => {
     setShowPreview(false);
     setFileSaved(false);
     setUploadedFile(null);
+    setBatchFiles([]);
     setOcrId(null);
+    // Do NOT reset language
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -384,12 +560,16 @@ const OCR = () => {
       alert(`${tool.name} is coming soon! 🚀`);
       return;
     }
+
+    // Set language based on tool (if it's the multi-language card, maybe open directly with lang select focused, but here we just open the modal)
     setActiveTool(tool.id);
     setShowToolModal(true);
+    setError(""); // Clear previous errors
   };
 
   const closeToolModal = () => {
     setShowToolModal(false);
+    handleReset(); // Optional: reset state when closing
   };
 
   const metaPropsData = {
@@ -402,6 +582,11 @@ const OCR = () => {
       "https://res.cloudinary.com/dcfjt8shw/image/upload/v1761288318/wn8m8g8skdpl6iz2rwoa.svg",
     url: "https://pdfworks.in/tools/ocr",
   };
+
+  // Filter languages for search
+  const filteredLanguages = ocrLanguages.filter(lang =>
+    lang.name.toLowerCase().includes(languageSearch.toLowerCase())
+  );
 
   const isLoggedIn = !!getToken();
 
@@ -438,9 +623,8 @@ const OCR = () => {
                   transition={{ delay: i * 0.05 }}
                   whileHover={{ scale: tool.comingSoon ? 1 : 1.05, y: tool.comingSoon ? 0 : -5 }}
                   onClick={() => handleToolClick(tool)}
-                  className={`glass-effect rounded-2xl p-6 transition-all group flex flex-col h-full ${
-                    tool.comingSoon ? 'opacity-80 cursor-default' : 'cursor-pointer hover:shadow-lg'
-                  }`}
+                  className={`glass-effect rounded-2xl p-6 transition-all group flex flex-col h-full ${tool.comingSoon ? 'opacity-80 cursor-default' : 'cursor-pointer hover:shadow-lg'
+                    }`}
                 >
                   <div
                     className={`w-14 h-14 rounded-xl bg-gradient-to-br ${tool.color} flex items-center justify-center mb-4`}
@@ -458,7 +642,7 @@ const OCR = () => {
                   <p className="text-sm text-muted-foreground flex-grow">
                     {tool.description}
                   </p>
-                  
+
                 </motion.div>
               );
             })}
@@ -485,9 +669,9 @@ const OCR = () => {
           </motion.div> */}
         </div>
 
-        {/* --- Tool Modal (for Image OCR) --- */}
+        {/* --- Tool Modal (for Image OCR & Multi-language & Batch & Handwriting) --- */}
         <AnimatePresence>
-          {showToolModal && activeTool === "image-ocr" && (
+          {showToolModal && (activeTool === "image-ocr" || activeTool === "multi-language" || activeTool === "batch-ocr" || activeTool === "handwriting") && (
             <motion.div
               className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
               initial={{ opacity: 0 }}
@@ -509,15 +693,23 @@ const OCR = () => {
                 </button>
 
                 {/* OCR Functionality (Your existing code) */}
-                <div className="flex items-center justify-between mb-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4 pr-12">
                   <div className="flex items-center">
                     <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center mr-4">
-                      <Scan className="h-6 w-6 text-white" />
+                      {activeTool === "multi-language" ? <Languages className="h-6 w-6 text-white" /> : <Scan className="h-6 w-6 text-white" />}
                     </div>
                     <div>
-                      <h2 className="text-xl font-bold">OCR - Text Extractor</h2>
+                      <h2 className="text-xl font-bold">
+                        {activeTool === "multi-language" ? "Multi-Language OCR" : activeTool === "batch-ocr" ? "Batch OCR" : activeTool === "handwriting" ? "Handwriting OCR" : "OCR - Text Extractor"}
+                      </h2>
                       <p className="text-sm text-muted-foreground">
-                        Upload an image to extract text using Optical Character Recognition
+                        {activeTool === "multi-language"
+                          ? "Extract text in over 100 languages"
+                          : activeTool === "batch-ocr"
+                            ? "Process multiple images in one go"
+                            : activeTool === "handwriting"
+                              ? "High-accuracy handwriting recognition"
+                              : "Upload an image to extract text using Optical Character Recognition"}
                       </p>
                       {!isLoggedIn && (
                         <p className="text-xs text-red-500 mt-1">
@@ -526,16 +718,82 @@ const OCR = () => {
                       )}
                     </div>
                   </div>
-                  
-                  {isLoggedIn && (
-                    <button
-                      onClick={toggleHistory}
-                      className="flex items-center gap-2 px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
-                    >
-                      <History className="h-4 w-4" />
-                      History
-                    </button>
-                  )}
+
+                  <div className="flex items-center gap-3">
+                    {/* Language Selector */}
+                    {isLoggedIn && (
+                      <div className="relative">
+                        <button
+                          onClick={() => setShowLanguageDropdown(!showLanguageDropdown)}
+                          className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors border border-gray-200 min-w-[200px] justify-between"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Languages className="h-4 w-4 text-gray-500" />
+                            <span className="truncate max-w-[120px]">
+                              {ocrLanguages.find(l => l.code === selectedLanguage)?.name || 'English'}
+                            </span>
+                          </div>
+                          <span className="text-gray-400">▼</span>
+                        </button>
+
+                        {showLanguageDropdown && (
+                          <div className="absolute top-full right-0 mt-2 w-64 max-h-80 overflow-auto bg-white rounded-xl shadow-lg border border-gray-100 z-30 p-2">
+                            <div className="mb-2 sticky top-0 bg-white pb-2 border-b border-gray-100">
+                              <input
+                                type="text"
+                                placeholder="Search language..."
+                                value={languageSearch}
+                                onChange={(e) => setLanguageSearch(e.target.value)}
+                                className="w-full px-3 py-2 bg-gray-50 rounded-lg text-sm border-none focus:ring-2 focus:ring-orange-500"
+                                autoFocus
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              {filteredLanguages.map(lang => (
+                                <button
+                                  key={lang.code}
+                                  onClick={() => {
+                                    setSelectedLanguage(lang.code);
+                                    setShowLanguageDropdown(false);
+                                    setLanguageSearch("");
+                                  }}
+                                  className={`w-full text-left px-3 py-2 rounded-lg text-sm flex items-center justify-between ${selectedLanguage === lang.code
+                                    ? 'bg-orange-50 text-orange-600 font-medium'
+                                    : 'hover:bg-gray-50 text-gray-700'
+                                    }`}
+                                >
+                                  {lang.name}
+                                  {selectedLanguage === lang.code && <span>✓</span>}
+                                </button>
+                              ))}
+                              {filteredLanguages.length === 0 && (
+                                <div className="text-center py-4 text-gray-400 text-sm">
+                                  No languages found
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        {/* Optional Backdrop to close dropdown */}
+                        {showLanguageDropdown && (
+                          <div
+                            className="fixed inset-0 z-20"
+                            onClick={() => setShowLanguageDropdown(false)}
+                          ></div>
+                        )}
+                      </div>
+                    )}
+
+                    {isLoggedIn && (
+                      <button
+                        onClick={toggleHistory}
+                        className="flex items-center gap-2 px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors whitespace-nowrap"
+                      >
+                        <History className="h-4 w-4" />
+                        History
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* OCR History Modal */}
@@ -555,7 +813,7 @@ const OCR = () => {
                           ✕
                         </button>
                       </div>
-                      
+
                       {ocrHistory.length === 0 ? (
                         <p className="text-gray-400 text-center py-8">No OCR history found</p>
                       ) : (
@@ -567,6 +825,11 @@ const OCR = () => {
                                   <p className="font-medium">{item.originalFilename}</p>
                                   <p className="text-sm text-gray-400">
                                     {item.extractedTextLength} characters • {new Date(item.createdAt).toLocaleDateString()}
+                                    {item.ocrMetadata?.language && (
+                                      <span className="ml-2 px-2 py-0.5 bg-gray-700 rounded text-xs">
+                                        {ocrLanguages.find(l => l.code === item.ocrMetadata.language)?.name || item.ocrMetadata.language}
+                                      </span>
+                                    )}
                                   </p>
                                 </div>
                                 <a
@@ -735,11 +998,10 @@ const OCR = () => {
                     {/* File Upload */}
                     <label
                       htmlFor="image-upload"
-                      className={`flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-xl cursor-pointer transition-colors mb-6 ${
-                        isLoggedIn
-                          ? "border-gray-400 hover:border-orange-500"
-                          : "border-red-300 bg-red-50 cursor-not-allowed"
-                      }`}
+                      className={`flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-xl cursor-pointer transition-colors mb-6 ${isLoggedIn
+                        ? "border-gray-400 hover:border-orange-500"
+                        : "border-red-300 bg-red-50 cursor-not-allowed"
+                        }`}
                       onClick={(e) => {
                         if (!isLoggedIn) {
                           e.preventDefault();
@@ -758,23 +1020,20 @@ const OCR = () => {
                       }}
                     >
                       <Upload
-                        className={`w-10 h-10 mb-2 ${
-                          isLoggedIn ? "text-gray-400" : "text-red-400"
-                        }`}
+                        className={`w-10 h-10 mb-2 ${isLoggedIn ? "text-gray-400" : "text-red-400"
+                          }`}
                       />
                       <p
-                        className={`font-semibold text-sm ${
-                          isLoggedIn ? "text-gray-700" : "text-red-700"
-                        }`}
+                        className={`font-semibold text-sm ${isLoggedIn ? "text-gray-700" : "text-red-700"
+                          }`}
                       >
                         {isLoggedIn
                           ? "Click to upload or drag and drop"
                           : "Please log in to upload images"}
                       </p>
                       <p
-                        className={`text-xs mt-1 ${
-                          isLoggedIn ? "text-muted-foreground" : "text-red-600"
-                        }`}
+                        className={`text-xs mt-1 ${isLoggedIn ? "text-muted-foreground" : "text-red-600"
+                          }`}
                       >
                         {isLoggedIn
                           ? "PNG, JPG, WebP files with text"
@@ -783,6 +1042,7 @@ const OCR = () => {
                       <input
                         id="image-upload"
                         type="file"
+                        multiple={activeTool === "batch-ocr"}
                         ref={fileInputRef}
                         onChange={handleImageUpload}
                         className="hidden"
@@ -795,7 +1055,28 @@ const OCR = () => {
                       <p className="text-red-500 text-sm text-center mb-4">{error}</p>
                     )}
 
-                    {image && isLoggedIn && (
+                    {/* Batch File Preview */}
+                    {activeTool === "batch-ocr" && batchFiles.length > 0 && isLoggedIn && (
+                      <div className="mb-6">
+                        <h3 className="font-medium mb-2 text-sm">Selected Files ({batchFiles.length})</h3>
+                        <div className="border border-gray-300 rounded-lg p-4 bg-white max-h-60 overflow-y-auto">
+                          <ul className="space-y-2">
+                            {batchFiles.map((f, i) => (
+                              <li key={i} className="text-sm flex items-center gap-2 text-gray-700">
+                                <FileText className="h-4 w-4 text-orange-500" />
+                                <span className="truncate">{f.name}</span>
+                                <span className="text-xs text-gray-400">({(f.size / 1024).toFixed(1)} KB)</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-2 text-center">
+                          Ready for batch extraction
+                        </p>
+                      </div>
+                    )}
+
+                    {(image || (activeTool === "batch-ocr" && batchFiles.length > 0)) && isLoggedIn && (
                       <>
                         {/* Image Preview */}
                         <div className="mb-6">
@@ -817,11 +1098,10 @@ const OCR = () => {
                           <button
                             onClick={extractText}
                             disabled={isProcessing}
-                            className={`flex items-center gap-2 px-6 py-3 rounded-full font-bold text-white transition-all ${
-                              isProcessing
-                                ? "bg-gray-400 cursor-not-allowed"
-                                : "bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
-                            }`}
+                            className={`flex items-center gap-2 px-6 py-3 rounded-full font-bold text-white transition-all ${isProcessing
+                              ? "bg-gray-400 cursor-not-allowed"
+                              : "bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
+                              }`}
                           >
                             {isProcessing ? (
                               <>

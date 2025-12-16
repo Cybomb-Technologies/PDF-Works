@@ -27,7 +27,7 @@ const BillingPage = () => {
   const navigate = useNavigate();
   const [billingCycle, setBillingCycle] = useState("annual");
   const [expandedFaq, setExpandedFaq] = useState(null);
-  const [currency, setCurrency] = useState("USD");
+  const [currency, setCurrency] = useState("INR");
   const [pricingPlans, setPricingPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedPlan, setExpandedPlan] = useState(null);
@@ -43,15 +43,15 @@ const BillingPage = () => {
     try {
       setLoading(true);
       console.log("🔄 Fetching pricing plans from:", `${API_URL}/api/pricing`);
-      
+
       const res = await fetch(`${API_URL}/api/pricing`);
-      
+
       console.log("📡 Response status:", res.status);
-      
+
       if (!res.ok) {
         throw new Error(`HTTP error! status: ${res.status}`);
       }
-      
+
       const data = await res.json();
       console.log("📦 Pricing data:", data);
 
@@ -82,11 +82,9 @@ const BillingPage = () => {
   const formatPrice = (usdPrice, isCustom = false) => {
     if (isCustom) return "Custom";
 
-    if (currency === "INR") {
-      const inrPrice = Math.round(usdPrice * exchangeRate);
-      return `₹${inrPrice.toLocaleString("en-IN")}`;
-    }
-    return `$${usdPrice}`;
+    // Always convert to INR
+    const inrPrice = Math.round(usdPrice * exchangeRate);
+    return `₹${inrPrice.toLocaleString("en-IN")}`;
   };
 
   const formatPeriod = (plan, isCustom = false) => {
@@ -98,21 +96,14 @@ const BillingPage = () => {
         ? plan.billingCycles?.annual / 12 || planPrice * 0.75
         : planPrice;
 
-    if (currency === "INR") {
-      const inrMonthlyPrice = Math.round(monthlyPrice * exchangeRate);
-      const annualPrice = Math.round(
-        (plan.billingCycles?.annual || planPrice * 12 * 0.75) * exchangeRate
-      );
-
-      if (billingCycle === "annual") {
-        return `Billed annually (₹${annualPrice.toLocaleString("en-IN")})`;
-      }
-      return `Billed monthly`;
-    }
+    // Default to INR logic
+    const inrMonthlyPrice = Math.round(monthlyPrice * exchangeRate);
+    const annualPrice = Math.round(
+      (plan.billingCycles?.annual || planPrice * 12 * 0.75) * exchangeRate
+    );
 
     if (billingCycle === "annual") {
-      const annualPrice = plan.billingCycles?.annual || planPrice * 12 * 0.75;
-      return `Billed annually ($${annualPrice})`;
+      return `Billed annually (₹${annualPrice.toLocaleString("en-IN")})`;
     }
     return `Billed monthly`;
   };
@@ -140,15 +131,15 @@ const BillingPage = () => {
   // DYNAMIC PLAN DETECTION FUNCTIONS
   const isFreePlan = (plan) => {
     return (
-      (plan.planId?.toLowerCase().includes('free') || 
-       plan.name?.toLowerCase().includes('free')) ||
+      (plan.planId?.toLowerCase().includes('free') ||
+        plan.name?.toLowerCase().includes('free')) ||
       plan.price === 0
     );
   };
 
   const isEnterprisePlan = (plan) => {
     return (
-      plan.planId?.toLowerCase().includes('enterprise') || 
+      plan.planId?.toLowerCase().includes('enterprise') ||
       plan.name?.toLowerCase().includes('enterprise')
     );
   };
@@ -163,9 +154,8 @@ const BillingPage = () => {
 
     // Core conversion feature
     features.push({
-      text: `${
-        plan.conversionLimit > 0 ? plan.conversionLimit : "Unlimited"
-      } PDF conversions per month`,
+      text: `${plan.conversionLimit > 0 ? plan.conversionLimit : "Unlimited"
+        } PDF conversions per month`,
       available: true,
       highlight: true,
       icon: "📄",
@@ -173,45 +163,40 @@ const BillingPage = () => {
 
     // All tool features - always show them
     features.push({
-      text: `${
-        plan.editToolsLimit > 0 ? plan.editToolsLimit : "Unlimited"
-      } Edit tools usage`,
+      text: `${plan.editToolsLimit > 0 ? plan.editToolsLimit : "Unlimited"
+        } Edit tools usage`,
       available: true,
       highlight: true,
       icon: "📝",
     });
 
     features.push({
-      text: `${
-        plan.organizeToolsLimit > 0 ? plan.organizeToolsLimit : "Unlimited"
-      } Organize tools usage`,
+      text: `${plan.organizeToolsLimit > 0 ? plan.organizeToolsLimit : "Unlimited"
+        } Organize tools usage`,
       available: true,
       highlight: true,
       icon: "📑",
     });
 
     features.push({
-      text: `${
-        plan.securityToolsLimit > 0 ? plan.securityToolsLimit : "Unlimited"
-      } Security tools usage`,
+      text: `${plan.securityToolsLimit > 0 ? plan.securityToolsLimit : "Unlimited"
+        } Security tools usage`,
       available: true,
       highlight: true,
       icon: "🔒",
     });
 
     features.push({
-      text: `${
-        plan.optimizeToolsLimit > 0 ? plan.optimizeToolsLimit : "Unlimited"
-      } Optimize tools usage`,
+      text: `${plan.optimizeToolsLimit > 0 ? plan.optimizeToolsLimit : "Unlimited"
+        } Optimize tools usage`,
       available: true,
       highlight: true,
       icon: "⚡",
     });
 
     features.push({
-      text: `${
-        plan.advancedToolsLimit > 0 ? plan.advancedToolsLimit : "Unlimited"
-      } Advanced tools usage`,
+      text: `${plan.advancedToolsLimit > 0 ? plan.advancedToolsLimit : "Unlimited"
+        } Advanced tools usage`,
       available: plan.advancedToolsLimit >= 0,
       highlight: true,
       icon: "🚀",
@@ -219,18 +204,16 @@ const BillingPage = () => {
 
     // File size and storage
     features.push({
-      text: `${
-        plan.maxFileSize > 0 ? `${plan.maxFileSize}MB` : "No"
-      } file size limits`,
+      text: `${plan.maxFileSize > 0 ? `${plan.maxFileSize}MB` : "No"
+        } file size limits`,
       available: true,
       highlight: false,
       icon: "💾",
     });
 
     features.push({
-      text: `${
-        plan.storage > 0 ? `${plan.storage}GB` : "Unlimited"
-      } cloud storage`,
+      text: `${plan.storage > 0 ? `${plan.storage}GB` : "Unlimited"
+        } cloud storage`,
       available: true,
       highlight: false,
       icon: "☁️",
@@ -479,7 +462,7 @@ const BillingPage = () => {
 
     // Find the plan by ID
     const plan = pricingPlans.find(p => p.id === planId || p.planId === planId);
-    
+
     // Check if it's a free plan
     if (plan && isFreePlan(plan)) {
       updateUserPlanToFree(planId);
@@ -611,9 +594,8 @@ const BillingPage = () => {
             {/* Billing Toggle */}
             <div className="flex items-center gap-4 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full border">
               <span
-                className={`font-semibold ${
-                  billingCycle === "monthly" ? "text-gray-900" : "text-gray-500"
-                }`}
+                className={`font-semibold ${billingCycle === "monthly" ? "text-gray-900" : "text-gray-500"
+                  }`}
               >
                 Monthly
               </span>
@@ -631,9 +613,8 @@ const BillingPage = () => {
                 <div className="w-12 h-6 bg-blue-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
               </label>
               <span
-                className={`font-semibold flex items-center gap-2 ${
-                  billingCycle === "annual" ? "text-gray-900" : "text-gray-500"
-                }`}
+                className={`font-semibold flex items-center gap-2 ${billingCycle === "annual" ? "text-gray-900" : "text-gray-500"
+                  }`}
               >
                 Annual
                 <span className="bg-green-500 text-white px-2 py-1 rounded-full text-xs">
@@ -642,50 +623,15 @@ const BillingPage = () => {
               </span>
             </div>
 
-            {/* Currency Toggle */}
-            <div className="flex items-center gap-4 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full border">
-              <Globe className="h-4 w-4 text-gray-600" />
-              <span
-                className={`font-semibold ${
-                  currency === "USD" ? "text-gray-900" : "text-gray-500"
-                }`}
-              >
-                USD
-              </span>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="sr-only peer"
-                  checked={currency === "INR"}
-                  onChange={() =>
-                    setCurrency(currency === "INR" ? "USD" : "INR")
-                  }
-                />
-                <div className="w-12 h-6 bg-blue-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-              </label>
-              <span
-                className={`font-semibold ${
-                  currency === "INR" ? "text-gray-900" : "text-gray-500"
-                }`}
-              >
-                INR
-              </span>
-            </div>
           </div>
 
           {/* Exchange Rate Notice */}
           <div className="mt-4">
             <p className="text-sm text-gray-600">
-              {currency === "INR" ? (
-                <>
-                  Exchange rate: 1 USD ≈ ₹{exchangeRate}. Prices in INR include
-                  all applicable taxes.
-                </>
-              ) : (
-                <>
-                  All prices in USD. Switch to INR for local currency pricing.
-                </>
-              )}
+              <>
+                Exchange rate: 1 USD ≈ ₹{exchangeRate}. Prices in INR include
+                all applicable taxes.
+              </>
             </p>
           </div>
         </motion.div>
@@ -706,11 +652,10 @@ const BillingPage = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
-                className={`glass-effect rounded-2xl p-6 flex flex-col hover-lift relative ${
-                  plan.popular
-                    ? "ring-2 ring-purple-500 shadow-lg scale-105"
-                    : ""
-                } ${freePlan ? "border-2 border-green-200" : ""}`}
+                className={`glass-effect rounded-2xl p-6 flex flex-col hover-lift relative ${plan.popular
+                  ? "ring-2 ring-purple-500 shadow-lg scale-105"
+                  : ""
+                  } ${freePlan ? "border-2 border-green-200" : ""}`}
               >
                 {plan.popular && (
                   <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
@@ -815,33 +760,30 @@ const BillingPage = () => {
                   </button>
 
                   <div
-                    className={`space-y-3 transition-all duration-300 ${
-                      isExpanded
-                        ? "max-h-[500px] opacity-100"
-                        : "max-h-0 opacity-0 overflow-hidden"
-                    }`}
+                    className={`space-y-3 transition-all duration-300 ${isExpanded
+                      ? "max-h-[500px] opacity-100"
+                      : "max-h-0 opacity-0 overflow-hidden"
+                      }`}
                   >
                     {detailedFeatures.map((feature, i) => (
                       <li key={i} className="flex items-start gap-3 list-none">
                         {feature.available ? (
                           <Check
-                            className={`h-4 w-4 flex-shrink-0 mt-0.5 ${
-                              feature.highlight
-                                ? "text-green-600"
-                                : "text-gray-400"
-                            }`}
+                            className={`h-4 w-4 flex-shrink-0 mt-0.5 ${feature.highlight
+                              ? "text-green-600"
+                              : "text-gray-400"
+                              }`}
                           />
                         ) : (
                           <X className="h-4 w-4 flex-shrink-0 mt-0.5 text-red-400" />
                         )}
                         <span
-                          className={`text-xs flex items-center gap-2 ${
-                            feature.available
-                              ? feature.highlight
-                                ? "text-gray-800 font-medium"
-                                : "text-gray-600"
-                              : "text-gray-400 line-through"
-                          }`}
+                          className={`text-xs flex items-center gap-2 ${feature.available
+                            ? feature.highlight
+                              ? "text-gray-800 font-medium"
+                              : "text-gray-600"
+                            : "text-gray-400 line-through"
+                            }`}
                         >
                           <span className="text-sm">{feature.icon}</span>
                           {feature.text}
@@ -856,23 +798,21 @@ const BillingPage = () => {
                       <li key={i} className="flex items-start gap-3">
                         {feature.available ? (
                           <Check
-                            className={`h-4 w-4 flex-shrink-0 mt-0.5 ${
-                              feature.highlight
-                                ? "text-green-600"
-                                : "text-gray-400"
-                            }`}
+                            className={`h-4 w-4 flex-shrink-0 mt-0.5 ${feature.highlight
+                              ? "text-green-600"
+                              : "text-gray-400"
+                              }`}
                           />
                         ) : (
                           <X className="h-4 w-4 flex-shrink-0 mt-0.5 text-red-400" />
                         )}
                         <span
-                          className={`text-xs flex items-center gap-2 ${
-                            feature.available
-                              ? feature.highlight
-                                ? "text-gray-800 font-medium"
-                                : "text-gray-600"
-                              : "text-gray-400 line-through"
-                          }`}
+                          className={`text-xs flex items-center gap-2 ${feature.available
+                            ? feature.highlight
+                              ? "text-gray-800 font-medium"
+                              : "text-gray-600"
+                            : "text-gray-400 line-through"
+                            }`}
                         >
                           <span className="text-sm">{feature.icon}</span>
                           {feature.text}
@@ -893,11 +833,10 @@ const BillingPage = () => {
                   <Button
                     onClick={() => handleUpgrade(plan.id)}
                     disabled={currentPlan}
-                    className={`w-full mt-4 ${
-                      currentPlan
-                        ? "bg-gray-300 cursor-not-allowed"
-                        : `bg-gradient-to-r ${plan.color} hover:opacity-90`
-                    }`}
+                    className={`w-full mt-4 ${currentPlan
+                      ? "bg-gray-300 cursor-not-allowed"
+                      : `bg-gradient-to-r ${plan.color} hover:opacity-90`
+                      }`}
                   >
                     {currentPlan ? "Current Plan" : plan.ctaText || "Get Started"}
                   </Button>
@@ -909,8 +848,8 @@ const BillingPage = () => {
                       {billingCycle === "annual"
                         ? currency === "INR"
                           ? `Equivalent to ${formatPrice(
-                              (plan.usdPrice || plan.price || 0) / 12
-                            )}/month`
+                            (plan.usdPrice || plan.price || 0) / 12
+                          )}/month`
                           : `Equivalent to $${((plan.usdPrice || plan.price || 0) / 12).toFixed(2)}/month`
                         : "Cancel anytime"}
                     </p>
@@ -954,9 +893,8 @@ const BillingPage = () => {
               {featureComparison.map((item, index) => (
                 <div
                   key={index}
-                  className={`grid grid-cols-5 ${
-                    index % 2 === 0 ? "bg-gray-50" : "bg-white"
-                  }`}
+                  className={`grid grid-cols-5 ${index % 2 === 0 ? "bg-gray-50" : "bg-white"
+                    }`}
                 >
                   <div className="p-3 font-medium text-gray-900 border-r text-sm">
                     {item.feature}
@@ -1030,13 +968,12 @@ const BillingPage = () => {
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-3">
                   <div
-                    className={`h-3 rounded-full ${
-                      percentage >= 90
-                        ? "bg-red-500"
-                        : percentage >= 75
+                    className={`h-3 rounded-full ${percentage >= 90
+                      ? "bg-red-500"
+                      : percentage >= 75
                         ? "bg-yellow-500"
                         : "bg-green-500"
-                    }`}
+                      }`}
                     style={{ width: `${Math.min(percentage, 100)}%` }}
                   ></div>
                 </div>
@@ -1044,8 +981,8 @@ const BillingPage = () => {
                   {percentage >= 90
                     ? "You've reached your limit. Upgrade to continue converting."
                     : percentage >= 75
-                    ? "You're approaching your limit. Consider upgrading for more conversions."
-                    : `You're on the ${planName} plan.`}
+                      ? "You're approaching your limit. Consider upgrading for more conversions."
+                      : `You're on the ${planName} plan.`}
                 </p>
               </div>
             </div>
@@ -1076,9 +1013,8 @@ const BillingPage = () => {
                     {faq.question}
                   </h3>
                   <span
-                    className={`transform transition-transform ${
-                      expandedFaq === index ? "rotate-180" : ""
-                    }`}
+                    className={`transform transition-transform ${expandedFaq === index ? "rotate-180" : ""
+                      }`}
                   >
                     <svg
                       width="18"
@@ -1148,11 +1084,11 @@ const BillingPage = () => {
                   return;
                 }
                 // Find a professional plan or the second paid plan
-                const professionalPlan = pricingPlans.find(p => 
-                  p.planId?.toLowerCase().includes('professional') || 
+                const professionalPlan = pricingPlans.find(p =>
+                  p.planId?.toLowerCase().includes('professional') ||
                   p.name?.toLowerCase().includes('professional')
                 ) || pricingPlans[2];
-                
+
                 if (professionalPlan) {
                   navigate(`/checkout/${professionalPlan.id}`);
                 }
@@ -1167,7 +1103,7 @@ const BillingPage = () => {
             free trial on paid plans • No commitment
           </p>
         </motion.div>
-        
+
         {/* Top-up CTA Section */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
