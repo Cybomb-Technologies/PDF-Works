@@ -167,8 +167,8 @@ const OCR = () => {
       description: "Extract text from PDF documents",
       icon: FileText,
       color: "from-purple-500 to-pink-500",
-      active: false,
-      comingSoon: true,
+      active: true,
+      comingSoon: false,
     },
     {
       id: "multi-language",
@@ -176,7 +176,7 @@ const OCR = () => {
       description: "Support for 100+ languages",
       icon: Languages,
       color: "from-blue-500 to-cyan-500",
-      active: true, // Now Active
+      active: true, 
       comingSoon: false,
     },
     {
@@ -305,13 +305,13 @@ const OCR = () => {
       }
 
       // Allow Image AND PDF
-      if (!file.type.startsWith("image/")) {
-        setError("Please upload a valid image (PNG, JPG)");
+      if (!file.type.startsWith("image/") && file.type !== "application/pdf") {
+        setError("Please upload a valid image or PDF file");
         if (showNotification) {
           showNotification({
             type: "error",
             title: "Invalid File Type",
-            message: "Please upload a valid image file",
+            message: "Please upload a valid image or PDF file",
             duration: 5000,
           });
         }
@@ -669,9 +669,9 @@ const OCR = () => {
           </motion.div> */}
         </div>
 
-        {/* --- Tool Modal (for Image OCR & Multi-language & Batch & Handwriting) --- */}
+        {/* --- Tool Modal (for Image OCR & Multi-language & Batch & Handwriting & PDF) --- */}
         <AnimatePresence>
-          {showToolModal && (activeTool === "image-ocr" || activeTool === "multi-language" || activeTool === "batch-ocr" || activeTool === "handwriting") && (
+          {showToolModal && (activeTool === "image-ocr" || activeTool === "multi-language" || activeTool === "batch-ocr" || activeTool === "handwriting" || activeTool === "pdf-ocr") && (
             <motion.div
               className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
               initial={{ opacity: 0 }}
@@ -709,7 +709,9 @@ const OCR = () => {
                             ? "Process multiple images in one go"
                             : activeTool === "handwriting"
                               ? "High-accuracy handwriting recognition"
-                              : "Upload an image to extract text using Optical Character Recognition"}
+                              : activeTool === "pdf-ocr"
+                                ? "Extract text from PDF documents"
+                                : "Upload an image to extract text using Optical Character Recognition"}
                       </p>
                       {!isLoggedIn && (
                         <p className="text-xs text-red-500 mt-1">
@@ -721,7 +723,7 @@ const OCR = () => {
 
                   <div className="flex items-center gap-3">
                     {/* Language Selector */}
-                    {isLoggedIn && (
+                    {isLoggedIn && activeTool !== 'pdf-ocr' && activeTool !== 'handwriting' && (
                       <div className="relative">
                         <button
                           onClick={() => setShowLanguageDropdown(!showLanguageDropdown)}
@@ -929,11 +931,19 @@ const OCR = () => {
                           Original Image
                         </h4>
                         <div className="flex justify-center">
-                          <img
-                            src={image}
-                            alt="Original for OCR"
-                            className="max-w-full max-h-96 object-contain border border-gray-200 rounded"
-                          />
+                          {uploadedFile?.type === 'application/pdf' ? (
+                            <div className="text-center p-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+                              <FileText className="h-16 w-16 text-red-500 mx-auto mb-2" />
+                              <p className="text-sm font-medium text-gray-700">{uploadedFile.name}</p>
+                              <p className="text-xs text-gray-500">PDF Document</p>
+                            </div>
+                          ) : (
+                            <img
+                              src={image}
+                              alt="Original for OCR"
+                              className="max-w-full max-h-96 object-contain border border-gray-200 rounded"
+                            />
+                          )}
                         </div>
                       </div>
                     )}
@@ -1036,7 +1046,7 @@ const OCR = () => {
                           }`}
                       >
                         {isLoggedIn
-                          ? "PNG, JPG, WebP files with text"
+                          ? "PNG, JPG, WebP, PDF files with text"
                           : "Authentication required"}
                       </p>
                       <input
@@ -1046,7 +1056,7 @@ const OCR = () => {
                         ref={fileInputRef}
                         onChange={handleImageUpload}
                         className="hidden"
-                        accept="image/*"
+                        accept="image/*,application/pdf"
                         disabled={!isLoggedIn}
                       />
                     </label>
@@ -1082,11 +1092,18 @@ const OCR = () => {
                         <div className="mb-6">
                           <h3 className="font-medium mb-2 text-sm">Image Preview</h3>
                           <div className="border border-gray-300 rounded-lg p-4 bg-white">
-                            <img
-                              src={image}
-                              alt="Uploaded for OCR"
-                              className="max-w-full max-h-64 object-contain mx-auto"
-                            />
+                            {uploadedFile?.type === 'application/pdf' ? (
+                              <div className="text-center py-8">
+                                <FileText className="h-12 w-12 text-red-500 mx-auto mb-2" />
+                                <p className="text-sm font-medium">{uploadedFile.name}</p>
+                              </div>
+                            ) : (
+                              <img
+                                src={image}
+                                alt="Uploaded for OCR"
+                                className="max-w-full max-h-64 object-contain mx-auto"
+                              />
+                            )}
                           </div>
                           <p className="text-xs text-muted-foreground mt-2 text-center">
                             Ready for text extraction

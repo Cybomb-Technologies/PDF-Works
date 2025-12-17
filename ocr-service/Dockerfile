@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y \
     libgl1 \
     libgomp1 \
     libglib2.0-0 \
+    poppler-utils \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
