@@ -4,6 +4,8 @@ import numpy as np
 import cv2
 import uvicorn
 import logging
+from pdf2image import convert_from_bytes
+from io import BytesIO
 
 # Initialize Logging
 logging.basicConfig(level=logging.INFO)
@@ -30,67 +32,92 @@ async def extract_text(file: UploadFile = File(...)):
     try:
         logger.info(f"Processing file: {file.filename}")
         
-        # Read image file
         contents = await file.read()
-        nparr = np.frombuffer(contents, np.uint8)
-        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        images = []
+        
+        # Check if PDF
+        if file.filename.lower().endswith('.pdf'):
+            logger.info("Detected PDF file. Converting to images...")
+            try:
+                # Convert PDF bytes to PIL images
+                pil_images = convert_from_bytes(contents)
+                for pil_img in pil_images:
+                    # Convert PIL RGB to OpenCV BGR
+                    open_cv_image = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
+                    images.append(open_cv_image)
+                logger.info(f"Converted PDF to {len(images)} images.")
+            except Exception as pdf_error:
+                return {"success": False, "error": f"PDF Conversion Error: {str(pdf_error)}"}
+        else:
+            # Assume Image
+            nparr = np.frombuffer(contents, np.uint8)
+            img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            if img is None:
+                return {"success": False, "error": "Invalid image data"}
+            images.append(img)
 
-        if img is None:
-            return {"success": False, "error": "Invalid image data"}
+        full_extracted_text = []
+        total_confidence = 0
+        total_lines = 0
 
-        # Perform OCR
+        # Process each image (page)
         print("Starting OCR inference...", flush=True)
-        result = ocr.ocr(img)
-        print(f"OCR Result type: {type(result)}", flush=True)
-        print(f"OCR Result: {result}", flush=True)
-
-        extracted_text = ""
-        confidence_sum = 0
-        count = 0
-
-        # Parse results
-        if result:
-            logger.info("Parsing Result...")
+        
+        for i, img in enumerate(images):
+            # Perform OCR
+            result = ocr.ocr(img)
+            
+            page_text = ""
+            page_conf_sum = 0
+            page_lines_count = 0
             lines = []
-            
-            # Check if result is a list of lists (Standard) or a list of dicts (New/Structure)
-            first_item = result[0]
-            
-            if isinstance(first_item, dict):
-                logger.info("Parsing dictionary result format...")
-                # Extract text and confidence from dictionary keys found in logs
-                # Keys: rec_texts, rec_scores, rec_boxes, etc.
-                if 'rec_texts' in first_item:
+
+            # Parse results
+            if result:
+                # Handle PaddleOCR result format (list of lists or list of dicts)
+                first_item = result[0]
+                
+                if isinstance(first_item, dict) and 'rec_texts' in first_item:
+                     # Structured result
                     rec_texts = first_item['rec_texts']
                     rec_scores = first_item.get('rec_scores', [])
-                    
                     if isinstance(rec_texts, list):
-                        lines = rec_texts
-                        count = len(lines)
-                        if count > 0 and len(rec_scores) == count:
-                            confidence_sum = sum(rec_scores)
+                         lines = rec_texts
+                         page_lines_count = len(lines)
+                         if page_lines_count > 0 and len(rec_scores) == page_lines_count:
+                             page_conf_sum = sum(rec_scores)
+                             
+                elif isinstance(first_item, list):
+                    # Standard [[box, (text, conf)], ...] format
+                    # Sometimes result[0] is None if no text found
+                    if first_item is None:
+                        continue
+
+                    for line in first_item:
+                        if line and len(line) > 1:
+                            text_info = line[1]
+                            if text_info and len(text_info) > 1:
+                                text = text_info[0]
+                                conf = text_info[1]
+                                lines.append(text)
+                                page_conf_sum += conf
+                                page_lines_count += 1
             
-            elif isinstance(first_item, list):
-                # Standard [[box, (text, conf)], ...] format
-                for line in result[0]:
-                    if line and len(line) > 1:
-                        text_info = line[1]
-                        if text_info and len(text_info) > 1:
-                            text = text_info[0]
-                            conf = text_info[1]
-                            lines.append(text)
-                            confidence_sum += conf
-                            count += 1
-            
-            extracted_text = "\n".join(lines)
-        
-        avg_confidence = (confidence_sum / count) if count > 0 else 0
+            page_text = "\n".join(lines)
+            full_extracted_text.append(page_text)
+            total_confidence += page_conf_sum
+            total_lines += page_lines_count
+
+        # Combine text from all pages
+        final_text = "\n\n".join(filter(None, full_extracted_text)) # Separate pages by double newline
+        avg_confidence = (total_confidence / total_lines) if total_lines > 0 else 0
 
         return {
             "success": True,
-            "text": extracted_text,
+            "text": final_text,
             "confidence": avg_confidence,
-            "lines": count
+            "lines": total_lines,
+            "pages": len(images)
         }
 
     except Exception as e:

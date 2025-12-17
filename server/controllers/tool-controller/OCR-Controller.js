@@ -4,6 +4,8 @@ const fs = require("fs").promises;
 const { createWorker } = require("tesseract.js");
 const sharp = require("sharp");
 const OCR = require("../../models/tools-models/OCR/OCR");
+const axios = require('axios');
+const FormData = require('form-data');
 
 class OCRController {
   constructor() {
@@ -19,7 +21,7 @@ class OCRController {
   // Save OCR text as a file and record
   async saveOCRFile(fileBuffer, originalFilename, text, userId, metadata = {}) {
     try {
-      const uploadsDir = path.join(__dirname, '../../../uploads/ocr');
+      const uploadsDir = path.join(__dirname, '../../uploads/ocr');
       await fs.mkdir(uploadsDir, { recursive: true });
 
       const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
@@ -237,6 +239,102 @@ class OCRController {
       });
       let fullText = "";
       let avgConfidence = 0;
+
+      // --- PDF PROCESSING (Route to Python Service) ---
+      if (req.file.mimetype === 'application/pdf' || req.file.originalname.toLowerCase().endsWith('.pdf')) {
+        try {
+          const ocrServiceUrl = process.env.OCR_SERVICE_URL || "http://localhost:8000";
+          const form = new FormData();
+          form.append('file', req.file.buffer, req.file.originalname);
+
+          // console.log("Routing PDF to OCR Service:", ocrServiceUrl);
+
+          const ocrResponse = await axios.post(`${ocrServiceUrl}/ocr`, form, {
+            headers: { ...form.getHeaders() },
+            maxContentLength: Infinity,
+            maxBodyLength: Infinity
+          });
+
+          if (!ocrResponse.data || !ocrResponse.data.success) {
+            throw new Error(ocrResponse.data?.error || "PDF OCR failed in service.");
+          }
+
+          fullText = ocrResponse.data.text;
+          avgConfidence = ocrResponse.data.confidence;
+
+          // Save Result
+          let ocrRecord = null;
+          let savedFile = null;
+
+          if (userId && fullText) {
+            try {
+              ocrRecord = await this.saveOCRFile(
+                req.file.buffer,
+                req.file.originalname,
+                fullText,
+                userId,
+                {
+                  originalSize: req.file.size,
+                  confidence: avgConfidence,
+                  language: language,
+                  processedAt: new Date().toISOString(),
+                  isPdf: true,
+                  pageCount: ocrResponse.data.pages || 1
+                }
+              );
+
+              // Increment usage
+              try {
+                let incrementUsage;
+                try {
+                  const usageLimits = require('../../../utils/checkLimits');
+                  incrementUsage = usageLimits.incrementUsage;
+                } catch (e) {
+                  const usageLimits = require('../../utils/checkLimits');
+                  incrementUsage = usageLimits.incrementUsage;
+                }
+                await incrementUsage(userId, 'ocr');
+              } catch (e) { console.warn("Could not increment usage"); }
+
+            } catch (e) { console.error("Failed to save OCR file", e); }
+          }
+
+          // Get saved file record
+          if (ocrRecord?.outputPath) {
+            try {
+              const File = require("../../models/FileModel");
+              savedFile = await File.findOne({ path: ocrRecord.outputPath });
+            } catch (error) { console.warn("Could not fetch saved file record:", error.message); }
+          }
+
+          return res.json({
+            success: true,
+            text: fullText || "",
+            confidence: avgConfidence || 0,
+            textLength: fullText?.length || 0,
+            message: "PDF text extracted successfully",
+            ocrId: ocrRecord?._id,
+            fileId: savedFile?._id,
+            language: language,
+            downloadUrl: ocrRecord?.downloadUrl,
+            previewUrl: ocrRecord?.processedFilename ? `/api/tools/ocr/preview/${ocrRecord.processedFilename}` : null,
+            fileInfo: {
+              filename: ocrRecord?.processedFilename,
+              size: ocrRecord?.fileSize,
+              path: ocrRecord?.outputPath
+            }
+          });
+
+        } catch (serviceError) {
+          console.error("PDF Processing Error:", serviceError.message);
+          // Fallback or Error
+          await worker.terminate(); // Terminate unused worker
+          return res.status(500).json({
+            success: false,
+            error: "PDF OCR Service Failed: " + (serviceError.response?.data?.error || serviceError.message)
+          });
+        }
+      }
 
       try {
         // --- IMAGE PROCESSING ONLY ---
@@ -512,8 +610,8 @@ class OCRController {
       const ocrServiceUrl = process.env.OCR_SERVICE_URL || "http://localhost:8000";
 
       // Send to Python Service
-      const axios = require('axios');
-      const FormData = require('form-data');
+      // const axios = require('axios'); // Moved to top
+      // const FormData = require('form-data'); // Moved to top
 
       const form = new FormData();
       form.append('file', req.file.buffer, req.file.originalname);
